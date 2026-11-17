@@ -40,7 +40,7 @@ async function ConProveedor({ codigo, facturas, hoy }: { codigo: string; factura
       {facturas.length === 0 ? (
         <p className="rounded-md border bg-card p-6 text-sm text-muted-foreground">No tiene facturas aprobadas libres para una OP.</p>
       ) : (
-        <ArmarOP proveedor={{ codigo: p.codigo, razon_social: p.razon_social, cuit: p.cuit, cbu_alias: p.cbu_alias }}
+        <ArmarOP proveedor={{ codigo: p.codigo, razon_social: p.razon_social, cuit: p.cuit, cbu: p.cbu, alias: p.alias, banco: p.banco, cuenta_titular: p.cuenta_titular }}
           faltan={faltantesProveedor(p)} facturas={facturas} hoy={hoy} />
       )}
     </>

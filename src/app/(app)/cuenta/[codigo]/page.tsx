@@ -9,6 +9,7 @@ import { DescargarExtracto } from "@/components/cuenta/DescargarExtracto";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import { armarExtracto } from "@/lib/cuenta/calculos";
+import { armarTextoCuenta } from "@/lib/proveedores/cuenta";
 import { hoyArgentina, listarAbiertos, listarMovimientos } from "@/lib/cuenta/queries";
 
 export const dynamic = "force-dynamic";
@@ -23,13 +24,14 @@ export default async function CuentaProveedorPage({ params }: { params: Promise<
   const { codigo } = await params;
   const hoy = hoyArgentina();
   const [proveedor, abiertos, movimientos] = await Promise.all([
-    prisma.proveedor.findUnique({ where: { codigo }, select: { codigo: true, razon_social: true, cuit: true, cbu_alias: true } }),
+    prisma.proveedor.findUnique({ where: { codigo }, select: { codigo: true, razon_social: true, cuit: true, cbu: true, alias: true, banco: true, cuenta_titular: true } }),
     listarAbiertos(codigo),
     listarMovimientos(codigo),
   ]);
   if (!proveedor) notFound();
 
   const extracto = armarExtracto(movimientos);
+  const cuentaTexto = armarTextoCuenta({ cbu: proveedor.cbu, alias: proveedor.alias, banco: proveedor.banco, titular: proveedor.cuenta_titular });
   const porPagar = abiertos.filter((a) => Number(a.deuda) > 0);
   const deuda = porPagar.reduce((t, a) => t.plus(a.deuda), new Decimal(0));
   const enOp = abiertos.reduce((t, a) => t.plus(a.en_op), new Decimal(0));
@@ -52,7 +54,7 @@ export default async function CuentaProveedorPage({ params }: { params: Promise<
         <div>
           <h1 className="text-xl font-semibold text-primary">{proveedor.razon_social}</h1>
           <p className="text-sm text-muted-foreground">
-            {proveedor.codigo}{proveedor.cuit ? ` · CUIT ${proveedor.cuit}` : ""}{proveedor.cbu_alias ? ` · ${proveedor.cbu_alias}` : ""}
+            {proveedor.codigo}{proveedor.cuit ? ` · CUIT ${proveedor.cuit}` : ""}{cuentaTexto ? ` · ${cuentaTexto}` : ""}
           </p>
         </div>
         <div className="flex gap-2">

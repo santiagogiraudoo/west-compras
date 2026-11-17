@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { FilePlus } from "lucide-react";
@@ -12,7 +13,7 @@ import { validarSeleccionOP, type Abierto } from "@/lib/cuenta/calculos";
 import { reservarOP } from "../actions";
 
 interface Props {
-  proveedor: { codigo: string; razon_social: string; cuit: string | null; cbu_alias: string | null };
+  proveedor: { codigo: string; razon_social: string; cuit: string | null; cbu: string | null; alias: string | null; banco: string | null; cuenta_titular: string | null };
   /** Lo que le falta al alta: con algo acá no se puede pagar. */
   faltan: string[];
   facturas: Abierto[];
@@ -87,10 +88,14 @@ export function ArmarOP({ proveedor, faltan, facturas, hoy }: Props) {
         </div>
         <Dato label="Paga" v={titular ?? "—"} />
         <Dato label="A" v={`${proveedor.razon_social}${proveedor.cuit ? ` · CUIT ${proveedor.cuit}` : ""}`} />
-        <Dato label="CBU / alias" v={proveedor.cbu_alias ?? "—"} />
+        <Dato label="CBU / CVU" v={proveedor.cbu ?? "—"} />
+        <Dato label="Alias" v={proveedor.alias ?? "—"} />
+        <Dato label="Banco" v={proveedor.banco ?? "—"} />
+        <Dato label="Titular de la cuenta" v={proveedor.cuenta_titular ?? "—"} />
         {faltan.length > 0 && (
           <p className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-800">
-            Antes de pagar completá el alta del proveedor: falta {faltan.join(", ")}.
+            Antes de pagar completá el alta del proveedor: falta {faltan.join(", ")}.{" "}
+            <Link href={`/proveedores/${proveedor.codigo}`} className="underline">Completar el alta</Link>
           </p>
         )}
         {elegidas.length > 0 && errores.length > 0 && (
