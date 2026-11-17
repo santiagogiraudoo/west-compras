@@ -97,6 +97,7 @@ export default async function FichaFacturaPage({ params }: { params: Promise<{ i
 
         <FichaForm
           id={String(c.id)}
+          proveedorCodigo={c.proveedor_codigo}
           inicial={{ unidad: c.unidad_codigo ?? "", rubro: c.rubro ?? "", facturadoA: c.facturado_a ?? "" }}
           listas={listas}
           requisitos={requisitos}

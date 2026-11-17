@@ -13,6 +13,7 @@ import { guardarYAprobar } from "../actions";
 
 interface Props {
   id: string;
+  proveedorCodigo: string;
   inicial: { unidad: string; rubro: string; facturadoA: string };
   listas: { unidades: { value: string; label: string }[]; rubros: string[]; titulares: string[] };
   requisitos: Requisitos;
@@ -22,7 +23,7 @@ interface Props {
   totalNoCierra: boolean;
 }
 
-export function FichaForm({ id, inicial, listas, requisitos, aprobada, sinPdf, totalNoCierra }: Props) {
+export function FichaForm({ id, proveedorCodigo, inicial, listas, requisitos, aprobada, sinPdf, totalNoCierra }: Props) {
   const router = useRouter();
   const [unidad, setUnidad] = useState(inicial.unidad);
   const [rubro, setRubro] = useState(inicial.rubro);
@@ -98,6 +99,7 @@ export function FichaForm({ id, inicial, listas, requisitos, aprobada, sinPdf, t
         <div className="rounded-md bg-amber-50 p-3 text-amber-900">
           <p className="font-medium">No frena la factura, sí el pago:</p>
           <ul>{requisitos.avisos.map((a) => <li key={a}>• {a}</li>)}</ul>
+          <a href={`/proveedores/${proveedorCodigo}`} className="mt-1 inline-block underline">Completar el proveedor</a>
         </div>
       )}
 
