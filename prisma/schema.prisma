@@ -1,0 +1,131 @@
+// Prisma lee la base tal cual está (npm run db:pull). No se migra con Prisma:
+// `cc` es de la base de proveedores (plomero + funciones SQL) y `app` se arma con sql/*.sql.
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["cc", "app"]
+}
+
+// ── app: lo propio de esta app ──────────────────────────────────────────────
+
+model User {
+  id            Int      @id @default(autoincrement())
+  name          String
+  email         String   @unique
+  password_hash String
+  role          String   @default("consulta") // admin, operador, consulta
+  active        Boolean  @default(true)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("users")
+  @@schema("app")
+}
+
+// ── cc: base de proveedores (la escriben el plomero y las funciones cc.cargar_*) ──
+// Escrito a mano a partir de information_schema (17/11): `prisma db pull` no corre
+// en el entorno de Claude. Solo lo que usa la app; nombres de columnas sin tocar.
+
+model Unidad {
+  codigo String  @id
+  nombre String
+  activa Boolean @default(true)
+  marca  String  @default("West Desarrolladora")
+
+  @@map("unidades")
+  @@schema("cc")
+}
+
+model Proveedor {
+  codigo              String   @id
+  razon_social        String
+  cuit                String?
+  condicion_iva       String?
+  rubro               String?
+  condicion_pago      String?
+  plazo_dias          Int?
+  medio_pago_habitual String?
+  cbu_alias           String?
+  contacto            String?
+  email               String?
+  telefono            String?
+  observaciones       String?
+  tiene_cc            Boolean  @default(false)
+  activo              Boolean  @default(true)
+  carpeta_sharepoint  String?
+  creado_en           DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("proveedores")
+  @@schema("cc")
+}
+
+model Comprobante {
+  id                 BigInt    @id
+  proveedor_codigo   String
+  unidad_codigo      String?
+  facturado_a        String?
+  tipo               String
+  numero             String
+  fecha              DateTime  @db.Date
+  rubro              String?
+  descripcion        String?
+  neto               Decimal   @default(0) @db.Decimal
+  iva                Decimal   @default(0) @db.Decimal
+  percepciones       Decimal   @default(0) @db.Decimal
+  total              Decimal   @db.Decimal
+  estado_aprobacion  String?
+  aprobado_por       String?
+  aprobacion_detalle String?
+  plazo_dias         Int?
+  vencimiento        DateTime? @db.Date
+  archivo_link       String?
+  archivo_item_id    String?
+  retiro_por         String?
+  origen             String    @default("claude")
+  creado_en          DateTime  @default(now()) @db.Timestamptz(6)
+
+  items ComprobanteItem[]
+
+  @@map("comprobantes")
+  @@schema("cc")
+}
+
+model ComprobanteItem {
+  id              BigInt   @id @default(autoincrement())
+  comprobante_id  BigInt
+  orden           Int
+  descripcion     String
+  cantidad        Decimal? @db.Decimal
+  unidad_medida   String?
+  precio_unitario Decimal? @db.Decimal
+  subtotal        Decimal? @db.Decimal
+  para_que        String?
+  unidad_codigo   String?
+  rubro           String?
+
+  comprobante Comprobante @relation(fields: [comprobante_id], references: [id])
+
+  @@map("comprobante_items")
+  @@schema("cc")
+}
+
+model Remito {
+  id               BigInt    @id @default(autoincrement())
+  comprobante_id   BigInt?
+  proveedor_codigo String?
+  fecha            DateTime? @db.Date
+  numero           String?
+  retiro_por       String?
+  autorizo         String?
+  archivo_link     String?
+  estado           String    @default("ok")
+  importe          Decimal?  @db.Decimal
+  creado_en        DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@map("remitos")
+  @@schema("cc")
+}
