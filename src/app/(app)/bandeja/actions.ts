@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { obtenerFactura } from "@/lib/facturas/queries";
 import { requisitosFactura } from "@/lib/facturas/requisitos";
+import { CATEGORIAS } from "@/lib/facturas/categorias";
 
 export interface ResultadoAprobar {
   ok: boolean;
@@ -14,7 +15,7 @@ export interface ResultadoAprobar {
 interface Entrada {
   id: string;
   unidad: string;
-  rubro: string;
+  categoria: string;
   facturadoA: string;
   /** Obligatorio si la factura tiene excepciones (sin remito, sin factura). */
   motivo: string;
@@ -37,9 +38,12 @@ export async function guardarYAprobar(e: Entrada): Promise<ResultadoAprobar> {
   const { c, remitos } = datos;
 
   const req = requisitosFactura(
-    { ...c, unidad_codigo: e.unidad, rubro: e.rubro, facturado_a: e.facturadoA, tieneRemito: remitos.length > 0 || !!c.retiro_por },
+    { ...c, unidad_codigo: e.unidad, categoria: e.categoria, facturado_a: e.facturadoA, tieneRemito: remitos.length > 0 || !!c.retiro_por },
     datos.proveedor,
   );
+  if (e.categoria && !(CATEGORIAS as readonly string[]).includes(e.categoria)) {
+    return { ok: false, mensaje: "Esa categoría no está en la lista." };
+  }
   if (req.faltan.length > 0) return { ok: false, mensaje: req.faltan.join(" · ") };
   // Una ya aprobada solo se completa: no se re-aprueba ni cambia quién la aprobó.
   const yaAprobada = c.estado_aprobacion === "Aprobado";
@@ -59,7 +63,9 @@ export async function guardarYAprobar(e: Entrada): Promise<ResultadoAprobar> {
     "Proveedor (elegir)": c.proveedor_codigo,
     "N° comprobante": c.numero,
     "Unidad de negocio (elegir)": e.unidad,
-    Rubro: e.rubro,
+    // El rubro no se elige: sale del proveedor (03_definiciones). Si el proveedor no tiene, queda el que estaba.
+    Rubro: datos.proveedor?.rubro ?? c.rubro,
+    Categoria: e.categoria || null,
     "Facturado a (elegir)": e.facturadoA,
     ...(yaAprobada ? {} : { "Estado aprobacion": "Aprobado", "Aprobado por": aprobadoPor }),
   };

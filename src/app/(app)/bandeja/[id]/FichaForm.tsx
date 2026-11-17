@@ -9,13 +9,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Requisitos } from "@/lib/facturas/requisitos";
+import { categoriaSugerida } from "@/lib/facturas/categorias";
 import { guardarYAprobar } from "../actions";
 
 interface Props {
   id: string;
   proveedorCodigo: string;
-  inicial: { unidad: string; rubro: string; facturadoA: string };
-  listas: { unidades: { value: string; label: string }[]; rubros: string[]; titulares: string[] };
+  inicial: { unidad: string; categoria: string; facturadoA: string };
+  listas: { unidades: { value: string; label: string }[]; categorias: string[]; titulares: string[] };
+  /** Rubro del proveedor: no se elige, se muestra. */
+  rubroProveedor: string | null;
   requisitos: Requisitos;
   aprobada: boolean;
   /** Lo que no se arregla desde este formulario (lo resuelve el plomero o se corrige la carga). */
@@ -23,10 +26,12 @@ interface Props {
   totalNoCierra: boolean;
 }
 
-export function FichaForm({ id, proveedorCodigo, inicial, listas, requisitos, aprobada, sinPdf, totalNoCierra }: Props) {
+export function FichaForm({ id, proveedorCodigo, inicial, listas, rubroProveedor, requisitos, aprobada, sinPdf, totalNoCierra }: Props) {
   const router = useRouter();
   const [unidad, setUnidad] = useState(inicial.unidad);
-  const [rubro, setRubro] = useState(inicial.rubro);
+  // Mientras nadie la elija, la categoría es la sugerida para la unidad elegida (editable).
+  const [elegida, setElegida] = useState(inicial.categoria);
+  const categoria = elegida || (categoriaSugerida(unidad || null, rubroProveedor) ?? "");
   const [facturadoA, setFacturadoA] = useState(inicial.facturadoA);
   const [motivo, setMotivo] = useState("");
   const [pending, start] = useTransition();
@@ -35,19 +40,19 @@ export function FichaForm({ id, proveedorCodigo, inicial, listas, requisitos, ap
   const faltan = useMemo(() => {
     const f: string[] = [];
     if (!unidad) f.push("Falta la unidad de negocio");
-    if (!rubro) f.push("Falta el rubro");
+    if (!categoria && !aprobada) f.push("Falta la categoría");
     if (!facturadoA) f.push("Falta a nombre de quién está (titular)");
     if (sinPdf) f.push("Falta el PDF (lo vincula el plomero al subirlo a _Entrada facturas)");
     if (totalNoCierra) f.push("El total no cierra con neto + IVA + percepciones");
     return f;
-  }, [unidad, rubro, facturadoA, sinPdf, totalNoCierra]);
+  }, [unidad, categoria, facturadoA, aprobada, sinPdf, totalNoCierra]);
 
   const hayExcepcion = !aprobada && requisitos.excepciones.length > 0;
   const puede = faltan.length === 0 && (!hayExcepcion || motivo.trim().length >= 5);
 
   function aprobar() {
     start(async () => {
-      const r = await guardarYAprobar({ id, unidad, rubro, facturadoA, motivo });
+      const r = await guardarYAprobar({ id, unidad, categoria, facturadoA, motivo });
       if (r.ok) {
         toast.success(r.mensaje);
         router.push("/bandeja");
@@ -65,12 +70,16 @@ export function FichaForm({ id, proveedorCodigo, inicial, listas, requisitos, ap
           <SelectContent>{listas.unidades.map((u) => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}</SelectContent>
         </Select>
       </Campo>
-      <Campo label="Rubro">
-        <Select value={rubro} onValueChange={setRubro}>
-          <SelectTrigger className="w-full"><SelectValue placeholder="Elegí el rubro" /></SelectTrigger>
-          <SelectContent>{listas.rubros.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+      <Campo label="Categoría">
+        <Select value={categoria} onValueChange={setElegida}>
+          <SelectTrigger className="w-full"><SelectValue placeholder="Elegí la categoría" /></SelectTrigger>
+          <SelectContent>{listas.categorias.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
         </Select>
+        {!elegida && categoria && (
+          <p className="text-xs text-muted-foreground">Sugerida por la unidad: cambiala si no corresponde.</p>
+        )}
       </Campo>
+      <p className="text-xs text-muted-foreground">Rubro (sale del proveedor): {rubroProveedor ?? "sin rubro"}</p>
       <Campo label="A nombre de (titular)">
         <Select value={facturadoA} onValueChange={setFacturadoA}>
           <SelectTrigger className="w-full"><SelectValue placeholder="Elegí el titular" /></SelectTrigger>

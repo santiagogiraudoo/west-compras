@@ -2,6 +2,7 @@ import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
 import { MARCA, unidadesDeLaMarca } from "@/lib/marca";
 import { requisitosFactura, type Requisitos } from "./requisitos";
+import { CATEGORIAS } from "./categorias";
 
 /** Desde cuándo mira la bandeja: lo anterior es la carga histórica de la migración. */
 export const DESDE = new Date("2026-10-01");
@@ -26,7 +27,7 @@ export interface FilaBandeja {
 /**
  * La bandeja: solo lo que no pasó solo (Adriano 17/11).
  * - Pendientes: nadie las aprobó todavía.
- * - Aprobadas a las que les falta algo que frena (unidad, rubro, titular, PDF, total).
+ * - Aprobadas a las que les falta algo que frena (unidad, titular, PDF, total).
  * Las aprobadas sin remito de antes NO entran: ya se aprobaron como excepción.
  * Solo West Desarrolladora. Las que todavía no tienen unidad también entran: hasta
  * que se les asigne no se sabe de quién son, y "falta la unidad" las frena igual.
@@ -87,14 +88,13 @@ export async function obtenerFactura(id: bigint) {
 
 /** Listas cerradas de la base: lo que no está acá, la base lo rechaza. */
 export async function listasDeCarga() {
-  const [unidades, rubros, titulares] = await Promise.all([
+  const [unidades, titulares] = await Promise.all([
     prisma.unidad.findMany({ where: { activa: true, marca: MARCA }, orderBy: { codigo: "asc" } }),
-    prisma.$queryRaw<{ nombre: string }[]>`select nombre from cc.rubros where activo order by nombre`,
     prisma.$queryRaw<{ nombre: string }[]>`select nombre from cc.titulares where activo order by nombre`,
   ]);
   return {
     unidades: unidades.map((u) => ({ value: u.codigo, label: `${u.codigo} · ${u.nombre}` })),
-    rubros: rubros.map((r) => r.nombre),
+    categorias: [...CATEGORIAS] as string[],
     titulares: titulares.map((t) => t.nombre),
   };
 }

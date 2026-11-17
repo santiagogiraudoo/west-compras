@@ -19,7 +19,10 @@ const dec = (m: Monto) => new Decimal(m.toString());
 export interface DatosFactura {
   tipo: string;
   unidad_codigo: string | null;
-  rubro: string | null;
+  /** Categoría de gasto (lista única, sql/005). */
+  categoria: string | null;
+  /** Si ya está aprobada, lo que se pide para aprobar no la vuelve a abrir. */
+  estado_aprobacion?: string | null;
   facturado_a: string | null;
   archivo_link: string | null;
   // Prisma devuelve su propio Decimal: se pasa por texto para no mezclar instancias.
@@ -66,7 +69,9 @@ export function requisitosFactura(f: DatosFactura, p: DatosProveedor | null): Re
   const avisos: string[] = [];
 
   if (vacio(f.unidad_codigo)) faltan.push("Falta la unidad de negocio");
-  if (vacio(f.rubro)) faltan.push("Falta el rubro");
+  // La categoría se pide para aprobar (03_definiciones). Como el remito, no reabre las ya
+  // aprobadas: las de antes de la lista única no tienen categoría.
+  if (vacio(f.categoria) && f.estado_aprobacion !== "Aprobado") faltan.push("Falta la categoría");
   if (vacio(f.facturado_a)) faltan.push("Falta a nombre de quién está (titular)");
   if (f.tipo !== "Sin factura" && vacio(f.archivo_link)) faltan.push("Falta el PDF");
 
@@ -103,7 +108,7 @@ export function requisitosFactura(f: DatosFactura, p: DatosProveedor | null): Re
 /** Lo que le falta al alta de un proveedor (decisión 17/11: obligatorio antes de pagar). */
 export function faltantesProveedor(p: DatosProveedor): string[] {
   return requisitosFactura(
-    { tipo: "FA", unidad_codigo: "x", rubro: "x", facturado_a: "x", archivo_link: "x",
+    { tipo: "FA", unidad_codigo: "x", categoria: "x", facturado_a: "x", archivo_link: "x",
       neto: 0, iva: 0, percepciones: 0, total: 0, tieneRemito: true },
     p,
   ).avisos.map((a) => a.replace("Proveedor sin ", ""));

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { faltantesProveedor, requisitosFactura, type DatosFactura, type DatosProveedor } from "./requisitos";
 
 const completa: DatosFactura = {
-  tipo: "FA", unidad_codigo: "UN-03", rubro: "Corralón", facturado_a: "Giraudo Hernando Esteban",
+  tipo: "FA", unidad_codigo: "UN-03", categoria: "Obra", facturado_a: "Giraudo Hernando Esteban",
   archivo_link: "https://sharepoint/x.pdf", neto: "100000", iva: "21000", percepciones: "0",
   total: "121000", tieneRemito: true,
 };
@@ -16,10 +16,15 @@ describe("requisitosFactura", () => {
   });
 
   it("los datos que faltan frenan la aprobación", () => {
-    const r = requisitosFactura({ ...completa, unidad_codigo: null, rubro: " ", facturado_a: null, archivo_link: null }, proveedorOk);
+    const r = requisitosFactura({ ...completa, unidad_codigo: null, categoria: " ", facturado_a: null, archivo_link: null }, proveedorOk);
     expect(r.faltan).toEqual([
-      "Falta la unidad de negocio", "Falta el rubro", "Falta a nombre de quién está (titular)", "Falta el PDF",
+      "Falta la unidad de negocio", "Falta la categoría", "Falta a nombre de quién está (titular)", "Falta el PDF",
     ]);
+  });
+
+  it("la categoría frena la aprobación, pero no reabre una ya aprobada", () => {
+    expect(requisitosFactura({ ...completa, categoria: null }, proveedorOk).faltan).toEqual(["Falta la categoría"]);
+    expect(requisitosFactura({ ...completa, categoria: null, estado_aprobacion: "Aprobado" }, proveedorOk).faltan).toEqual([]);
   });
 
   it("el total que no cierra frena, pero tolera $1 de redondeo", () => {
