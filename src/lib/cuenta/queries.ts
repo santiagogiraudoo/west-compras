@@ -51,7 +51,9 @@ export async function listarMovimientos(proveedor: string): Promise<Movimiento[]
     from cc.comprobantes c join cc.unidades u on u.codigo = c.unidad_codigo and u.marca = ${MARCA}
     where c.proveedor_codigo = ${proveedor} and c.estado_aprobacion = 'Aprobado'
     union all
-    select coalesce(o.fecha_salida_caja, o.fecha_op)::text, 'Pago ' || o.numero, null,
+    select coalesce(o.fecha_salida_caja, o.fecha_op)::text,
+      -- Una OP que imputa 0 neto aplicó una nota de crédito a facturas: no salió plata.
+      case when sum(i.importe) = 0 then 'Compensación ' else 'Pago ' end || o.numero, null,
       (-sum(i.importe))::text, 'pago'
     from cc.ordenes_pago o
     join cc.imputaciones i on i.op_numero = o.numero

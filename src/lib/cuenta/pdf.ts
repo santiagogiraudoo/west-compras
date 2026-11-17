@@ -28,12 +28,14 @@ export function armarPdfExtracto({ proveedor, hoy, extracto, abiertos, resumen }
 
   const estilo = { styles: { fontSize: 8 }, headStyles: { fillColor: VERDE }, margin: { left: 14, right: 14 } };
   const derecha = { halign: "right" as const };
+  // columnStyles no alinea el encabezado: los títulos de montos van a la derecha a mano.
+  const der = (content: string) => ({ content, styles: derecha });
 
   if (abiertos.length) {
     autoTable(doc, {
       ...estilo,
       startY: 40,
-      head: [["Comprobante", "Unidad", "Fecha", "Vence", "Total", "Falta pagar", "En OP"]],
+      head: [["Comprobante", "Unidad", "Fecha", "Vence", der("Total"), der("Falta pagar"), "En OP"]],
       body: abiertos.map((a) => [`${a.tipo} ${a.numero}`, a.unidad_codigo ?? "", formatDate(a.fecha),
         formatDate(a.vencimiento), $(a.total), $(a.deuda), a.ops ?? ""]),
       columnStyles: { 4: derecha, 5: derecha },
@@ -44,7 +46,7 @@ export function armarPdfExtracto({ proveedor, hoy, extracto, abiertos, resumen }
   autoTable(doc, {
     ...estilo,
     startY: y + 8,
-    head: [["Fecha", "Concepto", "Unidad", "Debe", "Haber", "Saldo"]],
+    head: [["Fecha", "Concepto", "Unidad", der("Debe"), der("Haber"), der("Saldo")]],
     body: [
       ...extracto.lineas.map((l) => [formatDate(l.fecha), l.concepto, l.unidad ?? "",
         Number(l.debe) ? $(l.debe) : "", Number(l.haber) ? $(l.haber) : "", $(l.saldo)]),
