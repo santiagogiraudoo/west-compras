@@ -80,7 +80,7 @@ export async function reservarOP(proveedor: string, ids: string[]): Promise<Resu
     revalidatePath("/op");
     revalidatePath("/cuenta");
     revalidatePath("/");
-    return { ok: true, mensaje: `OP ${numero} reservada`, numero };
+    return { ok: true, mensaje: `${numero} reservada`, numero };
   } catch (e) {
     if (e instanceof Rechazo) return { ok: false, mensaje: `La base lo rechazó: ${e.message}` };
     throw e;
@@ -132,5 +132,5 @@ export async function anularOP(numero: string): Promise<ResultadoOP> {
   revalidatePath("/op");
   revalidatePath("/cuenta");
   revalidatePath("/");
-  return { ok: true, mensaje: `OP ${numero} anulada: sus facturas quedaron libres` };
+  return { ok: true, mensaje: `${numero} anulada: sus facturas quedaron libres` };
 }

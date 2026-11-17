@@ -52,7 +52,7 @@ export default async function CuentaProveedorPage({ params }: { params: Promise<
         <div>
           <h1 className="text-xl font-semibold text-primary">{proveedor.razon_social}</h1>
           <p className="text-sm text-muted-foreground">
-            {proveedor.codigo}{proveedor.cuit ? ` · CUIT ${proveedor.cuit}` : ""}{proveedor.cbu_alias ? ` · CBU ${proveedor.cbu_alias}` : ""}
+            {proveedor.codigo}{proveedor.cuit ? ` · CUIT ${proveedor.cuit}` : ""}{proveedor.cbu_alias ? ` · ${proveedor.cbu_alias}` : ""}
           </p>
         </div>
         <div className="flex gap-2">
@@ -74,12 +74,12 @@ export default async function CuentaProveedorPage({ params }: { params: Promise<
         ))}
       </div>
 
-      <section className="space-y-2">
+      <section className="space-y-2 overflow-x-auto">
         <h2 className="text-lg font-semibold text-primary">Facturas abiertas</h2>
         {abiertos.length === 0 ? (
           <p className="rounded-md border bg-card p-6 text-sm text-muted-foreground">No tiene facturas abiertas.</p>
         ) : (
-          <table className="w-full overflow-hidden rounded-md border bg-card text-sm">
+          <table className="w-full overflow-hidden rounded-md border bg-card text-sm [&_td]:whitespace-nowrap">
             <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
               <tr>
                 <th className="px-3 py-2">Comprobante</th><th className="px-3 py-2">Unidad</th><th className="px-3 py-2">Titular</th>
@@ -95,7 +95,7 @@ export default async function CuentaProveedorPage({ params }: { params: Promise<
                     <Link href={`/bandeja/${a.id}`} className="text-primary underline-offset-2 hover:underline">{a.tipo} {a.numero}</Link>
                   </td>
                   <td className="px-3 py-2">{a.unidad_codigo}</td>
-                  <td className="px-3 py-2">{a.facturado_a ?? "—"}</td>
+                  <td className="px-3 py-2 !whitespace-normal">{a.facturado_a ?? "—"}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{formatDate(a.fecha)}</td>
                   <td className={`px-3 py-2 whitespace-nowrap ${a.vencimiento && a.vencimiento < hoy && Number(a.deuda) > 0 ? "text-red-700" : ""}`}>
                     {formatDate(a.vencimiento)}
@@ -110,9 +110,9 @@ export default async function CuentaProveedorPage({ params }: { params: Promise<
         )}
       </section>
 
-      <section className="space-y-2">
+      <section className="space-y-2 overflow-x-auto">
         <h2 className="text-lg font-semibold text-primary">Extracto</h2>
-        <table className="w-full overflow-hidden rounded-md border bg-card text-sm">
+        <table className="w-full overflow-hidden rounded-md border bg-card text-sm [&_td]:whitespace-nowrap">
           <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Fecha</th><th className="px-3 py-2">Concepto</th><th className="px-3 py-2">Unidad</th>
