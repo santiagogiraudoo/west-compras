@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { MARCA } from "@/lib/marca";
 
 /** Una cosa para hacer: sale de cc.v_alertas o de cc.v_calidad, sin copiarla. */
 export interface Pendiente {
@@ -12,16 +13,26 @@ export interface Pendiente {
  * Lo que hay que hacer hoy. La fuente de verdad son las vistas de la base de
  * proveedores (las mismas que usan el tablero y el parte del plomero): la app
  * no recalcula reglas propias, así una alarma se apaga sola cuando se arregla el dato.
+ *
+ * Solo West Desarrolladora: cada alerta apunta a algo por su clave (en v_alertas el
+ * último tramo del id: "nc|PR-001|0001-123" → "0001-123"). Si apunta a una factura o a
+ * una OP de otra marca, no se muestra. Las de un proveedor (falta CBU, sin CUIT) se
+ * muestran: el proveedor es el mismo para las dos marcas.
  */
 export async function listarPendientes(): Promise<Pendiente[]> {
-  const [alertas, calidad] = await Promise.all([
-    prisma.$queryRaw<{ tipo: string; proveedor: string | null; detalle: string | null }[]>`
-      select tipo, proveedor, detalle from cc.v_alertas order by orden, tipo`,
-    prisma.$queryRaw<{ problema: string; proveedor_codigo: string | null; detalle: string | null }[]>`
-      select problema, proveedor_codigo, detalle from cc.v_calidad order by problema`,
-  ]);
-  return [
-    ...alertas.map((a) => ({ origen: "alerta" as const, tipo: a.tipo, proveedor: a.proveedor, detalle: a.detalle })),
-    ...calidad.map((c) => ({ origen: "calidad" as const, tipo: c.problema, proveedor: c.proveedor_codigo, detalle: c.detalle })),
-  ];
+  const filas = await prisma.$queryRaw<(Pendiente & { orden: number })[]>`
+    with p as (
+      select 'alerta' as origen, tipo, codigo as prov, proveedor, detalle, orden,
+        split_part(id, '|', -1) as ref
+      from cc.v_alertas
+      union all
+      select 'calidad', problema, proveedor_codigo, proveedor_codigo, detalle, 100, clave
+      from cc.v_calidad)
+    select origen, tipo, proveedor, detalle, orden from p
+    where not exists (
+        select 1 from cc.comprobantes c join cc.unidades u on u.codigo = c.unidad_codigo
+        where c.proveedor_codigo = p.prov and c.numero = p.ref and u.marca <> ${MARCA})
+      and not exists (select 1 from cc.v_orden_pago v where v.numero = p.ref and v.marca <> ${MARCA})
+    order by orden, tipo`;
+  return filas.map(({ origen, tipo, proveedor, detalle }) => ({ origen, tipo, proveedor, detalle }));
 }
