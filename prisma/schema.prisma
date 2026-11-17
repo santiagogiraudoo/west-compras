@@ -88,6 +88,7 @@ model Comprobante {
   vencimiento        DateTime? @db.Date
   archivo_link       String?
   archivo_item_id    String?
+  categoria          String? // lista única de categorías (sql/005)
   retiro_por         String?
   origen             String    @default("claude")
   creado_en          DateTime  @default(now()) @db.Timestamptz(6)
