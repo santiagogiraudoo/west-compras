@@ -45,7 +45,8 @@ export default async function ProveedorPage({ params }: { params: Promise<{ codi
         </h1>
         {!esNuevo && (
           <p className="text-sm text-muted-foreground">
-            {faltan.length === 0 ? "Alta completa." : `Le falta: ${faltan.join(", ")}.`}
+            {faltan.length === 0 ? "Alta completa." : `Le falta: ${faltan.join(", ")}.`}{" "}
+            <Link href={`/cuenta/${codigo}`} className="text-primary underline-offset-2 hover:underline">Ver cuenta corriente</Link>
           </p>
         )}
       </div>
