@@ -49,7 +49,11 @@ model Proveedor {
   condicion_pago      String?
   plazo_dias          Int?
   medio_pago_habitual String?
-  cbu_alias           String?
+  cbu_alias           String? // texto libre de antes; lo leen v_alertas, el plomero y ClickUp
+  cbu                 String?
+  alias               String?
+  banco               String?
+  cuenta_titular      String?
   contacto            String?
   email               String?
   telefono            String?
