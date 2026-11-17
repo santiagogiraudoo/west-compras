@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { cobraSinCuenta } from "@/lib/proveedores/validar";
 
 /**
  * Lo que una factura necesita para aprobarse (Adriano, 17/11: "cierta rigidez para
@@ -32,7 +33,10 @@ export interface DatosFactura {
 
 export interface DatosProveedor {
   cuit: string | null;
-  cbu_alias: string | null;
+  cbu: string | null;
+  alias: string | null;
+  cuenta_titular: string | null;
+  medio_pago_habitual: string | null;
   condicion_iva: string | null;
   telefono: string | null;
   rubro: string | null;
@@ -83,7 +87,10 @@ export function requisitosFactura(f: DatosFactura, p: DatosProveedor | null): Re
     avisos.push("Proveedor no encontrado");
   } else {
     if (vacio(p.cuit)) avisos.push("Proveedor sin CUIT");
-    if (vacio(p.cbu_alias)) avisos.push("Proveedor sin CBU");
+    // Misma regla que el alta (validarAlta): CBU o alias, con el titular de la cuenta.
+    const sinCuenta = vacio(p.cbu) && vacio(p.alias);
+    if (sinCuenta && !cobraSinCuenta(p.condicion_iva, p.medio_pago_habitual)) avisos.push("Proveedor sin CBU");
+    if (!sinCuenta && vacio(p.cuenta_titular)) avisos.push("Proveedor sin titular de la cuenta");
     if (vacio(p.condicion_iva)) avisos.push("Proveedor sin condición de IVA");
     if (vacio(p.telefono)) avisos.push("Proveedor sin WhatsApp");
     if (vacio(p.rubro)) avisos.push("Proveedor sin rubro");

@@ -7,7 +7,8 @@ import { requisitosFactura, type Requisitos } from "./requisitos";
 export const DESDE = new Date("2026-10-01");
 
 const PROVEEDOR_SELECT = {
-  codigo: true, razon_social: true, cuit: true, cbu_alias: true, condicion_iva: true,
+  codigo: true, razon_social: true, cuit: true, cbu: true, alias: true, cuenta_titular: true,
+  medio_pago_habitual: true, condicion_iva: true,
   telefono: true, rubro: true, condicion_pago: true,
 } as const;
 

@@ -15,9 +15,11 @@ interface Props {
   codigo: string | null;
   inicial: AltaProveedor;
   rubros: string[];
+  /** El texto libre de cbu_alias, para comparar con los campos (trae la fuente del dato). */
+  textoCuenta?: string | null;
 }
 
-export function ProveedorForm({ codigo, inicial, rubros }: Props) {
+export function ProveedorForm({ codigo, inicial, rubros, textoCuenta }: Props) {
   const router = useRouter();
   const [datos, setDatos] = useState<AltaProveedor>(inicial);
   const [errores, setErrores] = useState<ErroresAlta>({});
@@ -57,9 +59,23 @@ export function ProveedorForm({ codigo, inicial, rubros }: Props) {
         <Campo label="Rubro *" error={errores.rubro}>
           <Opciones value={datos.rubro} onChange={set("rubro")} opciones={rubros} placeholder="Elegí el rubro" />
         </Campo>
-        <Campo label="CBU o alias *" error={errores.cbuAlias}>
-          <Input value={datos.cbuAlias} onChange={(e) => set("cbuAlias")(e.target.value)} placeholder="22 dígitos o alias" />
+        <Campo label="CBU o CVU *" error={errores.cbu}>
+          <Input value={datos.cbu} onChange={(e) => set("cbu")(e.target.value)} placeholder="22 dígitos" inputMode="numeric" />
         </Campo>
+        <Campo label="Alias" error={errores.alias}>
+          <Input value={datos.alias} onChange={(e) => set("alias")(e.target.value)} placeholder="CORRALON.EJEMPLO" />
+        </Campo>
+        <Campo label="Titular de la cuenta *" error={errores.cuentaTitular}>
+          <Input value={datos.cuentaTitular} onChange={(e) => set("cuentaTitular")(e.target.value)} placeholder="A nombre de quién está" />
+        </Campo>
+        <Campo label="Banco" error={errores.banco}>
+          <Input value={datos.banco} onChange={(e) => set("banco")(e.target.value)} placeholder="Sale del CBU si lo dejás vacío" />
+        </Campo>
+        {textoCuenta && (
+          <p className="text-xs text-muted-foreground md:col-span-2">
+            Lo que decía antes: <span className="italic">{textoCuenta}</span>
+          </p>
+        )}
         <Campo label="WhatsApp *" error={errores.telefono}>
           <Input value={datos.telefono} onChange={(e) => set("telefono")(e.target.value)} placeholder="260 4123456" />
         </Campo>

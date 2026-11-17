@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { proximoCodigo, validarAlta, type AltaProveedor, type ErroresAlta } from "@/lib/proveedores/validar";
+import { armarTextoCuenta } from "@/lib/proveedores/cuenta";
 
 export interface ResultadoProveedor {
   ok: boolean;
@@ -37,6 +38,19 @@ export async function guardarProveedor(codigo: string | null, datos: AltaProveed
 
   const cod = codigo ?? proximoCodigo((await prisma.proveedor.findMany({ select: { codigo: true } })).map((p) => p.codigo));
 
+  // La cuenta va en sus campos. Si cambió, también se reescribe el texto de cbu_alias,
+  // que siguen leyendo cc.v_alertas, el plomero y las OP de ClickUp: si no, una OP podría
+  // salir con el CBU viejo. Si no cambió, el texto original (con su fuente) queda igual.
+  const cuenta = {
+    cbu: limpio.cbu.trim() || null, alias: limpio.alias.trim() || null,
+    banco: limpio.banco.trim() || null, titular: limpio.cuentaTitular.trim() || null,
+  };
+  const antes = codigo
+    ? await prisma.proveedor.findUnique({ where: { codigo }, select: { cbu: true, alias: true, banco: true, cuenta_titular: true } })
+    : null;
+  const cambioCuenta = !antes || antes.cbu !== cuenta.cbu || antes.alias !== cuenta.alias
+    || antes.banco !== cuenta.banco || antes.cuenta_titular !== cuenta.titular;
+
   const fila = {
     Codigo: cod,
     "Razon social": limpio.razonSocial,
@@ -46,7 +60,11 @@ export async function guardarProveedor(codigo: string | null, datos: AltaProveed
     "Condicion de pago": limpio.condicionPago.trim(),
     "Plazo (dias)": limpio.plazoDias.trim() || null,
     "Medio de pago habitual": limpio.medioPago,
-    "CBU / Alias": limpio.cbuAlias.trim() || null,
+    CBU: cuenta.cbu,
+    Alias: cuenta.alias,
+    Banco: cuenta.banco,
+    "Titular cuenta": cuenta.titular,
+    ...(cambioCuenta ? { "CBU / Alias": armarTextoCuenta(cuenta) } : {}),
     Telefono: limpio.telefono,
     Email: limpio.email.trim() || null,
     Contacto: limpio.contacto.trim() || null,

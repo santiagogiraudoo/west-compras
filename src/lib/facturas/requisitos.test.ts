@@ -7,7 +7,7 @@ const completa: DatosFactura = {
   total: "121000", tieneRemito: true,
 };
 const proveedorOk: DatosProveedor = {
-  cuit: "30-1", cbu_alias: "alias", condicion_iva: "RI", telefono: "260", rubro: "Corralón", condicion_pago: "30 días",
+  cuit: "30-1", cbu: null, alias: "CORRALON.X", cuenta_titular: "Corralón X SRL", medio_pago_habitual: "Transferencia", condicion_iva: "RI", telefono: "260", rubro: "Corralón", condicion_pago: "30 días",
 };
 
 describe("requisitosFactura", () => {
@@ -46,7 +46,7 @@ describe("requisitosFactura", () => {
   });
 
   it("el alta incompleta del proveedor avisa pero no frena la factura", () => {
-    const r = requisitosFactura(completa, { ...proveedorOk, cbu_alias: null, telefono: "" });
+    const r = requisitosFactura(completa, { ...proveedorOk, alias: null, telefono: "" });
     expect(r.faltan).toEqual([]);
     expect(r.avisos).toEqual(["Proveedor sin CBU", "Proveedor sin WhatsApp"]);
   });
@@ -55,5 +55,10 @@ describe("requisitosFactura", () => {
 describe("faltantesProveedor", () => {
   it("lista lo que le falta al alta", () => {
     expect(faltantesProveedor({ ...proveedorOk, cuit: null, condicion_pago: null })).toEqual(["CUIT", "condiciones de pago"]);
+  });
+  it("con cuenta pide el titular; en negro y en efectivo no pide cuenta", () => {
+    expect(faltantesProveedor({ ...proveedorOk, cuenta_titular: null })).toEqual(["titular de la cuenta"]);
+    expect(faltantesProveedor({ ...proveedorOk, alias: null, condicion_iva: "En negro (sin factura)", medio_pago_habitual: "Efectivo" })).toEqual([]);
+    expect(faltantesProveedor({ ...proveedorOk, alias: null, medio_pago_habitual: "Efectivo" })).toEqual(["CBU"]);
   });
 });

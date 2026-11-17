@@ -2,11 +2,17 @@
  * Validaciones del alta de proveedor. Puras, sin base, para usarlas igual en el
  * formulario y en el server.
  */
+import { bancoDelCbu } from "./cuenta";
 
 export const CONDICIONES_IVA = ["Responsable Inscripto", "Monotributo", "Exento", "En negro (sin factura)"] as const;
 export const MEDIOS_PAGO = ["Transferencia", "Echeq", "Cheque", "Efectivo"] as const;
 
 const soloDigitos = (s: string) => s.replace(/\D/g, "");
+
+/** Quien cobra en negro y en efectivo no necesita cuenta bancaria. */
+export function cobraSinCuenta(condicionIva: string | null, medioPago: string | null): boolean {
+  return condicionIva === "En negro (sin factura)" && medioPago === "Efectivo";
+}
 
 /** CUIT argentino: 11 dígitos con dígito verificador. Devuelve el CUIT con guiones o null. */
 export function normalizarCuit(entrada: string): string | null {
@@ -20,25 +26,25 @@ export function normalizarCuit(entrada: string): string | null {
   return `${d.slice(0, 2)}-${d.slice(2, 10)}-${d.slice(10)}`;
 }
 
-/**
- * CBU (22 dígitos con sus dos verificadores) o alias (6 a 20 caracteres: letras,
- * números, punto y guion). Devuelve el valor limpio o null.
- */
-export function normalizarCbuAlias(entrada: string): string | null {
+/** CBU o CVU: 22 dígitos con sus dos verificadores. Devuelve solo los dígitos o null. */
+export function normalizarCbu(entrada: string): string | null {
   const s = entrada.trim();
+  if (!/^[\d\s-]+$/.test(s)) return null;
   const d = soloDigitos(s);
-  if (/^[\d\s-]+$/.test(s)) {
-    if (d.length !== 22) return null;
-    const ok = (bloque: string, pesos: number[]) => {
-      const suma = pesos.reduce((acc, p, i) => acc + p * Number(bloque[i]), 0);
-      return (10 - (suma % 10)) % 10 === Number(bloque[pesos.length]);
-    };
-    if (!ok(d.slice(0, 8), [7, 1, 3, 9, 7, 1, 3])) return null;
-    if (!ok(d.slice(8), [3, 9, 7, 1, 3, 9, 7, 1, 3, 9, 7, 1, 3])) return null;
-    return d;
-  }
-  if (/^[A-Za-z0-9.-]{6,20}$/.test(s)) return s.toUpperCase();
-  return null;
+  if (d.length !== 22) return null;
+  const ok = (bloque: string, pesos: number[]) => {
+    const suma = pesos.reduce((acc, p, i) => acc + p * Number(bloque[i]), 0);
+    return (10 - (suma % 10)) % 10 === Number(bloque[pesos.length]);
+  };
+  if (!ok(d.slice(0, 8), [7, 1, 3, 9, 7, 1, 3])) return null;
+  if (!ok(d.slice(8), [3, 9, 7, 1, 3, 9, 7, 1, 3, 9, 7, 1, 3])) return null;
+  return d;
+}
+
+/** Alias: 6 a 20 caracteres (letras, números, punto y guion). En mayúsculas o null. */
+export function normalizarAlias(entrada: string): string | null {
+  const s = entrada.trim();
+  return /^[A-Za-z0-9.-]{6,20}$/.test(s) ? s.toUpperCase() : null;
 }
 
 /** WhatsApp: al menos 10 dígitos (código de área + número). Se guarda solo con dígitos. */
@@ -51,7 +57,11 @@ export interface AltaProveedor {
   razonSocial: string;
   cuit: string;
   condicionIva: string;
-  cbuAlias: string;
+  cbu: string;
+  alias: string;
+  banco: string;
+  /** A nombre de quién está la cuenta (puede no ser el proveedor). */
+  cuentaTitular: string;
   telefono: string;
   rubro: string;
   condicionPago: string;
@@ -77,14 +87,25 @@ export function validarAlta(a: AltaProveedor): { errores: ErroresAlta; limpio: A
 
   if (!(CONDICIONES_IVA as readonly string[]).includes(a.condicionIva)) errores.condicionIva = "Elegí la condición de IVA";
 
-  // Quien cobra en negro no necesita CBU si se le paga en efectivo.
-  const sinCbuValido = a.condicionIva === "En negro (sin factura)" && a.medioPago === "Efectivo";
-  if (a.cbuAlias.trim() === "" && !sinCbuValido) errores.cbuAlias = "Falta el CBU o alias";
-  else if (a.cbuAlias.trim() !== "") {
-    const cbu = normalizarCbuAlias(a.cbuAlias);
-    if (!cbu) errores.cbuAlias = "CBU (22 dígitos) o alias (6 a 20 letras, números, punto o guion) inválido";
-    else limpio.cbuAlias = cbu;
+  // La cuenta: CBU o alias (alcanza uno), con el titular de la cuenta (CLAUDE.md: "CBU con
+  // titular verificado"). Quien cobra en negro y en efectivo no necesita cuenta.
+  const tieneCbu = a.cbu.trim() !== "";
+  const tieneAlias = a.alias.trim() !== "";
+  if (tieneCbu) {
+    const cbu = normalizarCbu(a.cbu);
+    if (!cbu) errores.cbu = "CBU o CVU inválido (22 dígitos con verificadores)";
+    else limpio.cbu = cbu;
   }
+  if (tieneAlias) {
+    const alias = normalizarAlias(a.alias);
+    if (!alias) errores.alias = "Alias inválido (6 a 20 letras, números, punto o guion)";
+    else limpio.alias = alias;
+  }
+  if (!tieneCbu && !tieneAlias && !cobraSinCuenta(a.condicionIva, a.medioPago)) errores.cbu = "Falta el CBU o el alias";
+  if ((tieneCbu || tieneAlias) && a.cuentaTitular.trim().length < 3) errores.cuentaTitular = "Falta a nombre de quién está la cuenta";
+  limpio.cuentaTitular = a.cuentaTitular.trim();
+  // El banco sale del CBU si no lo escribieron.
+  limpio.banco = a.banco.trim() || (limpio.cbu && !errores.cbu ? bancoDelCbu(limpio.cbu) ?? "" : "");
 
   const tel = normalizarTelefono(a.telefono);
   if (!tel) errores.telefono = "WhatsApp con código de área (al menos 10 dígitos)";

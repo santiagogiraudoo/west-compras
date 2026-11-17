@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizarCbuAlias, normalizarCuit, normalizarTelefono, proximoCodigo, validarAlta, type AltaProveedor } from "./validar";
+import { normalizarAlias, normalizarCbu, normalizarCuit, normalizarTelefono, proximoCodigo, validarAlta, type AltaProveedor } from "./validar";
 
 // CUIT del titular Giraudo Hernando Esteban (cc.titulares), verificador válido.
 const CUIT_OK = "20-25766140-8";
@@ -8,7 +8,7 @@ const CBU_OK = "2850590940090418135201";
 
 const alta: AltaProveedor = {
   razonSocial: "Corralón Ejemplo SRL", cuit: CUIT_OK, condicionIva: "Responsable Inscripto",
-  cbuAlias: "corralon.ejemplo", telefono: "260 4123456", rubro: "Corralón", condicionPago: "30 días f.f.",
+  cbu: "", alias: "corralon.ejemplo", banco: "", cuentaTitular: "Corralón Ejemplo SRL", telefono: "260 4123456", rubro: "Corralón", condicionPago: "30 días f.f.",
   plazoDias: "30", medioPago: "Transferencia", email: "", contacto: "",
 };
 
@@ -23,14 +23,17 @@ describe("normalizarCuit", () => {
   });
 });
 
-describe("normalizarCbuAlias", () => {
-  it("acepta CBU válido y alias", () => {
-    expect(normalizarCbuAlias(CBU_OK)).toBe(CBU_OK);
-    expect(normalizarCbuAlias("corralon.ejemplo")).toBe("CORRALON.EJEMPLO");
+describe("normalizarCbu y normalizarAlias", () => {
+  it("acepta CBU y CVU válidos (de la base) y alias", () => {
+    expect(normalizarCbu(CBU_OK)).toBe(CBU_OK);
+    expect(normalizarCbu("0170279020000001215256")).toBe("0170279020000001215256");
+    expect(normalizarCbu("0000003100036980484437")).toBe("0000003100036980484437");
+    expect(normalizarAlias("corralon.ejemplo")).toBe("CORRALON.EJEMPLO");
   });
-  it("rechaza CBU con verificador malo o alias corto", () => {
-    expect(normalizarCbuAlias("2850590940090418135202")).toBeNull();
-    expect(normalizarCbuAlias("abc")).toBeNull();
+  it("rechaza CBU con verificador malo, texto mezclado o alias corto", () => {
+    expect(normalizarCbu("2850590940090418135202")).toBeNull();
+    expect(normalizarCbu("CBU 2850590940090418135201 · BBVA")).toBeNull();
+    expect(normalizarAlias("abc")).toBeNull();
   });
 });
 
@@ -48,12 +51,23 @@ describe("validarAlta", () => {
     expect(limpio.telefono).toBe("2604123456");
   });
   it("marca cada dato obligatorio que falta", () => {
-    const { errores } = validarAlta({ ...alta, cuit: "", cbuAlias: "", telefono: "", rubro: "", condicionPago: "" });
-    expect(Object.keys(errores).sort()).toEqual(["cbuAlias", "condicionPago", "cuit", "rubro", "telefono"]);
+    const { errores } = validarAlta({ ...alta, cuit: "", alias: "", telefono: "", rubro: "", condicionPago: "" });
+    expect(Object.keys(errores).sort()).toEqual(["cbu", "condicionPago", "cuit", "rubro", "telefono"]);
   });
   it("en negro y en efectivo no pide CBU", () => {
-    const { errores } = validarAlta({ ...alta, condicionIva: "En negro (sin factura)", medioPago: "Efectivo", cbuAlias: "" });
-    expect(errores.cbuAlias).toBeUndefined();
+    const { errores } = validarAlta({ ...alta, condicionIva: "En negro (sin factura)", medioPago: "Efectivo", alias: "" });
+    expect(errores.cbu).toBeUndefined();
+  });
+  it("con cuenta pide el titular, y el banco sale del CBU", () => {
+    const sinTitular = validarAlta({ ...alta, cuentaTitular: "" });
+    expect(sinTitular.errores.cuentaTitular).toBeDefined();
+    const conCbu = validarAlta({ ...alta, cbu: "0170279020000001215256", alias: "" });
+    expect(conCbu.errores).toEqual({});
+    expect(conCbu.limpio.banco).toBe("BBVA");
+  });
+  it("el texto viejo de cbu_alias en el campo CBU se rechaza con un motivo claro", () => {
+    const { errores } = validarAlta({ ...alta, cbu: "CBU 0170279020000001215256 · BBVA" });
+    expect(errores.cbu).toMatch(/inválido/);
   });
 });
 

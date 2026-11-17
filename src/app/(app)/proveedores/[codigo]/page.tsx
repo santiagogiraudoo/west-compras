@@ -23,7 +23,10 @@ export default async function ProveedorPage({ params }: { params: Promise<{ codi
     cuit: p?.cuit ?? "",
     // "Resp. Inscripto" es una forma vieja de escribir lo mismo.
     condicionIva: p?.condicion_iva === "Resp. Inscripto" ? "Responsable Inscripto" : (p?.condicion_iva ?? ""),
-    cbuAlias: p?.cbu_alias ?? "",
+    cbu: p?.cbu ?? "",
+    alias: p?.alias ?? "",
+    banco: p?.banco ?? "",
+    cuentaTitular: p?.cuenta_titular ?? "",
     telefono: p?.telefono ?? "",
     rubro: p?.rubro ?? "",
     condicionPago: p?.condicion_pago ?? "",
@@ -50,7 +53,7 @@ export default async function ProveedorPage({ params }: { params: Promise<{ codi
           </p>
         )}
       </div>
-      <ProveedorForm codigo={esNuevo ? null : codigo} inicial={inicial} rubros={rubros.map((r) => r.nombre)} />
+      <ProveedorForm codigo={esNuevo ? null : codigo} inicial={inicial} rubros={rubros.map((r) => r.nombre)} textoCuenta={p?.cbu_alias} />
     </div>
   );
 }
