@@ -1,0 +1,84 @@
+import { describe, expect, it } from "vitest";
+import { armarExtracto, resumirDeuda, sumarDias, validarSeleccionOP, type Abierto } from "./calculos";
+
+const ab = (o: Partial<Abierto>): Abierto => ({
+  id: "1", proveedor_codigo: "PR-1", razon_social: "Corralón", unidad_codigo: "UN-01", facturado_a: "Doblege",
+  tipo: "Factura A", numero: "0001-1", fecha: "2026-11-01", vencimiento: null, total: "100", libre: "100",
+  en_op: "0", ops: null, deuda: "100", ...o,
+});
+
+describe("sumarDias", () => {
+  it("cruza fin de mes sin correrse por zona horaria", () => {
+    expect(sumarDias("2026-11-28", 7)).toBe("2026-12-05");
+  });
+});
+
+describe("resumirDeuda", () => {
+  const hoy = "2026-11-17";
+
+  it("separa vencido, esta semana y lo que está en OP prevista", () => {
+    const t = resumirDeuda([
+      ab({ id: "1", vencimiento: "2026-11-10", deuda: "100", libre: "100" }),
+      ab({ id: "2", vencimiento: "2026-11-17", deuda: "50.25", libre: "0", en_op: "50.25" }),
+      ab({ id: "3", vencimiento: "2026-11-24", deuda: "30", libre: "30" }), // día 7: ya no es esta semana
+      ab({ id: "4", proveedor_codigo: "PR-2", razon_social: "Ferretería", vencimiento: "2026-11-23", deuda: "10" }),
+    ], hoy);
+    expect(t.deuda).toBe("190.25");
+    expect(t.vencido).toBe("100.00");
+    expect(t.semana).toBe("60.25");
+    expect(t.en_op).toBe("50.25");
+    expect(t.porProveedor.map((p) => p.codigo)).toEqual(["PR-1", "PR-2"]);
+    expect(t.porProveedor[0].proximo_vencimiento).toBe("2026-11-10");
+  });
+
+  it("una nota de crédito sin aplicar no resta deuda: es saldo a favor y se ve en la cuenta", () => {
+    const t = resumirDeuda([ab({ deuda: "100" }), ab({ id: "2", tipo: "Nota de Credito A", deuda: "-40" })], hoy);
+    expect(t.deuda).toBe("100.00");
+  });
+
+  it("ignora centavos sueltos, como la vista de la base", () => {
+    expect(resumirDeuda([ab({ deuda: "0.40" })], hoy).porProveedor).toEqual([]);
+  });
+});
+
+describe("armarExtracto", () => {
+  it("factura al haber, nota de crédito y pago al debe, con saldo corrido", () => {
+    const e = armarExtracto([
+      { fecha: "2026-11-05", concepto: "Pago OP-2026-001", unidad: null, importe: "-60", clase: "pago" },
+      { fecha: "2026-11-01", concepto: "Factura A 1", unidad: "UN-01", importe: "100", clase: "comprobante" },
+      { fecha: "2026-11-05", concepto: "Nota de Credito A 2", unidad: "UN-01", importe: "-10", clase: "comprobante" },
+    ]);
+    expect(e.lineas.map((l) => [l.concepto, l.debe, l.haber, l.saldo])).toEqual([
+      ["Factura A 1", "0.00", "100.00", "100.00"],
+      ["Nota de Credito A 2", "10.00", "0.00", "90.00"],
+      ["Pago OP-2026-001", "60.00", "0.00", "30.00"],
+    ]);
+    expect(e).toMatchObject({ debe: "70.00", haber: "100.00", saldo: "30.00" });
+  });
+
+  it("no pierde centavos al sumar muchos montos", () => {
+    const movs = Array.from({ length: 10 }, () => ({ fecha: "2026-11-01", concepto: "x", unidad: null, importe: "0.1", clase: "comprobante" as const }));
+    expect(armarExtracto(movs).saldo).toBe("1.00");
+  });
+});
+
+describe("validarSeleccionOP", () => {
+  it("suma lo libre y devuelve el titular", () => {
+    const r = validarSeleccionOP([ab({ libre: "100.10" }), ab({ libre: "-20.05", numero: "NC" })]);
+    expect(r).toEqual({ errores: [], total: "80.05", titular: "Doblege" });
+  });
+
+  it("no cruza titulares", () => {
+    const r = validarSeleccionOP([ab({}), ab({ facturado_a: "Yrigoyen Developer" })]);
+    expect(r.errores).toContain("Una OP es de un solo titular: no se cruzan cuentas");
+  });
+
+  it("no repite facturas que ya están en otra OP ni deja total negativo", () => {
+    const r = validarSeleccionOP([ab({ libre: "0", numero: "0001-9" }), ab({ libre: "-5" })]);
+    expect(r.errores).toEqual(["Ya están en otra OP: 0001-9", "El total de la OP tiene que ser positivo"]);
+  });
+
+  it("vacía no se puede", () => {
+    expect(validarSeleccionOP([]).errores).toEqual(["Elegí al menos una factura"]);
+  });
+});
