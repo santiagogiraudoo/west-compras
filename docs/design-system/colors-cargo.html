@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Cargo category</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body{margin:0;font-family:Inter,system-ui,sans-serif;background:#FFFEFC;color:#1a1a1a;font-size:14px;padding:18px;}
+  .eyebrow{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#737373;margin-bottom:8px;}
+  .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+  /* Cargo pill: 3px left accent + icon + neutral label */
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:3px 10px 3px 8px;
+    border-radius:6px;
+    font-size:12px;font-weight:500;
+    background:#ffffff;
+    color:#1a1a1a;
+    border:1px solid #e8e8e3;
+    border-left-width:3px;
+  }
+  .pill svg{width:13px;height:13px;flex-shrink:0;}
+</style></head><body>
+<div class="eyebrow">Cargo category · colored left accent + icon</div>
+<div class="row">
+  <span class="pill" style="border-left-color:#3730A3;"><i data-lucide="key" style="color:#3730A3;"></i>Alquiler</span>
+  <span class="pill" style="border-left-color:#334155;"><i data-lucide="building" style="color:#334155;"></i>Expensas</span>
+  <span class="pill" style="border-left-color:#6d28d9;"><i data-lucide="landmark" style="color:#6d28d9;"></i>Tasa</span>
+  <span class="pill" style="border-left-color:#c2410c;"><i data-lucide="wrench" style="color:#c2410c;"></i>Reparación</span>
+  <span class="pill" style="border-left-color:#0e7490;"><i data-lucide="plug" style="color:#0e7490;"></i>Servicios</span>
+  <span class="pill" style="border-left-color:#b91c1c;"><i data-lucide="alert-triangle" style="color:#b91c1c;"></i>Multa</span>
+  <span class="pill" style="border-left-color:#0369a1;"><i data-lucide="shield" style="color:#0369a1;"></i>Depósito</span>
+  <span class="pill" style="border-left-color:#047857;"><i data-lucide="arrow-down-circle" style="color:#047857;"></i>Pago</span>
+  <span class="pill" style="border-left-color:#737373;"><i data-lucide="more-horizontal" style="color:#737373;"></i>Otro</span>
+</div>
+<script>lucide.createIcons();</script>
+</body></html>

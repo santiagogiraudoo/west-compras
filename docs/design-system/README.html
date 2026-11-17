@@ -1,0 +1,478 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Design System — README</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#737373; --faint:#a3a3a3;
+    --bg:#FFFEFC; --surface:#fff; --panel:#f5f5f0; --panel-2:#fafaf7;
+    --line:#e8e8e3; --line-soft:#f0f0ec;
+    --green:#1B4332; --green-50:#f0f6f2; --green-ink:#0f2a1f;
+    --gold:#B8960C; --gold-50:#fffbeb;
+    --red:#dc2626; --red-50:#fef2f2; --red-ink:#991b1b;
+    --amber:#f59e0b; --amber-50:#fffbeb; --amber-ink:#92400e;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{font-family:Inter,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.55;}
+  code,.mono{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;}
+  code{background:var(--panel);padding:1px 6px;border-radius:3px;font-size:12.5px;color:var(--green-ink);}
+  a{color:var(--green);}
+  a:hover{color:var(--gold);}
+
+  .page{max-width:880px;margin:0 auto;padding:40px 32px 100px;}
+
+  h1{font-size:28px;font-weight:700;letter-spacing:-0.015em;margin:0 0 8px;}
+  .lede{font-size:15px;color:var(--muted);max-width:640px;margin:0 0 32px;}
+
+  h2{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:var(--gold);margin:48px 0 14px;display:flex;align-items:center;gap:10px;}
+  h2::after{content:"";flex:1;height:1px;background:var(--line);}
+  h3{font-size:16px;font-weight:600;color:var(--green);margin:24px 0 8px;}
+  h4{font-size:13px;font-weight:600;color:var(--ink);margin:16px 0 6px;}
+  p{margin:0 0 12px;}
+
+  ul,ol{margin:0 0 14px;padding-left:22px;}
+  li{margin-bottom:4px;}
+
+  /* palette swatch inline */
+  .sw{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:-1px;margin-right:5px;border:1px solid rgba(0,0,0,0.05);}
+
+  /* table */
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0 20px;background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+  thead th{background:var(--green);color:#fff;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;padding:9px 12px;text-align:left;}
+  tbody td{padding:9px 12px;border-top:1px solid var(--line-soft);vertical-align:top;}
+  tbody tr:first-child td{border-top:0;}
+  tbody tr:hover{background:var(--panel-2);}
+  td code{font-size:11.5px;}
+
+  /* file-link chip */
+  .filelink{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border:1px solid var(--line);border-left:3px solid var(--green);border-radius:3px;background:#fff;font-size:11.5px;color:var(--green-ink);text-decoration:none;font-family:'JetBrains Mono',monospace;}
+  .filelink:hover{background:var(--green-50);color:var(--green);}
+
+  /* pull-quote / rule block */
+  .rule{background:var(--gold-50);border-left:3px solid var(--gold);padding:12px 14px;border-radius:4px;margin:14px 0 18px;font-size:13px;color:var(--amber-ink);}
+  .rule strong{color:var(--green-ink);}
+
+  .warn{background:var(--red-50);border-left:3px solid var(--red);padding:12px 14px;border-radius:4px;margin:14px 0 18px;font-size:13px;color:var(--red-ink);}
+  .warn strong{color:var(--red-ink);}
+
+  /* token code block */
+  pre{background:#0f2a1f;color:#eaeae2;padding:14px 16px;border-radius:6px;overflow-x:auto;font-size:12px;line-height:1.6;margin:10px 0 18px;}
+  pre .c{color:#74A892;}   /* comment */
+  pre .k{color:#B8960C;}   /* key */
+  pre .v{color:#eaeae2;}
+
+  /* TOC */
+  .toc{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px 18px;margin:20px 0 40px;columns:2;column-gap:32px;}
+  .toc a{display:block;font-size:13px;padding:3px 0;text-decoration:none;break-inside:avoid;}
+  .toc a:hover{color:var(--gold);}
+  .toc .grp{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin:8px 0 4px;}
+  .toc .grp:first-child{margin-top:0;}
+
+  /* primitive card */
+  .prim{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:flex-start;justify-content:space-between;gap:14px;}
+  .prim .name{font-weight:600;color:var(--green);font-size:13.5px;margin-bottom:2px;}
+  .prim .desc{font-size:12.5px;color:var(--muted);}
+  .prim .right{flex-shrink:0;}
+
+  /* footer */
+  .foot{margin-top:80px;padding-top:18px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);}
+
+  /* LIVE specimens */
+  .specimen{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:18px 20px;margin:10px 0 18px;}
+  .specimen .demo{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px;background:var(--bg);border:1px dashed var(--line);border-radius:5px;margin-bottom:12px;}
+
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:3px;font-size:10.5px;font-weight:600;letter-spacing:0.03em;border-left:3px solid;}
+  .pill-activo  {background:#f0f6f2;color:#0f2a1f;border-color:#1B4332;}
+  .pill-enventa {background:#fffbeb;color:#92400e;border-color:#B8960C;}
+  .pill-reservado{background:#fffbeb;color:#92400e;border-color:#f59e0b;}
+  .pill-vencido {background:#fef2f2;color:#991b1b;border-color:#dc2626;}
+  .pill-borrador{background:#f5f5f0;color:#737373;border-color:#a3a3a3;}
+
+  .btn-demo{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 11px;border:1px solid var(--line);background:#fff;border-radius:5px;font-size:12px;font-weight:500;color:var(--ink);}
+  .btn-demo.primary{background:#1B4332;color:#fff;border-color:#1B4332;}
+  .btn-demo.gold{background:#B8960C;color:#fff;border-color:#B8960C;}
+  .btn-demo.ghost{background:transparent;border-color:transparent;color:var(--muted);}
+
+  .money-demo{display:inline-flex;align-items:baseline;gap:6px;font-variant-numeric:tabular-nums;font-weight:500;}
+  .money-demo .cap{font-size:9px;font-weight:700;letter-spacing:0.12em;padding:2px 5px;background:#f5f5f0;color:#737373;border-radius:3px;}
+
+  .sl-demo{background:#fff;border:1px solid var(--line);border-left:3px solid #1B4332;border-radius:6px;padding:12px 14px;min-width:220px;}
+  .sl-demo.gold{border-left-color:#B8960C;}
+  .sl-demo.red{border-left-color:#dc2626;}
+  .sl-demo .t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#737373;margin-bottom:4px;}
+  .sl-demo .b{font-size:13px;color:#1a1a1a;font-weight:500;}
+</style></head><body>
+
+<div class="page">
+
+  <h1>Design System</h1>
+  <p class="lede">West Desarrolladora — visual language, primitives, and usage rules. This document is the canonical reference. When building UI, look here first; every primitive has a preview file and a rule for when to use it.</p>
+
+  <!-- ─── TOC ─── -->
+  <div class="toc">
+    <div class="grp">Foundations</div>
+    <a href="#brand">0 · Brand & logos</a>
+    <a href="#principles">1 · Principles (60/30/10)</a>
+    <a href="#palette">2 · Color palette</a>
+    <a href="#typography">3 · Typography</a>
+    <a href="#spacing">4 · Spacing, radii, shadows</a>
+    <div class="grp">Primitives</div>
+    <a href="#buttons">5 · Buttons</a>
+    <a href="#badges">6 · Badges & status pills</a>
+    <a href="#containers">7 · Containers</a>
+    <a href="#tables">8 · Tables</a>
+    <a href="#forms">9 · Forms & inputs</a>
+    <a href="#money">10 · Money & numbers</a>
+    <div class="grp">Composed</div>
+    <a href="#kanban">11 · Kanban card</a>
+    <a href="#dashboard">12 · Dashboard cards</a>
+    <a href="#cobros-row">13 · Cobros row</a>
+    <a href="#sidebar">14 · Sidebar & nav</a>
+    <div class="grp">Surfaces</div>
+    <a href="#uikit-cobros">15 · Cobros page</a>
+    <a href="#uikit-contract">16 · Contract detail</a>
+    <div class="grp">Feedback</div>
+    <a href="#toasts">17 · Toasts</a>
+  </div>
+
+  <!-- ═══════════ BRAND ═══════════ -->
+  <h2 id="brand">0 · Brand & logos</h2>
+
+  <div class="specimen">
+    <div class="demo" style="gap:24px;align-items:center;justify-content:space-around;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <img src="/docs/images/logo/Logo.png" alt="Logo" style="max-height:64px;display:block;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1B4332;">Logo.png</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div style="background:oklch(0.32 0.06 163.7);padding:14px 22px;border-radius:6px;">
+          <img src="/docs/images/logo/Name.png" alt="Name" style="height:36px;display:block;">
+        </div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1B4332;">Name.png · sidebar</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <img src="/docs/images/logo/W.png" alt="Mark" style="height:40px;width:40px;object-fit:contain;display:block;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1B4332;">W.png · mark</div>
+      </div>
+    </div>
+    <p style="margin:0 0 6px;font-size:12.5px;"><strong>Assets at</strong> <code>public/docs/images/logo/</code>. Los tres PNG son blancos: van sobre verde oscuro (sidebar, login, encabezado de PDFs). Mark-only para lugares chicos. Los originales en SVG, en blanco, crema, negro y verde, están en <code>originales/</code> — para una superficie clara usar la variante verde o negra.</p>
+    <p style="margin:0;font-size:12px;color:var(--muted);">Full reference → <a class="filelink" href="brand-logos.html">brand-logos.html</a> · iconography → <a class="filelink" href="brand-iconography.html">brand-iconography.html</a></p>
+  </div>
+
+  <!-- ═══════════ PRINCIPLES ═══════════ -->
+  <h2 id="principles">1 · Principles · 60 / 30 / 10</h2>
+  <div class="rule"><strong>The rule.</strong> Off-white is the canvas (60%). Dark green is ink, headers, active states, primary chrome (30%). Gold is emphasis — used sparingly on high-value surfaces (10%). Red and amber are <em>semantic only</em> — they appear exclusively inside status indicators where they communicate state (vencido / pendiente). Never decorative.</div>
+
+  <ul>
+    <li><strong>Canvas:</strong> <code><span class="sw" style="background:#FFFEFC;"></span>#FFFEFC</code> — every page background</li>
+    <li><strong>Ink:</strong> <code><span class="sw" style="background:#1B4332;"></span>#1B4332</code> — primary buttons, table headers, active tabs, icons, container left bars</li>
+    <li><strong>Accent:</strong> <code><span class="sw" style="background:#B8960C;"></span>#B8960C</code> — gold for emphasis, inline-table headers, secondary CTAs on high-value actions</li>
+    <li><strong>Semantic:</strong> red + amber only inside status pills</li>
+  </ul>
+
+  <p><strong>Content rules.</strong> No filler. No decorative iconography. Imagery placeholders are preferred over bad AI attempts. Density follows the data: sparse where the user reads, dense where they scan.</p>
+
+  <!-- ═══════════ PALETTE ═══════════ -->
+  <h2 id="palette">2 · Color palette</h2>
+  <p>Full swatches live in the preview files.</p>
+
+  <table>
+    <thead><tr><th>Token</th><th>Hex</th><th>Use</th><th style="width:150px;">Preview</th></tr></thead>
+    <tbody>
+      <tr><td><code>--bg</code></td><td><code><span class="sw" style="background:#FFFEFC;"></span>#FFFEFC</code></td><td>Page canvas</td><td rowspan="4"><a class="filelink" href="colors-brand.html">colors-brand.html</a></td></tr>
+      <tr><td><code>--green</code></td><td><code><span class="sw" style="background:#1B4332;"></span>#1B4332</code></td><td>Primary ink, chrome</td></tr>
+      <tr><td><code>--gold</code></td><td><code><span class="sw" style="background:#B8960C;"></span>#B8960C</code></td><td>Emphasis accent</td></tr>
+      <tr><td><code>--green-50</code></td><td><code><span class="sw" style="background:#f0f6f2;"></span>#f0f6f2</code></td><td>Success pill bg</td></tr>
+      <tr><td><code>--ink</code></td><td><code><span class="sw" style="background:#1a1a1a;"></span>#1a1a1a</code></td><td>Body text</td><td rowspan="3"><a class="filelink" href="colors-neutrals.html">colors-neutrals.html</a></td></tr>
+      <tr><td><code>--muted</code></td><td><code><span class="sw" style="background:#737373;"></span>#737373</code></td><td>Secondary text, labels</td></tr>
+      <tr><td><code>--line</code></td><td><code><span class="sw" style="background:#e8e8e3;"></span>#e8e8e3</code></td><td>Borders, dividers</td></tr>
+      <tr><td><code>--red</code></td><td><code><span class="sw" style="background:#dc2626;"></span>#dc2626</code></td><td>Vencido / overdue (pills only)</td><td rowspan="2"><a class="filelink" href="colors-semantic.html">colors-semantic.html</a></td></tr>
+      <tr><td><code>--amber</code></td><td><code><span class="sw" style="background:#f59e0b;"></span>#f59e0b</code></td><td>Pendiente (pills only)</td></tr>
+    </tbody>
+  </table>
+
+  <p>Extended palettes for specific domains:</p>
+  <ul>
+    <li>Cargo categories → <a class="filelink" href="colors-cargo.html">colors-cargo.html</a></li>
+    <li>Destino (purpose) pills → <a class="filelink" href="colors-destino.html">colors-destino.html</a></li>
+    <li>Sidebar tokens → <a class="filelink" href="colors-sidebar.html">colors-sidebar.html</a></li>
+  </ul>
+
+  <!-- ═══════════ TYPOGRAPHY ═══════════ -->
+  <h2 id="typography">3 · Typography</h2>
+  <p><strong>Families:</strong> Inter (UI, body, headings, numbers) · Geist Mono (code only). Declared in <code>src/app/globals.css</code> as <code>--font-sans</code> / <code>--font-mono</code>. <strong>JetBrains Mono is not loaded by the app</strong> — the mockup pages in this folder still reference it for historical reasons; ignore that, the rule below is authoritative.</p>
+  <p><strong>Numerics rule:</strong> any cell containing a number, date, or currency uses <strong>Inter</strong> with <code>tabular-nums</code>. Money always goes through <code>&lt;MoneyCell&gt;</code> (<code>src/components/shared/MoneyCell.tsx</code>), which applies <code>tabular-nums font-medium</code> + <code>formatCurrency</code>. Never hand-roll a money string.</p>
+  <ul>
+    <li>Type scale → <a class="filelink" href="type-scale.html">type-scale.html</a></li>
+    <li>Font families → <a class="filelink" href="type-families.html">type-families.html</a></li>
+  </ul>
+
+  <!-- ═══════════ SPACING ═══════════ -->
+  <h2 id="spacing">4 · Spacing, radii, shadows</h2>
+  <ul>
+    <li>Spacing scale (4·8·12·16·20·24·32·48) → <a class="filelink" href="spacing-scale.html">spacing-scale.html</a></li>
+    <li>Radii (3px chips · 5px buttons · 6px cards) + shadows → <a class="filelink" href="spacing-radii-shadows.html">spacing-radii-shadows.html</a></li>
+  </ul>
+
+  <!-- ═══════════ BUTTONS ═══════════ -->
+  <h2 id="buttons">5 · Buttons</h2>
+
+  <div class="specimen">
+    <div class="demo">
+      <button class="btn-demo primary">Registrar pago</button>
+      <button class="btn-demo gold">Nuevo cargo</button>
+      <button class="btn-demo">Editar</button>
+      <button class="btn-demo ghost">Cancelar</button>
+    </div>
+    <p style="margin:0 0 6px;font-size:12.5px;"><strong style="color:var(--green);">Primary</strong> — main action, one per view ideally. <strong style="color:var(--gold);">Gold</strong> — emphasis only, rare high-value CTAs. <strong>Default</strong> — secondary actions. <strong>Ghost</strong> — tertiary / toolbar.</p>
+    <p style="margin:0;font-size:12px;color:var(--muted);">Full reference → <a class="filelink" href="components-buttons.html">components-buttons.html</a></p>
+  </div>
+
+  <pre><span class="c">/* primary button spec */</span>
+<span class="k">.btn-primary</span> {
+  <span class="k">background</span>: <span class="v">#1B4332;</span>
+  <span class="k">color</span>: <span class="v">#fff;</span>
+  <span class="k">height</span>: <span class="v">30px;</span>
+  <span class="k">padding</span>: <span class="v">0 11px;</span>
+  <span class="k">border-radius</span>: <span class="v">5px;</span>
+  <span class="k">font</span>: <span class="v">500 12px Inter;</span>
+}</pre>
+
+  <!-- ═══════════ BADGES ═══════════ -->
+  <h2 id="badges">6 · Badges & status pills</h2>
+
+  <div class="rule"><strong>D pattern.</strong> All status badges share the same shape: tinted background · 3px colored left-bar · matching text color. Shape: <code>padding: 3px 10px; border-radius: 3px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.03em; border-left: 3px solid &lt;color&gt;;</code>. Sentence case — no uppercase.</div>
+
+  <div class="specimen">
+    <div class="demo">
+      <span class="pill pill-activo">Activo</span>
+      <span class="pill pill-activo">Alquilado</span>
+      <span class="pill pill-activo">Disponible</span>
+      <span class="pill pill-activo">Pagado</span>
+      <span class="pill pill-enventa">En venta</span>
+      <span class="pill pill-reservado">Reservado</span>
+      <span class="pill pill-reservado">Pendiente</span>
+      <span class="pill pill-vencido">Vencido</span>
+      <span class="pill pill-vencido">En mora</span>
+      <span class="pill pill-borrador">Borrador</span>
+      <span class="pill pill-borrador">Inactivo</span>
+    </div>
+    <p style="margin:0;font-size:12px;color:var(--muted);">Live specimens — match these colors + shape exactly.</p>
+  </div>
+
+  <table>
+    <thead><tr><th>Status</th><th>Background</th><th>Text</th><th>Left bar</th></tr></thead>
+    <tbody>
+      <tr><td><code>Alquilado</code> · <code>Activo</code> · <code>Disponible</code> · <code>Pagado</code></td>
+          <td><code><span class="sw" style="background:#f0f6f2;"></span>#f0f6f2</code></td>
+          <td><code><span class="sw" style="background:#0f2a1f;"></span>#0f2a1f</code></td>
+          <td><code><span class="sw" style="background:#1B4332;"></span>#1B4332</code></td></tr>
+      <tr><td><code>En venta</code></td>
+          <td><code><span class="sw" style="background:#fffbeb;"></span>#fffbeb</code></td>
+          <td><code><span class="sw" style="background:#92400e;"></span>#92400e</code></td>
+          <td><code><span class="sw" style="background:#B8960C;"></span>#B8960C</code></td></tr>
+      <tr><td><code>Reservado</code> · <code>Pendiente</code></td>
+          <td><code><span class="sw" style="background:#fffbeb;"></span>#fffbeb</code></td>
+          <td><code><span class="sw" style="background:#92400e;"></span>#92400e</code></td>
+          <td><code><span class="sw" style="background:#f59e0b;"></span>#f59e0b</code></td></tr>
+      <tr><td><code>Vencido</code> · <code>En mora</code></td>
+          <td><code><span class="sw" style="background:#fef2f2;"></span>#fef2f2</code></td>
+          <td><code><span class="sw" style="background:#991b1b;"></span>#991b1b</code></td>
+          <td><code><span class="sw" style="background:#dc2626;"></span>#dc2626</code></td></tr>
+      <tr><td><code>Borrador</code> · <code>Inactivo</code></td>
+          <td><code><span class="sw" style="background:#f5f5f0;"></span>#f5f5f0</code></td>
+          <td><code><span class="sw" style="background:#737373;"></span>#737373</code></td>
+          <td><code><span class="sw" style="background:#a3a3a3;"></span>#a3a3a3</code></td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn"><strong>"En venta" migration (shipped 2026-04-23).</strong> The legacy diagonal red ribbon is gone. Replaced with a <strong>mini D-pattern gold pill inside the green title banner</strong>, right-aligned with the property name. Icon (<code>Tag</code>) + <code>EN VENTA</code> text, tinted bg + 3px gold left-bar — same color family as the Señado contract pill.</div>
+
+  <div class="specimen">
+    <div class="demo" style="gap:20px;">
+      <!-- BEFORE -->
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#dc2626;">Before — remove</div>
+        <div style="position:relative;width:240px;background:#fff;border:1px solid rgba(232,232,227,0.7);border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);padding:10px;overflow:hidden;">
+          <div style="position:absolute;right:-30px;top:14px;transform:rotate(45deg);background:#dc2626;color:#fff;font-size:9px;font-weight:800;letter-spacing:0.15em;padding:2px 36px;">EN VENTA</div>
+          <div style="display:flex;align-items:center;gap:8px;background:#1B4332;color:#fff;border-radius:4px;padding:6px 10px;font-size:14px;font-weight:700;">
+            <span style="flex:1;">Casa Belgrano</span>
+          </div>
+        </div>
+      </div>
+      <!-- AFTER -->
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1B4332;">After — use</div>
+        <div style="width:240px;background:#fff;border:1px solid rgba(232,232,227,0.7);border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);padding:10px;">
+          <div style="display:flex;align-items:center;gap:8px;background:#1B4332;color:#fff;border-radius:4px;padding:6px 10px;font-size:14px;font-weight:700;">
+            <span style="flex:1;">Casa Belgrano</span>
+            <span style="display:inline-flex;align-items:center;gap:3px;background:#fffbeb;color:#92400e;border-left:3px solid #B8960C;border-radius:3px;padding:1px 6px 1px 5px;font-size:9.5px;font-weight:600;letter-spacing:0.06em;">🏷 EN VENTA</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p style="margin:0;font-size:12px;color:var(--muted);">Compact D-pattern pill (~15px tall) fits inside the 28px banner. Font-size 9.5px, letter-spacing 0.06em — tight enough to keep the pill narrow but legible at card size. Real component uses lucide <code>Tag</code>.</p>
+  </div>
+
+  <h3 style="margin-top:32px;">Contract status pills (D-pattern, shipped 2026-04-23)</h3>
+  <p>All five contract statuses now render as D-pattern pills with a lucide icon + sentence-case label. Family assignment locked in the design-lab session:</p>
+
+  <table>
+    <thead><tr><th>Status</th><th>Family</th><th>Rationale</th></tr></thead>
+    <tbody>
+      <tr><td><code>Señado</code></td><td>gold (<code>#fffbeb / #92400e / #B8960C</code>)</td><td>High-value in-motion — mirrors <em>En venta</em>. A deposit landed on a property; it's committed but not live.</td></tr>
+      <tr><td><code>Activo</code></td><td>success (<code>#f0f6f2 / #0f2a1f / #1B4332</code>)</td><td>Current rent-paying contract — the good state.</td></tr>
+      <tr><td><code>Por vencer</code></td><td>red (<code>#fef2f2 / #991b1b / #dc2626</code>)</td><td>End date approaching — operator action required. Lands in the red family as an escalation beyond amber; the board-level urgency logic (<code>getEndDateUrgency</code>) already treats the approach window as critical.</td></tr>
+      <tr><td><code>En liquidación</code></td><td>amber (<code>#fffbeb / #92400e / #f59e0b</code>)</td><td>Pending close-out — outstanding items to resolve. Classic "in-progress / waiting" state.</td></tr>
+      <tr><td><code>Finalizado</code></td><td>borrador (<code>#f5f5f0 / #737373 / #a3a3a3</code>)</td><td>Dead state — contract is closed. Muted gray matches <em>Inactivo</em>.</td></tr>
+    </tbody>
+  </table>
+
+  <p>Tokens live in <code>src/lib/constants/pill-colors.ts</code> (<code>CONTRACT_STATUS_PILL_COLORS</code>). Component: <code>src/components/contracts/ContractStatusPill.tsx</code>.</p>
+
+  <h3 style="margin-top:32px;">Property rental pill (D-pattern, shipped 2026-04-23)</h3>
+  <p>Property rental state is binary — does the property currently have an active contract? Renamed from <code>alquilada</code> to <code>ocupada</code> so the semantics read as "can I rent this out?" — <em>libre</em>=yes, <em>ocupada</em>=no. Both pills use the D-pattern (same shape as contract statuses) but with a lucide icon at the leading edge to disambiguate from the <em>Para alquiler</em> destino pill — destinos keep the rounded-lg + icon shape, statuses take the D-bar.</p>
+
+  <table>
+    <thead><tr><th>Status</th><th>Icon</th><th>Family</th><th>Rationale</th></tr></thead>
+    <tbody>
+      <tr><td><code>Libre</code></td><td><code>DoorOpen</code></td><td>red (<code>#fef2f2 / #991b1b / #dc2626</code>)</td><td>Vacant — needs operator action to fill. Red is semantic-action-required.</td></tr>
+      <tr><td><code>Ocupada</code></td><td><code>UserCheck</code></td><td>success (<code>#f0f6f2 / #0f2a1f / #1B4332</code>)</td><td>Rented out — tenant in place. Success green matches <em>Activo</em> contract pill.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="specimen">
+    <div class="demo" style="gap:12px;">
+      <span style="display:inline-flex;align-items:center;gap:6px;background:#fef2f2;color:#991b1b;border-left:3px solid #dc2626;border-radius:3px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.03em;">🚪 Libre</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;background:#f0f6f2;color:#0f2a1f;border-left:3px solid #1B4332;border-radius:3px;padding:3px 10px;font-size:10.5px;font-weight:600;letter-spacing:0.03em;">✅ Ocupada</span>
+    </div>
+    <p style="margin:0;font-size:12px;color:var(--muted);">Icons use lucide <code>DoorOpen</code> and <code>UserCheck</code> in the real component; emoji stand-ins above for the HTML preview.</p>
+  </div>
+
+  <p>Tokens live in <code>STATUS_PILL_COLORS</code> + <code>STATUS_PILL_ICONS</code> in <code>src/lib/constants/pill-colors.ts</code>. Component: <code>src/components/shared/StatusPill.tsx</code>. Type: <code>RentalStatus</code> in <code>src/lib/computed/property-status.ts</code>.</p>
+
+  <p>Visual reference → <a class="filelink" href="uikit-contract-detail.html">uikit-contract-detail.html</a></p>
+
+  <!-- ═══════════ CONTAINERS ═══════════ -->
+  <h2 id="containers">7 · Containers</h2>
+
+  <div class="specimen">
+    <div class="demo" style="gap:12px;">
+      <div class="sl-demo"><div class="t">Resumen</div><div class="b">Primary info</div></div>
+      <div class="sl-demo gold"><div class="t">Saldo del mes</div><div class="b">Financial emphasis</div></div>
+      <div class="sl-demo red"><div class="t">En mora</div><div class="b">Overdue warning</div></div>
+    </div>
+    <p style="margin:0 0 6px;font-size:12.5px;"><strong>Sideline container.</strong> White surface, 1px border, 3px left bar. Green = default · gold = financial emphasis · red = mora/warning. Max 2 bar colors per surface.</p>
+    <p style="margin:0;font-size:12px;color:var(--muted);">Full reference → <a class="filelink" href="system-containers-tables.html">system-containers-tables.html</a></p>
+  </div>
+
+  <!-- ═══════════ TABLES ═══════════ -->
+  <h2 id="tables">8 · Tables</h2>
+
+  <div class="prim">
+    <div>
+      <div class="name">T1 · primary data table</div>
+      <div class="desc">Dark-green header, white rows. Used for the cuenta corriente ledger, contract list, cobros list. Month-grouping rows optional.</div>
+    </div>
+    <a class="filelink right" href="system-containers-tables.html">system-containers-tables.html</a>
+  </div>
+
+  <div class="prim">
+    <div>
+      <div class="name">T3 · inline table</div>
+      <div class="desc">Compact, borderless, lives inside a sideline container. Gold uppercase column headers.</div>
+    </div>
+  </div>
+
+  <div class="rule"><strong>Row accent pattern (D).</strong> In the Cobros list, each row carries a 3px left accent matching its status — red for mora, amber for parcial, transparent for al día. Cobros row ref → <a class="filelink" href="components-cobros-row.html">components-cobros-row.html</a></div>
+
+  <!-- ═══════════ FORMS ═══════════ -->
+  <h2 id="forms">9 · Forms & inputs</h2>
+  <ul>
+    <li>Inputs, selects, textareas → <a class="filelink" href="components-inputs.html">components-inputs.html</a></li>
+    <li>Height 30px, radius 5px, 1px line border. Focus ring: green.</li>
+  </ul>
+
+  <h3 style="margin-top:32px;">Faceted multi-select filter (shipped 2026-06-29)</h3>
+  <p>The standard filter control for every toolbar (Contratos, Propiedades, Cobros, Gastos…). Empty it reads as a dashed <code>+ Label</code> affordance; once values are picked the border goes <strong>solid green</strong> and the selection shows inline as up to two D-pattern mini-badges, collapsing to an <code>N&nbsp;sel.</code> count beyond that. The popover holds a type-to-filter search, a checkbox list, and a <code>Limpiar filtro</code> footer. Auto-sizes to content; pin a width via <code>className</code> only when alignment demands it.</p>
+  <div class="specimen">
+    <div class="demo" style="gap:12px;align-items:center;flex-wrap:wrap;">
+      <!-- idle -->
+      <span style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:1px dashed #cfcfc7;border-radius:6px;background:#fff;font:500 12px Inter,sans-serif;color:#1a1a1a;">
+        <span style="color:#737373;font-size:14px;line-height:1;">&#x2295;</span> Moneda
+      </span>
+      <!-- one selected -->
+      <span style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:1px solid #1B4332;border-radius:6px;background:#fff;font:500 12px Inter,sans-serif;color:#1a1a1a;">
+        <span style="color:#737373;font-size:14px;line-height:1;">&#x2295;</span> Moneda
+        <span style="width:1px;height:16px;background:#e8e8e3;margin:0 2px;"></span>
+        <span style="font-size:11px;font-weight:600;padding:1px 7px;border-radius:3px;background:#f0f6f2;color:#0f2a1f;border-left:2px solid #1B4332;">ARS</span>
+      </span>
+      <!-- count -->
+      <span style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:1px solid #1B4332;border-radius:6px;background:#fff;font:500 12px Inter,sans-serif;color:#1a1a1a;">
+        <span style="color:#737373;font-size:14px;line-height:1;">&#x2295;</span> Grupo
+        <span style="width:1px;height:16px;background:#e8e8e3;margin:0 2px;"></span>
+        <span style="font-size:11px;font-weight:600;padding:1px 7px;border-radius:3px;background:#f0f6f2;color:#0f2a1f;">3 sel.</span>
+      </span>
+    </div>
+    <p style="margin:0;font-size:12.5px;">Trigger height 32px, radius 6px. Dashed border <code>#cfcfc7</code> → solid <code>#1B4332</code> when active. Mini-badge = D-pattern tokens (bg <code>#f0f6f2</code>, text <code>#0f2a1f</code>, 2px green left-bar). Count badge drops the left-bar. Mini-badges truncate at 120px.</p>
+  </div>
+  <p>Component: <code>src/components/shared/MultiSelectFilter.tsx</code>. API: <code>{ label, options:[{value,label}], selected, onSelectionChange, className? }</code> — unchanged, so all existing toolbars inherit the look. For a "Sin grupo"-style pseudo-option, prepend it to <code>options</code> in the caller.</p>
+
+  <!-- ═══════════ MONEY ═══════════ -->
+  <h2 id="money">10 · Money & numbers</h2>
+
+  <div class="specimen">
+    <div class="demo" style="font-size:16px;gap:24px;">
+      <span class="money-demo">$ 225.000</span>
+      <span class="money-demo"><span class="cap">ARS</span> 450.000</span>
+      <span class="money-demo">US$ 12.400,50</span>
+    </div>
+    <p style="margin:0;font-size:12.5px;">Single Intl-formatted string (<code>es-AR</code> currency style). Inter with <code>tabular-nums</code> for column alignment and <code>font-medium</code> (500) weight. Symbol shares the size and color of the digits — inherited from the parent. Use the <code>ARS</code> capsule in mixed-currency contexts. <strong>JetBrains Mono is not used for money</strong> — Inter at <code>font-variant-numeric: tabular-nums</code> gives mono-style column alignment without switching fonts.</p>
+  </div>
+
+  <pre><span class="c">&lt;!-- in React: --&gt;</span>
+<span class="k">&lt;MoneyCell</span> value={225000} currency="ARS" /<span class="k">&gt;</span>
+<span class="c">&lt;!-- raw HTML equivalent: --&gt;</span>
+<span class="k">&lt;span class="money"&gt;</span>$ 225.000<span class="k">&lt;/span&gt;</span>
+<span class="c">&lt;!-- .money = tabular-nums + font-medium; color/size inherited --&gt;</span></pre>
+
+  <!-- ═══════════ COMPOSED ═══════════ -->
+  <h2 id="kanban">11 · Kanban card</h2>
+  <p>Property card for kanban boards. Green banner with key + name, divider, address/location, specs (m², beds, baths), owner chip, contract metadata. Status badge (e.g. "En venta") sits next to the title.</p>
+  <p>Reference → <a class="filelink" href="components-kanban-card.html">components-kanban-card.html</a></p>
+
+  <h2 id="dashboard">12 · Dashboard cards</h2>
+  <p>Stat cards with label, value (mono, large), and sub-metric. Optional leading icon in token color. Reference → <a class="filelink" href="components-dashboard-cards.html">components-dashboard-cards.html</a></p>
+
+  <h2 id="cobros-row">13 · Cobros row</h2>
+  <p>Table row with left accent by status (red / amber / transparent), property + tenant columns, money cells, day chip for overdue days. Reference → <a class="filelink" href="components-cobros-row.html">components-cobros-row.html</a></p>
+
+  <h2 id="sidebar">14 · Sidebar & nav</h2>
+  <ul>
+    <li>Sidebar → <a class="filelink" href="components-sidebar.html">components-sidebar.html</a></li>
+    <li>Tabbar (open tabs) → <a class="filelink" href="components-tabbar.html">components-tabbar.html</a></li>
+  </ul>
+
+  <!-- ═══════════ SURFACES ═══════════ -->
+  <h2 id="uikit-cobros">15 · Cobros page</h2>
+  <p>Full assembled surface showing stat cards, filter bar, grouped ledger table, expanded-row detail. → <a class="filelink" href="uikit-cobros.html">uikit-cobros.html</a></p>
+
+  <h2 id="uikit-contract">16 · Contract detail — primitives</h2>
+  <p>Reference catalog for the Contract detail surface. One of each primitive (tabs, status pills, buttons, containers, key-value, money, progress, T1 and T3 tables). → <a class="filelink" href="uikit-contract-detail.html">uikit-contract-detail.html</a></p>
+
+  <!-- ═══════════ FEEDBACK ═══════════ -->
+  <h2 id="toasts">17 · Toasts</h2>
+  <p>White-card toast family (sonner <code>toast.custom</code>). One tarjeta blanca, redondeo 6px, sombra; chip de ícono redondo teñido por semántica (success <span class="sw" style="background:#f0f6f2;"></span>green-50 · error <span class="sw" style="background:#fef2f2;"></span>red-50 · warning <span class="sw" style="background:#fffbeb;"></span>amber-50 · neutral <span class="sw" style="background:#f5f5f0;"></span>panel); mensaje Inter 14px/500 + descripción opcional.</p>
+  <ul>
+    <li><strong>Variante con acción "Ver" + barra de countdown</strong> — éxito de creación o edición en la Cuenta Corriente (pago, cargo, plan, nota, alerta, liquidación, ticket). Botón outline verde con ícono, y barra gold <span class="sw" style="background:#B8960C;"></span> que se vacía con el tiempo restante y se <strong>pausa al hover</strong> (patrón Discord/Gmail). Helper: <code>toastSuccess(message, { onView, description?, duration? })</code> en <code>src/lib/utils/toast-success.tsx</code>.</li>
+    <li><strong>Gemela "Deshacer"</strong> — misma tarjeta para borrados reversibles: <code>toastDeletedWithUndo(...)</code> en <code>src/lib/utils/toast-undo.tsx</code>.</li>
+    <li><strong>Familia semántica plana</strong> (success / error / info / warning) — hoy vía <code>richColors</code> de sonner; el chip teñido es la dirección del DS.</li>
+  </ul>
+  <div class="rule"><strong>Una sola familia de toast.</strong> Cualquier toast con acción o countdown sale de estos helpers — no armar <code>toast.custom</code> a mano ni volver al <code>toast.success(msg, {'{'} action {'}'})</code> default (botón negro genérico, sin barra). Reference → <a class="filelink" href="components-toast.html">components-toast.html</a></div>
+
+  <div class="foot">
+    <strong>For Claude Code:</strong> when implementing UI, start here. Every section links to the canonical preview file. If a component is not listed, ask before inventing one.
+  </div>
+
+</div>
+
+</body></html>

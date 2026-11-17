@@ -1,0 +1,14 @@
+# Enforce LF line endings everywhere — no Windows CRLF drift
+* text=auto eol=lf
+
+# Explicitly mark binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary

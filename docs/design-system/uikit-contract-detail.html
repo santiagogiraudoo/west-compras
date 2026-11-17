@@ -1,0 +1,316 @@
+<!doctype html><html><head><meta charset="utf-8"><title>UI Kit — Contract detail (reference catalog)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#737373; --faint:#a3a3a3;
+    --bg:#FFFEFC;          /* 60% — off-white */
+    --surface:#fff;
+    --panel:#f5f5f0; --panel-2:#fafaf7;
+    --line:#e8e8e3; --line-soft:#f0f0ec;
+    --green:#1B4332;       /* 30% — dark green */
+    --green-50:#f0f6f2; --green-ink:#0f2a1f;
+    --gold:#B8960C;        /* 10% — gold */
+    --gold-50:#fffbeb;
+    /* semantic only — used exclusively inside status pills */
+    --red:#dc2626;  --red-50:#fef2f2;  --red-ink:#991b1b;
+    --amber:#f59e0b; --amber-50:#fffbeb; --amber-ink:#92400e;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{font-family:Inter,sans-serif;background:var(--bg);color:var(--ink);font-size:13px;line-height:1.45;}
+  .mono{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;}
+
+  .page{max-width:1200px;margin:0 auto;padding:28px 28px 80px;}
+
+  /* ─── page header ─── */
+  .hdr{margin-bottom:28px;padding-bottom:18px;border-bottom:1px solid var(--line);}
+  .hdr h1{font-size:22px;font-weight:700;letter-spacing:-0.01em;margin:0 0 4px;}
+  .hdr p{font-size:12.5px;color:var(--muted);margin:0;max-width:640px;}
+
+  /* ─── section ─── */
+  .sec{margin-top:44px;}
+  .sec-label{
+    font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;
+    color:var(--gold);margin-bottom:14px;display:flex;align-items:center;gap:10px;
+  }
+  .sec-label::after{content:"";flex:1;height:1px;background:var(--line);}
+  .sec-title{font-size:14px;font-weight:600;color:var(--green);margin:0 0 4px;}
+  .sec-desc{font-size:12px;color:var(--muted);margin:0 0 16px;max-width:640px;}
+
+  /* ─── primitive card (one per primitive) ─── */
+  .prim{
+    background:var(--surface);border:1px solid var(--line);border-radius:6px;
+    padding:18px 20px;margin-bottom:14px;
+  }
+  .prim-head{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;}
+  .prim-name{font-size:12px;font-weight:600;color:var(--green);}
+  .prim-desc{font-size:11.5px;color:var(--muted);}
+  .prim-demo{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;padding:14px;background:var(--bg);border:1px dashed var(--line);border-radius:5px;}
+
+  /* ═══════ PRIMITIVES ═══════ */
+
+  /* Tabs */
+  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);width:100%;}
+  .tab{padding:10px 16px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border:0;background:transparent;border-bottom:2px solid transparent;margin-bottom:-1px;display:inline-flex;align-items:center;gap:7px;}
+  .tab svg{width:13px;height:13px;}
+  .tab.active{color:var(--green);border-bottom-color:var(--green);font-weight:600;}
+
+  /* Status pill (D pattern) */
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:3px;font-size:10.5px;font-weight:600;letter-spacing:0.03em;border-left:3px solid;}
+  .pill svg{width:11px;height:11px;}
+  .pill-activo{background:var(--green-50);color:var(--green-ink);border-color:var(--green);}
+  .pill-pagado{background:var(--green-50);color:var(--green-ink);border-color:var(--green);}
+  .pill-pendiente{background:var(--amber-50);color:var(--amber-ink);border-color:var(--amber);}
+  .pill-vencido{background:var(--red-50);color:var(--red-ink);border-color:var(--red);}
+  .pill-borrador{background:var(--panel);color:var(--muted);border-color:var(--faint);}
+
+  /* Buttons */
+  .btn{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 11px;border:1px solid var(--line);background:#fff;border-radius:5px;font-size:12px;font-weight:500;color:var(--ink);cursor:pointer;}
+  .btn svg{width:13px;height:13px;}
+  .btn-primary{background:var(--green);color:#fff;border-color:var(--green);}
+  .btn-gold{background:var(--gold);color:#fff;border-color:var(--gold);}
+  .btn-ghost{background:transparent;border-color:transparent;color:var(--muted);}
+
+  /* Sideline container */
+  .sl{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--green);border-radius:6px;padding:14px 16px;min-width:260px;}
+  .sl-gold{border-left-color:var(--gold);}
+  .sl-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);display:inline-flex;align-items:center;gap:6px;margin-bottom:6px;}
+  .sl-title svg{width:13px;height:13px;color:var(--green);}
+  .sl-gold .sl-title svg{color:var(--gold);}
+  .sl-body{font-size:12px;color:var(--ink);}
+
+  /* Key-value */
+  .kv{display:flex;flex-direction:column;gap:2px;min-width:180px;}
+  .kv .k{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--muted);}
+  .kv .v{font-size:13px;color:var(--ink);font-weight:500;}
+
+  /* Money */
+  .money{display:inline-flex;align-items:baseline;gap:4px;}
+  .money .sym{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;}
+  .money .num{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;font-weight:500;}
+  .cap{font-size:9px;font-weight:700;letter-spacing:0.12em;padding:2px 5px;background:var(--panel);color:var(--muted);border-radius:3px;}
+
+  /* Progress */
+  .progress{width:260px;}
+  .progress-bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden;}
+  .progress-bar .fill{height:100%;background:var(--green);border-radius:2px;width:58%;}
+  .progress-meta{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px;font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;}
+
+  /* T1 table (headless demo) */
+  .t1-wrap{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+  table.t1{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.t1 thead{background:var(--green);}
+  table.t1 thead th{color:rgba(255,255,255,0.92);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;padding:9px 12px;text-align:left;}
+  table.t1 thead th.num{text-align:right;}
+  table.t1 tbody td{padding:9px 12px;border-top:1px solid var(--line-soft);}
+  table.t1 tbody tr:first-child td{border-top:0;}
+  table.t1 td.num{text-align:right;font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;}
+  table.t1 td.date{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;color:var(--muted);}
+
+  /* T3 inline */
+  table.t3{width:100%;border-collapse:collapse;font-size:12px;}
+  table.t3 thead th{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--gold);padding:5px 8px;text-align:left;border-bottom:1px solid var(--line);}
+  table.t3 thead th.num{text-align:right;}
+  table.t3 tbody td{padding:6px 8px;border-bottom:1px dashed var(--line-soft);}
+  table.t3 tbody td.num{text-align:right;font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;}
+  table.t3 tbody tr:last-child td{border-bottom:0;}
+  .idx-gold{color:var(--gold);font-weight:600;font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;}
+
+  /* Footer note */
+  .note{margin-top:56px;padding:14px 16px;background:var(--panel);border-radius:5px;font-size:11.5px;color:var(--muted);}
+  .note strong{color:var(--green);}
+</style></head><body>
+
+<div class="page">
+
+  <div class="hdr">
+    <h1>Contract detail — primitives</h1>
+    <p>Reference catalog of the building blocks used on the Contract detail surface. One of each element, labeled. For composed examples see the Cobros UI kit.</p>
+  </div>
+
+  <!-- ═══════════ NAVIGATION ═══════════ -->
+  <div class="sec">
+    <div class="sec-label">Navigation</div>
+
+    <div class="prim">
+      <div class="prim-head">
+        <span class="prim-name">Tabs</span>
+        <span class="prim-desc">Green underline on active. Used for tab groups inside a detail view.</span>
+      </div>
+      <div class="prim-demo">
+        <div class="tabs">
+          <button class="tab"><i data-lucide="info"></i>Datos</button>
+          <button class="tab active"><i data-lucide="book-open"></i>Cuenta corriente</button>
+          <button class="tab"><i data-lucide="shield"></i>Depósito</button>
+          <button class="tab"><i data-lucide="history"></i>Historial</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ STATUS PILLS ═══════════ -->
+  <div class="sec">
+    <div class="sec-label">Status pills</div>
+    <div class="prim">
+      <div class="prim-head">
+        <span class="prim-name">D pattern — left accent bar</span>
+        <span class="prim-desc">Semantic colors only (green · amber · red · neutral). Never decorative.</span>
+      </div>
+      <div class="prim-demo">
+        <span class="pill pill-activo"><i data-lucide="check-circle-2"></i>Activo</span>
+        <span class="pill pill-pagado"><i data-lucide="check"></i>Pagado</span>
+        <span class="pill pill-pendiente"><i data-lucide="clock"></i>Pendiente</span>
+        <span class="pill pill-vencido"><i data-lucide="alert-triangle"></i>Vencido</span>
+        <span class="pill pill-borrador"><i data-lucide="file"></i>Borrador</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ BUTTONS ═══════════ -->
+  <div class="sec">
+    <div class="sec-label">Buttons</div>
+    <div class="prim">
+      <div class="prim-head">
+        <span class="prim-name">Button variants</span>
+        <span class="prim-desc">Green primary for main actions · gold for emphasis on rare high-value CTAs · default + ghost.</span>
+      </div>
+      <div class="prim-demo">
+        <button class="btn btn-primary"><i data-lucide="credit-card"></i>Registrar pago</button>
+        <button class="btn btn-gold"><i data-lucide="plus"></i>Nuevo cargo</button>
+        <button class="btn"><i data-lucide="pencil"></i>Editar</button>
+        <button class="btn btn-ghost"><i data-lucide="more-horizontal"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ CONTAINERS ═══════════ -->
+  <div class="sec">
+    <div class="sec-label">Containers</div>
+
+    <div class="prim">
+      <div class="prim-head">
+        <span class="prim-name">Sideline container — green</span>
+        <span class="prim-desc">Default container for grouped content. Green left bar marks primary information.</span>
+      </div>
+      <div class="prim-demo">
+        <div class="sl">
+          <div class="sl-title"><i data-lucide="file-text"></i>Resumen del contrato</div>
+          <div class="sl-body">Content goes here.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="prim">
+      <div class="prim-head">
+        <span class="prim-name">Sideline container — gold</span>
+        <span class="prim-desc">Gold bar for emphasis — financial highlights, active plans. Use sparingly.</span>
+      </div>
+      <div class="prim-demo">
+        <div class="sl sl-gold">
+          <div class="sl-title"><i data-lucide="wallet"></i>Saldo del mes</div>
+          <div class="sl-body">Content goes here.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ DATA DISPLAY ═══════════ -->
+  <div class="sec">
+    <div class="sec-label">Data display</div>
+
+    <div class="prim">
+      <div class="prim-head">
+        <span class="prim-name">Key-value pair</span>
+        <span class="prim-desc">Label above value. Label uppercase, tight letter-spacing.</span>
+      </div>
+      <div class="prim-demo">
+        <div class="kv">
+          <div class="k">Propiedad</div>
+          <div class="v">Depto Palermo 3A</div>
+        </div>
+        <div class="kv">
+          <div class="k">Inquilino</div>
+          <div class="v">García, Juan M.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="prim">
+      <div class="prim-head">
+        <span class="prim-name">Money cell</span>
+        <span class="prim-desc">$ symbol in muted color, split from digits. JetBrains Mono · tabular numbers.</span>
+      </div>
+      <div class="prim-demo" style="align-items:center;">
+        <span class="money"><span class="sym">$</span><span class="num">225.000</span></span>
+        <span class="money"><span class="cap">ARS</span><span class="num">450.000</span></span>
+      </div>
+    </div>
+
+    <div class="prim">
+      <div class="prim-head">
+        <span class="prim-name">Progress bar</span>
+        <span class="prim-desc">Contract duration — start · percent complete · end.</span>
+      </div>
+      <div class="prim-demo">
+        <div class="progress">
+          <div class="progress-bar"><div class="fill"></div></div>
+          <div class="progress-meta"><span>01/01/2025</span><span>58%</span><span>31/12/2026</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TABLES ═══════════ -->
+  <div class="sec">
+    <div class="sec-label">Tables</div>
+
+    <div class="prim">
+      <div class="prim-head">
+        <span class="prim-name">T1 — primary data table</span>
+        <span class="prim-desc">Dark green header. Used for the main ledger view.</span>
+      </div>
+      <div class="prim-demo" style="padding:0;background:transparent;border:0;">
+        <div class="t1-wrap">
+          <table class="t1">
+            <thead>
+              <tr><th>Fecha</th><th>Categoría</th><th class="num">Debe</th><th class="num">Haber</th><th class="num">Saldo</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="date">05/03/2026</td><td>Alquiler</td><td class="num">225.000</td><td class="num" style="color:var(--faint);">—</td><td class="num">225.000</td></tr>
+              <tr><td class="date">08/02/2026</td><td>Pago</td><td class="num" style="color:var(--faint);">—</td><td class="num">285.000</td><td class="num">0</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="prim">
+      <div class="prim-head">
+        <span class="prim-name">T3 — inline table</span>
+        <span class="prim-desc">Compact, borderless. Lives inside a sideline container. Gold column headers.</span>
+      </div>
+      <div class="prim-demo">
+        <div style="flex:1;min-width:320px;">
+          <table class="t3">
+            <thead>
+              <tr><th style="width:32px;">#</th><th>Monto</th><th>Vencimiento</th><th class="num">Estado</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="idx-gold">1</td><td><span class="money"><span class="sym">$</span><span class="num">281.250</span></span></td><td class="date" style="color:var(--muted);font-family:'JetBrains Mono',monospace;">05/02/2026</td><td class="num"><span class="pill pill-pagado">Pagado</span></td></tr>
+              <tr><td class="idx-gold">2</td><td><span class="money"><span class="sym">$</span><span class="num">281.250</span></span></td><td class="date" style="color:var(--muted);font-family:'JetBrains Mono',monospace;">05/03/2026</td><td class="num"><span class="pill pill-vencido">Vencido</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Palette:</strong> off-white canvas (60%) · dark green for ink, headers, active states (30%) · gold for emphasis and accent tables (10%). Red/amber appear only inside semantic status pills.
+  </div>
+
+</div>
+
+<script>lucide.createIcons();</script>
+</body></html>

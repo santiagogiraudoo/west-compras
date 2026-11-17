@@ -1,0 +1,57 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Dashboard cards</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body{margin:0;font-family:Inter,sans-serif;background:#FFFEFC;padding:18px;color:#1a1a1a;font-size:13px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:900px;}
+  .card{background:#fff;border:1px solid rgba(232,232,227,0.9);border-radius:6px;padding:12px 14px;box-shadow:0 1px 2px rgba(0,0,0,0.04);}
+  .lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#737373;display:flex;align-items:center;gap:6px;}
+  .lbl svg{width:13px;height:13px;color:#1B4332;}
+  .sub{font-size:11px;color:#737373;margin-top:4px;}
+
+  .mono{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;}
+  .big{font-size:26px;font-weight:600;color:#1a1a1a;margin-top:6px;letter-spacing:-0.01em;}
+
+  .delta{display:inline-block;font-size:11px;font-weight:500;padding:1px 6px;border-radius:999px;margin-left:6px;vertical-align:2px;}
+  .up{background:#d1fae5;color:#065f46;}
+  .down{background:#fee2e2;color:#991b1b;}
+
+  /* V5 · ARS capsule + number (no $) */
+  .money{display:inline-flex;align-items:center;gap:8px;margin-top:6px;}
+  .money .cap{font-size:9px;font-weight:700;letter-spacing:0.12em;padding:2px 5px;background:#f5f5f0;color:#737373;border-radius:3px;}
+  .money .num{font-size:28px;font-weight:600;letter-spacing:-0.01em;}
+
+  /* small-money variant for sub text */
+  .sub .capsm{font-size:9px;font-weight:700;letter-spacing:0.1em;padding:1px 4px;background:#f5f5f0;color:#737373;border-radius:3px;margin-right:4px;}
+</style></head><body>
+
+<div class="grid">
+
+  <div class="card">
+    <div class="lbl"><i data-lucide="building-2"></i>Propiedades</div>
+    <div class="big mono">128</div>
+    <div class="sub">42 ocupadas · 6 libres</div>
+  </div>
+
+  <div class="card">
+    <div class="lbl"><i data-lucide="percent"></i>Ocupación</div>
+    <div class="big mono" style="color:#047857;">96,4%<span class="delta up">+1,2</span></div>
+    <div class="sub">últimos 30 días</div>
+  </div>
+
+  <div class="card">
+    <div class="lbl"><i data-lucide="dollar-sign"></i>Saldo del mes</div>
+    <div class="money mono"><span class="cap">ARS</span><span class="num">4.821.300</span></div>
+    <div class="sub">18 contratos</div>
+  </div>
+
+  <div class="card">
+    <div class="lbl"><i data-lucide="alert-circle"></i>En mora</div>
+    <div class="big mono" style="color:#dc2626;">3<span class="delta down">+1</span></div>
+    <div class="sub"><span class="capsm">ARS</span>312.400 pendientes</div>
+  </div>
+
+</div>
+
+<script>lucide.createIcons();</script>
+</body></html>

@@ -1,0 +1,94 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# database dumps — never commit real data (migrations under prisma/migrations/ are exempt)
+/*.sql
+backup-*.sql
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+/src/generated/prisma
+
+# session junk
+.claude/worktrees/
+.claude/*.lock
+.claude/settings.local.json
+.superpowers/brainstorm/
+# backups de los scripts de migración: llevan ids de cargos y saldos de inquilinos.
+# La regla tiene que vivir ACÁ y no en .superpowers/sdd/.gitignore, que no está
+# trackeado: en un clone fresco esa regla no existe y el backup de producción queda
+# a la vista como archivo sin trackear.
+.superpowers/sdd/
+e2e/screenshots/
+playwright-report/
+test-results/
+cookies.txt
+
+# dev screenshot/repro artifacts (throwaway UAT captures + helper scripts)
+scripts/screenshots/
+tmp-screenshots/
+scripts/screenshot-*.py
+scripts/repro-*.py
+
+# throwaway UAT/debug result dumps + playwright helper scripts
+scripts/*-results.json
+scripts/*_results.json
+scripts/*-report.json
+scripts/*-report-*.json
+scripts/test-*.py
+scripts/uat-*.py
+scripts/debug-*.py
+scripts/phase*_uat*.py
+
+# Serena MCP (local-only, not shared)
+.mcp.json
+.serena/
+
+# Local DB backups (never commit — contains live data)
+backup-*.sql
+
+# GSD orchestrator sentinel (local-only, per-checkout)
+.gsd/
+
+# Backups de produccion. Traen datos reales de personas: nunca al repo.
+*.dump
+*.sql.gz
+west-prod-*/

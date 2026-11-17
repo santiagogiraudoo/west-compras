@@ -1,0 +1,526 @@
+<!doctype html><html><head><meta charset="utf-8"><title>UI Kit — Cobros</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#737373; --faint:#a3a3a3;
+    --bg:#FFFEFC; --surface:#fff; --panel:#f5f5f0; --panel-2:#fafaf7;
+    --line:#e8e8e3; --line-soft:#f0f0ec;
+    --green:#1B4332; --green-50:#f0f6f2; --green-ink:#0f2a1f;
+    --gold:#B8960C; --gold-50:#fffbeb;
+    --red:#dc2626; --red-50:#fef2f2; --red-ink:#991b1b;
+    --amber:#f59e0b; --amber-50:#fffbeb; --amber-ink:#92400e;
+    --blue:#2563eb;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{font-family:Inter,sans-serif;background:var(--bg);color:var(--ink);font-size:13px;line-height:1.45;}
+  .mono{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;}
+
+  /* ─── page chrome ─── */
+  .page{max-width:1400px;margin:0 auto;padding:20px 24px 60px;}
+  .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+  .page-title{font-size:22px;font-weight:700;color:var(--ink);letter-spacing:-0.01em;display:flex;align-items:baseline;gap:10px;}
+  .page-title .sub{font-size:12px;color:var(--muted);font-weight:400;}
+  .page-actions{display:flex;gap:8px;}
+
+  /* ─── section separator ─── */
+  .section-label{
+    font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;
+    color:var(--faint);margin:28px 0 10px;display:flex;align-items:center;gap:10px;
+  }
+  .section-label::after{content:"";flex:1;height:1px;background:var(--line);}
+
+  /* ─── buttons ─── */
+  .btn{
+    display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 11px;
+    border:1px solid var(--line);background:#fff;border-radius:5px;
+    font-size:12px;font-weight:500;color:var(--ink);cursor:pointer;
+    transition:background .1s;
+  }
+  .btn:hover{background:var(--panel-2);}
+  .btn svg{width:13px;height:13px;}
+  .btn-primary{background:var(--green);color:#fff;border-color:var(--green);}
+  .btn-primary:hover{background:var(--green-ink);}
+  .btn-ghost{background:transparent;border-color:transparent;color:var(--muted);}
+  .btn-ghost:hover{background:var(--panel-2);color:var(--ink);}
+  .btn-sm{height:26px;padding:0 9px;font-size:11px;}
+
+  /* ─── month picker ─── */
+  .month-picker{
+    display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:5px;overflow:hidden;background:#fff;
+  }
+  .month-picker button{
+    width:28px;height:30px;background:transparent;border:0;cursor:pointer;display:grid;place-items:center;color:var(--muted);
+  }
+  .month-picker button:hover{background:var(--panel-2);}
+  .month-picker button svg{width:13px;height:13px;}
+  .month-picker .label{padding:0 14px;height:30px;line-height:30px;font-size:12px;font-weight:600;color:var(--ink);border-left:1px solid var(--line);border-right:1px solid var(--line);min-width:130px;text-align:center;text-transform:capitalize;}
+
+  /* ─── ARS capsule ─── */
+  .cap{font-size:9px;font-weight:700;letter-spacing:0.12em;padding:2px 5px;background:var(--panel);color:var(--muted);border-radius:3px;display:inline-block;vertical-align:1px;}
+  .cap-sm{font-size:9px;padding:1px 4px;margin-right:4px;}
+
+  /* ═══════════ STAT CARDS (V5 treatment) ═══════════ */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  .stat{
+    background:var(--surface);border:1px solid var(--line);border-radius:6px;
+    padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,0.03);
+    display:flex;flex-direction:column;gap:3px;
+  }
+  .stat .lbl{
+    font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--muted);
+    display:flex;align-items:center;gap:6px;
+  }
+  .stat .lbl svg{width:13px;height:13px;}
+  .stat .val{margin-top:5px;display:flex;align-items:baseline;gap:8px;}
+  .stat .val .num{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;font-size:24px;font-weight:600;letter-spacing:-0.01em;line-height:1.1;}
+  .stat .sub{font-size:11px;color:var(--muted);margin-top:1px;}
+  .stat.acobrar .lbl svg{color:var(--gold);}
+  .stat.cobrado .lbl svg{color:var(--green);}
+  .stat.cobrado .num{color:var(--green);}
+  .stat.pendiente .lbl svg{color:var(--amber);}
+  .stat.mora .lbl svg{color:var(--red);}
+  .stat.mora .num{color:var(--red);}
+
+  /* ═══════════ FILTER BAR ═══════════ */
+  .filter-bar{
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    padding:10px 14px;background:var(--surface);border:1px solid var(--line);border-radius:6px;
+  }
+  .filter-bar .label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--muted);margin-right:6px;}
+  .filter-pill{
+    display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;
+    border:1px solid var(--line);background:#fff;border-radius:5px;
+    font-size:12px;color:var(--ink);cursor:pointer;
+  }
+  .filter-pill:hover{background:var(--panel-2);}
+  .filter-pill svg{width:12px;height:12px;color:var(--muted);}
+  .filter-pill .count{
+    background:var(--green);color:#fff;font-size:10px;padding:0 5px;border-radius:9px;font-weight:600;min-width:16px;text-align:center;
+  }
+  .filter-divider{width:1px;height:18px;background:var(--line);margin:0 4px;}
+
+  /* ═══════════ TABLE GROUP CARD ═══════════ */
+  .table-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;
+  }
+
+  .group{border-bottom:1px solid var(--line);}
+  .group:last-child{border-bottom:0;}
+
+  .group-header{
+    width:100%;display:flex;align-items:center;gap:8px;padding:10px 16px;
+    font-size:12px;font-weight:600;cursor:pointer;text-align:left;
+    border:0;transition:background .1s;
+  }
+  .group-header svg.chev{width:14px;height:14px;flex-shrink:0;}
+  .group-header .count{font-weight:500;color:inherit;opacity:0.85;}
+  .group-header .total{margin-left:auto;font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;font-weight:600;font-size:12.5px;}
+
+  .group-mora     {background:var(--red-50);color:var(--red-ink);}
+  .group-pendiente{background:var(--amber-50);color:var(--amber-ink);}
+  .group-aldia    {background:var(--green-50);color:var(--green-ink);}
+
+  /* table */
+  table.cobros{width:100%;border-collapse:collapse;font-size:13px;}
+  table.cobros thead th{
+    font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);
+    padding:8px 12px;text-align:left;border-bottom:1px solid var(--line);background:var(--panel-2);
+    white-space:nowrap;
+  }
+  table.cobros thead th.num{text-align:right;}
+  table.cobros thead th.center{text-align:center;}
+
+  /* body rows with left accent (D pattern) */
+  tr.row{border-bottom:1px solid var(--line-soft);cursor:pointer;transition:background .1s;}
+  tr.row:last-child{border-bottom:0;}
+  tr.row:hover{background:var(--panel-2);}
+  tr.row td{padding:10px 12px;vertical-align:middle;}
+  tr.row td.num{text-align:right;font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;}
+  tr.row td.center{text-align:center;}
+
+  tr.row.mora    {border-left:3px solid var(--red);}
+  tr.row.partial {border-left:3px solid var(--amber);}
+  tr.row.ok      {border-left:3px solid transparent;}
+
+  .prop-name{font-weight:500;color:var(--green);font-size:13px;}
+  .prop-addr{font-size:11px;color:var(--muted);margin-top:1px;}
+  .tenant{color:var(--ink);}
+  .curr-chip{display:inline-block;margin-top:2px;font-size:9px;font-weight:600;letter-spacing:0.06em;padding:1px 5px;background:var(--panel);color:var(--muted);border-radius:3px;}
+
+  .money{display:inline-flex;align-items:baseline;gap:4px;justify-content:flex-end;}
+  .money .sym{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;}
+  .money .num{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;font-weight:500;}
+  .money.saldo .num{font-weight:600;}
+  .money.muted .sym, .money.muted .num{color:var(--faint);font-weight:400;}
+  .money.red .sym, .money.red .num{color:var(--red);}
+  .money.green .sym, .money.green .num{color:var(--green);}
+  .dash{color:var(--faint);text-align:right;font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;}
+
+  .daychip{
+    display:inline-block;min-width:26px;text-align:center;padding:2px 7px;
+    font-size:11px;border-radius:9999px;background:var(--red-50);color:var(--red-ink);
+    font-weight:600;font-variant-numeric:tabular-nums;border:1px solid rgba(220,38,38,0.2);
+  }
+
+  .last-pay{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;}
+
+  .actions{display:flex;align-items:center;gap:4px;justify-content:flex-end;}
+  .icon-btn{
+    width:28px;height:28px;display:grid;place-items:center;
+    background:transparent;border:1px solid transparent;border-radius:4px;color:var(--muted);cursor:pointer;
+  }
+  .icon-btn:hover{background:var(--panel-2);color:var(--ink);}
+  .icon-btn svg{width:14px;height:14px;}
+
+  /* ═══════════ EXPANDED ROW ═══════════ */
+  tr.expanded-row td{padding:0;background:var(--panel-2);border-bottom:1px solid var(--line-soft);}
+  .expanded{
+    padding:14px 18px 14px 32px;display:grid;grid-template-columns:1.3fr 1fr;gap:18px;
+    border-left:3px solid var(--red);
+  }
+
+  /* sideline container inside expanded */
+  .sl{background:#fff;border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:5px;padding:10px 12px;}
+  .sl-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+  .sl-title svg{width:12px;height:12px;color:var(--gold);}
+
+  /* T3 table in expanded */
+  table.t3{width:100%;border-collapse:collapse;font-size:12px;}
+  table.t3 thead th{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--gold);padding:4px 6px;text-align:left;border-bottom:1px solid var(--line);}
+  table.t3 thead th.num{text-align:right;}
+  table.t3 tbody td{padding:5px 6px;border-bottom:1px dashed var(--line-soft);}
+  table.t3 tbody td.num{text-align:right;font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;}
+  table.t3 tbody tr:last-child td{border-bottom:0;}
+  .status-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;vertical-align:1px;}
+  .dot-due{background:var(--red);}
+  .dot-paid{background:var(--green);}
+  .dot-partial{background:var(--amber);}
+
+  /* annotations (scaffolding) */
+  .anno{
+    margin-top:24px;padding:12px 14px;background:var(--green-50);border:1px dashed var(--green);
+    border-radius:5px;font-size:11px;color:var(--green-ink);
+  }
+  .anno strong{font-weight:700;}
+  .anno code{background:#fff;padding:1px 5px;border-radius:3px;font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-size:10.5px;}
+</style></head><body>
+
+<div class="page">
+
+  <!-- page header -->
+  <div class="page-header">
+    <div class="page-title">
+      Cobros <span class="sub">· vencimientos y saldos del periodo</span>
+    </div>
+    <div class="page-actions">
+      <div class="month-picker">
+        <button title="Anterior"><i data-lucide="chevron-left"></i></button>
+        <span class="label">Marzo 2026</span>
+        <button title="Siguiente"><i data-lucide="chevron-right"></i></button>
+      </div>
+      <button class="btn"><i data-lucide="download"></i>Exportar</button>
+      <button class="btn btn-primary"><i data-lucide="plus"></i>Registrar pago</button>
+    </div>
+  </div>
+
+  <!-- ═══ SUMMARY STATS ═══ -->
+  <div class="section-label">Resumen del mes</div>
+  <div class="stats">
+    <div class="stat acobrar">
+      <div class="lbl"><i data-lucide="dollar-sign"></i>A cobrar</div>
+      <div class="val"><span class="cap">ARS</span><span class="num">4.821.300</span></div>
+      <div class="sub">18 contratos activos</div>
+    </div>
+    <div class="stat cobrado">
+      <div class="lbl"><i data-lucide="check-circle-2"></i>Cobrado</div>
+      <div class="val"><span class="cap">ARS</span><span class="num">3.094.450</span></div>
+      <div class="sub">64% del total</div>
+    </div>
+    <div class="stat pendiente">
+      <div class="lbl"><i data-lucide="clock"></i>Pendiente</div>
+      <div class="val"><span class="cap">ARS</span><span class="num">1.414.450</span></div>
+      <div class="sub">pendiente de cobro</div>
+    </div>
+    <div class="stat mora">
+      <div class="lbl"><i data-lucide="alert-triangle"></i>En mora</div>
+      <div class="val"><span class="cap">ARS</span><span class="num">312.400</span></div>
+      <div class="sub">3 contratos · 14 días prom.</div>
+    </div>
+  </div>
+
+  <!-- ═══ FILTERS ═══ -->
+  <div class="section-label">Filtros</div>
+  <div class="filter-bar">
+    <span class="label">Filtrar por</span>
+    <button class="filter-pill">Estado <span class="count">2</span><i data-lucide="chevron-down"></i></button>
+    <button class="filter-pill">Grupo<i data-lucide="chevron-down"></i></button>
+    <div class="filter-divider"></div>
+    <button class="filter-pill">Moneda<i data-lucide="chevron-down"></i></button>
+    <button class="filter-pill">Localidad <span class="count">1</span><i data-lucide="chevron-down"></i></button>
+    <button class="btn btn-ghost btn-sm" style="margin-left:auto;"><i data-lucide="eraser"></i>Limpiar filtros</button>
+  </div>
+
+  <!-- ═══ TABLE ═══ -->
+  <div class="section-label">Contratos</div>
+
+  <div class="table-card">
+
+    <!-- ── EN MORA group ── -->
+    <div class="group">
+      <button class="group-header group-mora">
+        <i data-lucide="chevron-down" class="chev"></i>
+        <span>En mora</span>
+        <span class="count">— 3 contratos</span>
+        <span class="total">$ 312.400</span>
+      </button>
+      <table class="cobros">
+        <thead>
+          <tr>
+            <th>Propiedad</th>
+            <th>Inquilino</th>
+            <th class="num">Adeudado</th>
+            <th class="num">Pagado</th>
+            <th class="num">Saldo</th>
+            <th class="num">Mora</th>
+            <th class="center">Días</th>
+            <th class="center">Últ. pago</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+
+          <!-- expanded row (contract detail inline) -->
+          <tr class="row mora" style="background:var(--panel-2);">
+            <td><div class="prop-name">Depto Palermo 3A</div><div class="prop-addr">Honduras 4521</div></td>
+            <td><div class="tenant">García J.</div></td>
+            <td class="num"><span class="money"><span class="sym">$</span><span class="num">285.000</span></span></td>
+            <td class="num"><span class="money muted"><span class="sym">$</span><span class="num">0</span></span></td>
+            <td class="num"><span class="money saldo red"><span class="sym">$</span><span class="num">285.000</span></span></td>
+            <td class="num"><span class="money red"><span class="sym">$</span><span class="num">12.400</span></span></td>
+            <td class="center"><span class="daychip">14</span></td>
+            <td class="center"><span class="last-pay">05/02/26</span></td>
+            <td class="num">
+              <div class="actions">
+                <button class="btn btn-sm"><i data-lucide="credit-card"></i>Pagar</button>
+                <button class="icon-btn" title="Más"><i data-lucide="more-horizontal"></i></button>
+              </div>
+            </td>
+          </tr>
+          <tr class="expanded-row">
+            <td colspan="9">
+              <div class="expanded">
+                <!-- Cargos del periodo -->
+                <div class="sl">
+                  <div class="sl-title"><i data-lucide="list"></i>Cargos del periodo · marzo 2026</div>
+                  <table class="t3">
+                    <thead>
+                      <tr>
+                        <th style="width:28px;">#</th>
+                        <th>Concepto</th>
+                        <th>Venc.</th>
+                        <th class="num">Monto</th>
+                        <th class="num">Saldo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td class="mono" style="color:var(--gold);font-weight:600;">1</td>
+                        <td><span class="status-dot dot-due"></span>Alquiler</td>
+                        <td class="mono" style="color:var(--muted);">05/03/26</td>
+                        <td class="num"><span class="money"><span class="sym">$</span><span class="num">225.000</span></span></td>
+                        <td class="num"><span class="money red"><span class="sym">$</span><span class="num">225.000</span></span></td>
+                      </tr>
+                      <tr>
+                        <td class="mono" style="color:var(--gold);font-weight:600;">2</td>
+                        <td><span class="status-dot dot-due"></span>Expensas</td>
+                        <td class="mono" style="color:var(--muted);">05/03/26</td>
+                        <td class="num"><span class="money"><span class="sym">$</span><span class="num">48.200</span></span></td>
+                        <td class="num"><span class="money red"><span class="sym">$</span><span class="num">48.200</span></span></td>
+                      </tr>
+                      <tr>
+                        <td class="mono" style="color:var(--gold);font-weight:600;">3</td>
+                        <td><span class="status-dot dot-due"></span>ABL</td>
+                        <td class="mono" style="color:var(--muted);">05/03/26</td>
+                        <td class="num"><span class="money"><span class="sym">$</span><span class="num">11.800</span></span></td>
+                        <td class="num"><span class="money red"><span class="sym">$</span><span class="num">11.800</span></span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <!-- Mora detail -->
+                <div class="sl" style="border-left-color:var(--red);">
+                  <div class="sl-title" style="color:var(--red-ink);"><i data-lucide="alert-triangle" style="color:var(--red);"></i>Mora acumulada</div>
+                  <table class="t3">
+                    <thead>
+                      <tr>
+                        <th>Cargo</th>
+                        <th class="num">Capital</th>
+                        <th class="num">Días</th>
+                        <th class="num">Interés</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>Alquiler feb</td><td class="num">225.000</td><td class="num">14</td><td class="num" style="color:var(--red);">8.800</td></tr>
+                      <tr><td>Expensas feb</td><td class="num">48.200</td><td class="num">14</td><td class="num" style="color:var(--red);">1.900</td></tr>
+                      <tr><td>ABL feb</td><td class="num">11.800</td><td class="num">14</td><td class="num" style="color:var(--red);">1.700</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <tr class="row mora">
+            <td><div class="prop-name">Local Av. Santa Fe</div><div class="prop-addr">Av. Santa Fe 3402</div></td>
+            <td><div class="tenant">Delpino SRL</div><span class="curr-chip">ARS+USD</span></td>
+            <td class="num"><span class="money"><span class="sym">$</span><span class="num">680.000</span></span></td>
+            <td class="num"><span class="money"><span class="sym">$</span><span class="num">340.000</span></span></td>
+            <td class="num"><span class="money saldo red"><span class="sym">$</span><span class="num">340.000</span></span></td>
+            <td class="num"><span class="money red"><span class="sym">$</span><span class="num">9.800</span></span></td>
+            <td class="center"><span class="daychip">8</span></td>
+            <td class="center"><span class="last-pay">20/02/26</span></td>
+            <td class="num">
+              <div class="actions">
+                <button class="btn btn-sm"><i data-lucide="credit-card"></i>Pagar</button>
+                <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+              </div>
+            </td>
+          </tr>
+
+          <tr class="row mora">
+            <td><div class="prop-name">Depto Recoleta 7B</div><div class="prop-addr">Vicente López 1650</div></td>
+            <td><div class="tenant">Martínez A.</div></td>
+            <td class="num"><span class="money"><span class="sym">$</span><span class="num">198.000</span></span></td>
+            <td class="num"><span class="money muted"><span class="sym">$</span><span class="num">0</span></span></td>
+            <td class="num"><span class="money saldo red"><span class="sym">$</span><span class="num">198.000</span></span></td>
+            <td class="num"><span class="money red"><span class="sym">$</span><span class="num">4.300</span></span></td>
+            <td class="center"><span class="daychip">5</span></td>
+            <td class="center"><span class="last-pay">28/01/26</span></td>
+            <td class="num">
+              <div class="actions">
+                <button class="btn btn-sm"><i data-lucide="credit-card"></i>Pagar</button>
+                <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+              </div>
+            </td>
+          </tr>
+
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── PENDIENTE group ── -->
+    <div class="group">
+      <button class="group-header group-pendiente">
+        <i data-lucide="chevron-down" class="chev"></i>
+        <span>Pendiente</span>
+        <span class="count">— 4 contratos</span>
+        <span class="total">$ 1.102.050</span>
+      </button>
+      <table class="cobros">
+        <thead>
+          <tr>
+            <th>Propiedad</th><th>Inquilino</th>
+            <th class="num">Adeudado</th><th class="num">Pagado</th><th class="num">Saldo</th><th class="num">Mora</th>
+            <th class="center">Días</th><th class="center">Últ. pago</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="row partial">
+            <td><div class="prop-name">Casa Belgrano</div><div class="prop-addr">Echeverría 2214</div></td>
+            <td><div class="tenant">Fernández M.</div></td>
+            <td class="num"><span class="money"><span class="sym">$</span><span class="num">480.000</span></span></td>
+            <td class="num"><span class="money"><span class="sym">$</span><span class="num">200.000</span></span></td>
+            <td class="num"><span class="money saldo"><span class="sym">$</span><span class="num">280.000</span></span></td>
+            <td class="dash">—</td>
+            <td class="center"><span style="color:var(--faint);">—</span></td>
+            <td class="center"><span class="last-pay">02/03/26</span></td>
+            <td class="num">
+              <div class="actions">
+                <button class="btn btn-sm"><i data-lucide="credit-card"></i>Pagar</button>
+                <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+              </div>
+            </td>
+          </tr>
+          <tr class="row ok">
+            <td><div class="prop-name">Depto Villa Crespo 2A</div><div class="prop-addr">Scalabrini Ortiz 1450</div></td>
+            <td><div class="tenant">López P.</div></td>
+            <td class="num"><span class="money"><span class="sym">$</span><span class="num">242.000</span></span></td>
+            <td class="num"><span class="money muted"><span class="sym">$</span><span class="num">0</span></span></td>
+            <td class="num"><span class="money saldo"><span class="sym">$</span><span class="num">242.000</span></span></td>
+            <td class="dash">—</td>
+            <td class="center"><span style="color:var(--faint);">—</span></td>
+            <td class="center"><span class="last-pay">04/02/26</span></td>
+            <td class="num">
+              <div class="actions">
+                <button class="btn btn-sm"><i data-lucide="credit-card"></i>Pagar</button>
+                <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+              </div>
+            </td>
+          </tr>
+          <tr class="row ok">
+            <td><div class="prop-name">Depto Caballito 1C</div><div class="prop-addr">Av. Rivadavia 4920</div></td>
+            <td><div class="tenant">Ríos C.</div></td>
+            <td class="num"><span class="money"><span class="sym">$</span><span class="num">215.000</span></span></td>
+            <td class="num"><span class="money muted"><span class="sym">$</span><span class="num">0</span></span></td>
+            <td class="num"><span class="money saldo"><span class="sym">$</span><span class="num">215.000</span></span></td>
+            <td class="dash">—</td>
+            <td class="center"><span style="color:var(--faint);">—</span></td>
+            <td class="center"><span class="last-pay">05/02/26</span></td>
+            <td class="num">
+              <div class="actions">
+                <button class="btn btn-sm"><i data-lucide="credit-card"></i>Pagar</button>
+                <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+              </div>
+            </td>
+          </tr>
+          <tr class="row ok">
+            <td><div class="prop-name">Local Once</div><div class="prop-addr">Av. Corrientes 2100</div></td>
+            <td><div class="tenant">Souza Cía. SRL</div></td>
+            <td class="num"><span class="money"><span class="sym">$</span><span class="num">365.050</span></span></td>
+            <td class="num"><span class="money muted"><span class="sym">$</span><span class="num">0</span></span></td>
+            <td class="num"><span class="money saldo"><span class="sym">$</span><span class="num">365.050</span></span></td>
+            <td class="dash">—</td>
+            <td class="center"><span style="color:var(--faint);">—</span></td>
+            <td class="center"><span class="last-pay">03/02/26</span></td>
+            <td class="num">
+              <div class="actions">
+                <button class="btn btn-sm"><i data-lucide="credit-card"></i>Pagar</button>
+                <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── AL DÍA group (collapsed) ── -->
+    <div class="group">
+      <button class="group-header group-aldia">
+        <i data-lucide="chevron-right" class="chev"></i>
+        <span>Al día</span>
+        <span class="count">— 11 contratos</span>
+        <span class="total">$ 3.094.450</span>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- scaffolding annotation -->
+  <div class="anno">
+    <strong>Primitives used on this page:</strong>
+    <code>stat card</code> (V5 · ARS capsule) ×4 ·
+    <code>filter bar</code> ·
+    <code>group table card</code> with 3 <code>group headers</code> (mora/pendiente/al-día tint) ·
+    <code>row</code> with left accent (D pattern · red/amber/transparent) ·
+    <code>money</code> ($ split from digits) ·
+    <code>day chip</code> ·
+    <code>sideline container</code> + <code>T3 table</code> for expanded row.
+    No new component invented.
+  </div>
+
+</div>
+
+<script>lucide.createIcons();</script>
+</body></html>

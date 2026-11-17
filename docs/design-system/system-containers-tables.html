@@ -1,0 +1,298 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Containers & Tables — system</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#737373; --faint:#a3a3a3;
+    --bg:#FFFEFC; --surface:#fff; --panel:#f5f5f0;
+    --line:#e8e8e3; --line-soft:#f0f0ec;
+    --green:#1B4332; --green-soft:rgba(27,67,50,0.08);
+    --gold:#B8960C; --gold-soft:#fffbeb;
+    --red:#dc2626; --red-soft:#fee2e2;
+    --amber:#f59e0b;
+    --blue:#2563eb;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Inter,sans-serif;background:var(--bg);color:var(--ink);font-size:13px;padding:28px;line-height:1.45;}
+  h2{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin:32px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line);}
+  h2:first-of-type{margin-top:0;}
+  .sub{font-size:11px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;}
+  .row{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;}
+  .col{flex:1;min-width:0;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .mono{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;}
+
+  /* ════════════════════ SIDELINE CONTAINER ════════════════════ */
+  .sl{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-left:4px solid var(--green);
+    border-radius:6px;
+    padding:12px 14px;
+    position:relative;
+  }
+  .sl-green  {border-left-color:var(--green);}
+  .sl-gold   {border-left-color:var(--gold);}
+  .sl-red    {border-left-color:var(--red);}
+  .sl-amber  {border-left-color:var(--amber);}
+  .sl-blue   {border-left-color:var(--blue);}
+  .sl-muted  {border-left-color:var(--line);}
+
+  .sl-title{
+    font-size:14px;font-weight:600;color:var(--ink);
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+  }
+  .sl-title .right{font-size:11px;color:var(--muted);font-weight:500;}
+
+  .sl-stats{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;
+  }
+  .sl-stat .k{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);}
+  .sl-stat .v{font-size:17px;font-weight:600;margin-top:2px;}
+  .sl-stat .v.gold{color:var(--gold);}
+  .sl-stat .v.green{color:var(--green);}
+
+  .sl-foot{
+    margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);
+    font-size:11px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;
+  }
+  .sl-foot .pos{color:var(--green);font-weight:500;}
+  .sl-foot .neg{color:var(--red);font-weight:500;}
+  .sl-foot .zero{color:var(--faint);}
+
+  /* compact section header card */
+  .sl-h{padding:10px 14px;display:flex;align-items:center;gap:10px;}
+  .sl-h .icon{width:28px;height:28px;border-radius:4px;background:var(--green-soft);display:grid;place-items:center;color:var(--green);flex-shrink:0;}
+  .sl-h .icon svg{width:14px;height:14px;}
+  .sl-h .t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink);}
+  .sl-h .s{font-size:11px;color:var(--muted);margin-top:1px;}
+
+  /* ════════════════════ TABLES ════════════════════ */
+
+  /* ── T1 · PRIMARY · dark-green header, full data tables ── */
+  .t-wrap{border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface);}
+  table.t1{width:100%;border-collapse:collapse;table-layout:auto;font-size:13px;}
+  table.t1 thead{background:var(--green);}
+  table.t1 thead th{
+    color:rgba(255,255,255,0.92);
+    font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;
+    padding:9px 12px;text-align:left;white-space:nowrap;
+    border-left:1px solid rgba(255,255,255,0.12);
+  }
+  table.t1 thead th:first-child{border-left:0;}
+  table.t1 thead th.num{text-align:right;}
+  table.t1 thead th.center{text-align:center;}
+
+  table.t1 tbody td{
+    padding:10px 12px;vertical-align:middle;border-top:1px solid var(--line-soft);
+  }
+  table.t1 tbody tr:first-child td{border-top:0;}
+  table.t1 tbody tr:hover{background:rgba(27,67,50,0.03);}
+  table.t1 td.num{text-align:right;font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;}
+  table.t1 td.center{text-align:center;}
+  table.t1 td.idx{color:var(--gold);font-weight:600;text-align:center;width:48px;}
+  table.t1 td .hint{font-size:11px;color:var(--faint);}
+
+  /* $ + amount pattern inside cells */
+  .money{display:inline-flex;align-items:baseline;gap:4px;}
+  .money .sym{font-size:11px;color:var(--muted);}
+  .money .num{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;font-weight:500;}
+
+  tfoot.t1-foot tr{background:#fafaf7;border-top:2px solid var(--line);}
+  tfoot.t1-foot td{padding:10px 12px;font-weight:600;color:var(--green);}
+  tfoot.t1-foot td.num{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;}
+
+  /* ── T2 · SECONDARY · muted header, for sub-tables / dense lists ── */
+  table.t2{width:100%;border-collapse:collapse;font-size:12px;}
+  table.t2 thead{background:#fafaf7;}
+  table.t2 thead th{
+    color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;
+    padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);
+  }
+  table.t2 thead th.num{text-align:right;}
+  table.t2 tbody td{padding:7px 10px;border-bottom:1px solid var(--line-soft);}
+  table.t2 tbody td.num{text-align:right;font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;}
+  table.t2 tbody tr:last-child td{border-bottom:0;}
+
+  /* ── T3 · INLINE-IN-SIDELINE · gold accent header ── */
+  table.t3{width:100%;border-collapse:collapse;font-size:12px;}
+  table.t3 thead th{
+    color:var(--gold);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;
+    padding:6px 10px;text-align:left;border-bottom:1px solid var(--line);
+    background:transparent;
+  }
+  table.t3 thead th.num{text-align:right;}
+  table.t3 tbody td{padding:7px 10px;border-bottom:1px dashed var(--line-soft);}
+  table.t3 tbody td.num{text-align:right;font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;}
+  table.t3 tbody tr:last-child td{border-bottom:0;}
+
+  /* legend / caption */
+  .cap{font-size:11px;color:var(--muted);margin:-6px 0 10px;}
+  .cap code{background:#f5f5f0;padding:1px 5px;border-radius:3px;font-size:10.5px;font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;}
+
+  /* chip for status column */
+  .chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:600;letter-spacing:0.04em;}
+  .chip-paid{background:var(--green);color:#fff;}
+  .chip-due {background:var(--red-soft);color:#991b1b;border-left:2px solid var(--red);padding-left:6px;}
+  .chip-soon{background:#fef3c7;color:#92400e;border-left:2px solid var(--amber);padding-left:6px;}
+</style></head><body>
+
+<!-- ═══════════════════════ SIDELINE CONTAINER ═══════════════════════ -->
+<h2>Sideline container <span class="sub">— 4px colored stripe on left encodes category / state</span></h2>
+<p class="cap">Semantic colors: <code>green</code> default / rental &nbsp; <code>gold</code> financial / contract &nbsp; <code>red</code> overdue &nbsp; <code>amber</code> warning / partial &nbsp; <code>blue</code> informational &nbsp; <code>muted</code> neutral</p>
+
+<div class="grid-2">
+
+  <!-- Finance panel -->
+  <div class="sl sl-gold">
+    <div class="sl-title">Marzo 2026 <span class="right">plan #3</span></div>
+    <div class="sl-stats">
+      <div class="sl-stat"><div class="k">Deuda total</div><div class="v gold">1.850.985</div></div>
+      <div class="sl-stat"><div class="k">Capital</div>    <div class="v">1.687.500</div></div>
+      <div class="sl-stat"><div class="k">Intereses</div>  <div class="v gold">163.485</div></div>
+    </div>
+    <div class="sl-foot mono">
+      <span>Cargos <span class="faint">(2)</span> <span class="pos">+656.250</span></span>
+      <span>Pagos <span class="faint">(0)</span> <span class="zero">−0</span></span>
+      <span>Mora <span class="pos">+94.528</span></span>
+    </div>
+  </div>
+
+  <!-- Rental panel -->
+  <div class="sl sl-green">
+    <div class="sl-title">Depto Palermo 3A <span class="right">Honduras 4521</span></div>
+    <div class="sl-stats">
+      <div class="sl-stat"><div class="k">Alquiler</div><div class="v green">285.000</div></div>
+      <div class="sl-stat"><div class="k">Expensas</div><div class="v">48.200</div></div>
+      <div class="sl-stat"><div class="k">Total mes</div><div class="v">333.200</div></div>
+    </div>
+    <div class="sl-foot mono">
+      <span>Contrato activo <span class="pos">58d restantes</span></span>
+      <span>Próximo ajuste 01/04</span>
+    </div>
+  </div>
+
+  <!-- Alert panel -->
+  <div class="sl sl-red">
+    <div class="sl-title">García J. — mora activa</div>
+    <div class="sl-stats">
+      <div class="sl-stat"><div class="k">Saldo</div><div class="v" style="color:var(--red);">285.000</div></div>
+      <div class="sl-stat"><div class="k">Mora</div>  <div class="v" style="color:var(--red);">12.400</div></div>
+      <div class="sl-stat"><div class="k">Días</div>  <div class="v">14</div></div>
+    </div>
+  </div>
+
+  <!-- Compact section header -->
+  <div class="sl sl-gold sl-h">
+    <div class="icon"><i data-lucide="dollar-sign"></i></div>
+    <div>
+      <div class="t">Cuotas</div>
+      <div class="s">12 cuotas · plan de pago activo</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════ TABLE T1 ═══════════════════════ -->
+<h2>Table T1 — primary <span class="sub">dark-green header. Default for all data tables.</span></h2>
+<p class="cap">Use for: cobros, contratos, pagos, reportes. Row hover tinted green. Numeric cols <code>.num</code>, tabular-nums, right-aligned, mono.</p>
+
+<div class="t-wrap">
+  <table class="t1">
+    <thead>
+      <tr>
+        <th class="center" style="width:48px;">#</th>
+        <th>Concepto</th>
+        <th class="num">Monto</th>
+        <th>Vencimiento</th>
+        <th class="center">Estado</th>
+        <th class="num">Saldo</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="idx mono">1</td>
+        <td>Cuota alquiler <span class="hint">· 02/2026</span></td>
+        <td class="num"><span class="money"><span class="sym">$</span><span class="num">281.250</span></span></td>
+        <td class="mono">05/02/2026</td>
+        <td class="center"><span class="chip chip-paid">Pagado</span></td>
+        <td class="num"><span class="money"><span class="sym">$</span><span class="num">0</span></span></td>
+      </tr>
+      <tr>
+        <td class="idx mono">2</td>
+        <td>Cuota alquiler <span class="hint">· 03/2026</span></td>
+        <td class="num"><span class="money"><span class="sym">$</span><span class="num">281.250</span></span></td>
+        <td class="mono">05/03/2026</td>
+        <td class="center"><span class="chip chip-due">Vencido</span></td>
+        <td class="num" style="color:var(--red);font-weight:600;"><span class="money"><span class="sym">$</span><span class="num">281.250</span></span></td>
+      </tr>
+      <tr>
+        <td class="idx mono">3</td>
+        <td>Cuota alquiler <span class="hint">· 04/2026</span></td>
+        <td class="num"><span class="money"><span class="sym">$</span><span class="num">281.250</span></span></td>
+        <td class="mono">05/04/2026</td>
+        <td class="center"><span class="chip chip-soon">Por vencer</span></td>
+        <td class="num"><span class="money"><span class="sym">$</span><span class="num">281.250</span></span></td>
+      </tr>
+    </tbody>
+    <tfoot class="t1-foot">
+      <tr>
+        <td colspan="2">Totales</td>
+        <td class="num mono">843.750</td>
+        <td colspan="2"></td>
+        <td class="num mono" style="color:var(--red);">562.500</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<!-- ═══════════════════════ TABLE T2 ═══════════════════════ -->
+<h2>Table T2 — secondary <span class="sub">muted header. For compact sub-tables inside drawers / cards.</span></h2>
+<p class="cap">Use for: selectors, preview lists, history panels, tables inside another card.</p>
+
+<div class="t-wrap" style="max-width:520px;">
+  <table class="t2">
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Concepto</th>
+        <th class="num">Monto</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="mono">01/02/2026</td><td>Alquiler</td><td class="num">285.000</td></tr>
+      <tr><td class="mono">01/02/2026</td><td>Expensas</td><td class="num">48.200</td></tr>
+      <tr><td class="mono">15/02/2026</td><td>ABL</td><td class="num">12.800</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════ TABLE T3 ═══════════════════════ -->
+<h2>Table T3 — inline <span class="sub">gold header, no fill. For tables that live inside a sideline container.</span></h2>
+<p class="cap">The sideline supplies the visual frame; the table stays quiet.</p>
+
+<div class="sl sl-gold" style="padding:0;overflow:hidden;">
+  <div class="sl-h" style="border-bottom:1px solid var(--line);">
+    <div class="icon"><i data-lucide="dollar-sign"></i></div>
+    <div><div class="t">Cuotas</div></div>
+  </div>
+  <div style="padding:0 14px 6px;">
+    <table class="t3">
+      <thead>
+        <tr>
+          <th style="width:40px;">#</th>
+          <th>Monto</th>
+          <th>Vencimiento</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="mono" style="color:var(--gold);font-weight:600;">1</td><td><span class="money"><span class="sym">$</span><span class="num">281.250</span></span></td><td class="mono" style="color:var(--muted);">05/02/2026</td></tr>
+        <tr><td class="mono" style="color:var(--gold);font-weight:600;">2</td><td><span class="money"><span class="sym">$</span><span class="num">281.250</span></span></td><td class="mono" style="color:var(--muted);">05/03/2026</td></tr>
+        <tr><td class="mono" style="color:var(--gold);font-weight:600;">3</td><td><span class="money"><span class="sym">$</span><span class="num">281.250</span></span></td><td class="mono" style="color:var(--muted);">05/04/2026</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>lucide.createIcons();</script>
+</body></html>

@@ -1,0 +1,78 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Kanban property card</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body{margin:0;font-family:Inter,sans-serif;background:#FFFEFC;color:#1a1a1a;padding:20px;font-size:12px;}
+  .wrap{display:flex;gap:16px;align-items:flex-start;}
+  .card{width:260px;background:#fff;border-radius:6px;border:1px solid rgba(232,232,227,0.7);box-shadow:0 1px 2px rgba(0,0,0,0.05);padding:10px;display:flex;flex-direction:column;gap:4px;}
+  .banner{display:flex;align-items:center;gap:8px;background:#1B4332;color:#fff;border-radius:4px;padding:6px 10px;font-size:14px;font-weight:700;min-width:0;}
+  .banner svg.home{width:16px;height:16px;flex-shrink:0;}
+  .banner .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .div{border-top:1px solid rgba(27,67,50,0.4);margin:4px 0;}
+  .addr{font-size:11px;color:#737373;}
+  .loc{font-size:11px;color:#737373;display:inline-flex;align-items:center;gap:4px;}
+  .loc svg{width:12px;height:12px;}
+  .specs{display:flex;gap:10px;font-size:11px;color:rgba(26,26,26,0.8);font-variant-numeric:tabular-nums;margin-top:4px;}
+  .specs span{display:inline-flex;align-items:center;gap:4px;}
+  .specs svg{width:12px;height:12px;color:#737373;}
+  .owner{display:flex;align-items:center;gap:6px;background:#1B4332;color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;margin-top:2px;}
+  .owner svg{width:12px;height:12px;}
+  .contract{display:flex;flex-direction:column;gap:2px;font-size:12px;margin-top:4px;}
+  .contract .title{display:flex;align-items:center;gap:4px;color:#047857;font-weight:500;}
+  .contract .title svg{width:12px;height:12px;}
+  .contract .sub{font-size:10px;color:#737373;padding-left:16px;font-variant-numeric:tabular-nums;}
+
+  /* B4 · ivory-on-green chip */
+  .chip{
+    display:inline-flex;align-items:center;gap:4px;
+    font-size:9px;font-weight:700;
+    letter-spacing:0.1em;text-transform:uppercase;
+    padding:3px 7px;border-radius:3px;
+    margin-left:auto;flex-shrink:0;line-height:1;
+    background:#fff;color:#1B4332;
+  }
+  .chip svg{width:10px;height:10px;}
+</style></head><body>
+<div class="wrap">
+
+  <div class="card">
+    <div class="banner">
+      <i data-lucide="key" class="home"></i>
+      <span class="name">Depto Palermo 3A</span>
+    </div>
+    <div class="div"></div>
+    <div class="addr">Honduras 4521 — 3° A</div>
+    <div class="loc"><i data-lucide="map-pin"></i>Palermo Soho, CABA</div>
+    <div class="specs">
+      <span><i data-lucide="ruler"></i>82 m²</span>
+      <span><i data-lucide="bed-double"></i>2</span>
+      <span><i data-lucide="bath"></i>1</span>
+    </div>
+    <div class="div"></div>
+    <div class="owner"><i data-lucide="user"></i>Fernández M. · Torres R.</div>
+    <div class="div"></div>
+    <div class="contract">
+      <span class="title"><i data-lucide="scroll-text"></i>Ctr. Gómez · 01/2025</span>
+      <span class="sub">Fin 15 mar 2026 · 58d</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="banner">
+      <i data-lucide="home" class="home"></i>
+      <span class="name">Casa Belgrano</span>
+      <span class="chip"><i data-lucide="tag"></i>En venta</span>
+    </div>
+    <div class="div"></div>
+    <div class="addr">Echeverría 2214</div>
+    <div class="loc"><i data-lucide="map-pin"></i>Belgrano R, CABA</div>
+    <div class="specs">
+      <span><i data-lucide="ruler"></i>220 m²</span>
+      <span><i data-lucide="bed-double"></i>4</span>
+      <span><i data-lucide="bath"></i>3</span>
+    </div>
+  </div>
+
+</div>
+<script>lucide.createIcons();</script>
+</body></html>

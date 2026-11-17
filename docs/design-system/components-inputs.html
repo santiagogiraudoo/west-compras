@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Inputs</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body{margin:0;font-family:Inter,sans-serif;background:#FFFEFC;color:#1a1a1a;padding:20px;font-size:14px;}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px;}
+  .field{display:flex;flex-direction:column;gap:4px;}
+  label{font-size:11px;font-weight:500;color:#404040;}
+  input,select{height:32px;padding:0 10px;border:1px solid #e8e8e3;border-radius:6px;font-size:13px;font-family:Inter;background:#fff;outline:none;}
+  input:focus,select:focus{border-color:#1B4332;box-shadow:0 0 0 3px rgba(27,67,50,0.2);}
+  .search{position:relative;}
+  .search svg{position:absolute;left:10px;top:8px;width:14px;height:14px;color:#737373;}
+  .search input{padding-left:30px;width:220px;}
+  .check{display:inline-flex;align-items:center;gap:8px;font-size:13px;}
+  .check input{width:16px;height:16px;accent-color:#1B4332;}
+  .switch{position:relative;width:32px;height:18px;background:#e8e8e3;border-radius:999px;}
+  .switch.on{background:#1B4332;}
+  .switch::after{content:'';position:absolute;width:14px;height:14px;border-radius:999px;background:#fff;top:2px;left:2px;transition:.15s;}
+  .switch.on::after{left:16px;}
+</style></head><body>
+<div class="row">
+  <div class="field"><label>Dirección</label><input value="Belgrano 1234"></div>
+  <div class="field"><label>Unidad / piso</label><input placeholder="3° A"></div>
+  <div class="field"><label>Moneda</label><select><option>ARS</option><option>USD</option></select></div>
+</div>
+<div class="row">
+  <div class="search"><i data-lucide="search"></i><input placeholder="Buscar propiedades, grupos..."></div>
+  <label class="check"><input type="checkbox" checked>Intención de venta</label>
+  <label class="check"><span class="switch on"></span>Alertar mora</label>
+</div>
+<script>lucide.createIcons();</script>
+</body></html>

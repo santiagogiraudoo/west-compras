@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Radii & shadows</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;font-family:Inter,system-ui,sans-serif;background:#FFFEFC;color:#1a1a1a;padding:20px;font-size:12px;}
+  .row{display:flex;gap:16px;align-items:flex-end;}
+  .cell{display:flex;flex-direction:column;align-items:center;gap:6px;}
+  .box{width:64px;height:48px;background:#fff;border:1px solid #e8e8e3;}
+  .s{font-family:'Geist Mono',Menlo,monospace;font-size:10px;color:#737373;}
+  .lbl{font-size:10px;font-weight:600;}
+  .section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1B4332;margin:0 0 8px;}
+</style></head><body>
+<div class="section">Radii</div>
+<div class="row" style="margin-bottom:14px;">
+  <div class="cell"><div class="box" style="border-radius:0;"></div><div class="lbl">none</div><div class="s">0</div></div>
+  <div class="cell"><div class="box" style="border-radius:2px;"></div><div class="lbl">sm</div><div class="s">2</div></div>
+  <div class="cell"><div class="box" style="border-radius:4px;"></div><div class="lbl">md</div><div class="s">4</div></div>
+  <div class="cell"><div class="box" style="border-radius:6px;"></div><div class="lbl">lg (base)</div><div class="s">6</div></div>
+  <div class="cell"><div class="box" style="border-radius:10px;"></div><div class="lbl">xl</div><div class="s">10</div></div>
+  <div class="cell"><div class="box" style="border-radius:9999px;"></div><div class="lbl">full</div><div class="s">pill</div></div>
+</div>
+
+<div class="section">Shadows</div>
+<div class="row">
+  <div class="cell"><div class="box" style="border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);"></div><div class="lbl">sm</div><div class="s">card default</div></div>
+  <div class="cell"><div class="box" style="border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,0.08),0 1px 2px -1px rgba(0,0,0,0.04);"></div><div class="lbl">base</div><div class="s">hover</div></div>
+  <div class="cell"><div class="box" style="border-radius:6px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.08),0 2px 4px -2px rgba(0,0,0,0.04);"></div><div class="lbl">md</div><div class="s">popover</div></div>
+  <div class="cell"><div class="box" style="border-radius:6px;box-shadow:0 10px 15px -3px rgba(0,0,0,0.1);"></div><div class="lbl">lg</div><div class="s">modal</div></div>
+</div>
+</body></html>

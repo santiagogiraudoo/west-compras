@@ -1,0 +1,52 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Buttons</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body{margin:0;font-family:Inter,sans-serif;background:#FFFEFC;color:#1a1a1a;padding:20px;font-size:14px;}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px;}
+  .btn{display:inline-flex;align-items:center;gap:6px;border-radius:6px;font-weight:500;font-size:14px;border:1px solid transparent;cursor:pointer;transition:all .15s;}
+  .btn svg{width:16px;height:16px;}
+  .btn-sm{height:32px;padding:0 12px;gap:6px;font-size:14px;}
+  .btn-xs{height:24px;padding:0 8px;font-size:12px;}
+  .btn-primary{background:#1B4332;color:#fff;}
+  .btn-primary:hover{background:rgba(27,67,50,0.9);}
+  .btn-outline{background:#fff;color:#1a1a1a;border-color:rgba(232,232,227,0.9);}
+  .btn-outline:hover{background:#f5f5f0;}
+  .btn-secondary{background:#f5f5f0;color:#404040;}
+  .btn-ghost{background:transparent;color:#1a1a1a;}
+  .btn-ghost:hover{background:#f5f5f0;}
+  /* Destructive · default toolbar variant: ghost-with-red-label */
+  .btn-destructive{background:#fff;color:#b91c1c;border-color:#e8e8e3;}
+  .btn-destructive:hover{background:#fef2f2;border-color:#fecaca;color:#991b1b;}
+  /* Destructive · solid (reserved for modal CONFIRM only) */
+  .btn-destructive-solid{background:#b91c1c;color:#fff;}
+  .btn-destructive-solid:hover{background:#991b1b;}
+  .btn-link{background:transparent;color:#1B4332;text-decoration:underline;text-underline-offset:4px;}
+  .btn-icon{width:32px;height:32px;padding:0;justify-content:center;}
+  .eyebrow{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#737373;margin:0 0 6px;}
+  .note{font-size:11px;color:#737373;margin:0 0 6px;}
+</style></head><body>
+<div class="eyebrow">Size=sm (default) · icon before label</div>
+<div class="row">
+  <button class="btn btn-sm btn-primary"><i data-lucide="plus"></i>Nueva Propiedad</button>
+  <button class="btn btn-sm btn-outline"><i data-lucide="filter"></i>Filtros</button>
+  <button class="btn btn-sm btn-secondary"><i data-lucide="download"></i>Exportar</button>
+  <button class="btn btn-sm btn-ghost"><i data-lucide="rotate-ccw"></i>Deshacer</button>
+  <button class="btn btn-sm btn-destructive"><i data-lucide="trash-2"></i>Descartar</button>
+  <button class="btn btn-sm btn-link">Ver detalle</button>
+</div>
+<div class="eyebrow" style="margin-top:10px;">Size=xs · icon</div>
+<div class="row">
+  <button class="btn btn-xs btn-primary"><i data-lucide="credit-card"></i>Pagar</button>
+  <button class="btn btn-xs btn-outline"><i data-lucide="pencil"></i>Editar</button>
+  <button class="btn btn-sm btn-icon btn-ghost"><i data-lucide="search"></i></button>
+  <button class="btn btn-sm btn-icon btn-ghost"><i data-lucide="more-horizontal"></i></button>
+  <button class="btn btn-sm btn-icon btn-ghost"><i data-lucide="x"></i></button>
+</div>
+<div class="eyebrow" style="margin-top:10px;">Destructive-solid · reserved for modal confirms only</div>
+<div class="row">
+  <button class="btn btn-sm btn-outline">Cancelar</button>
+  <button class="btn btn-sm btn-destructive-solid"><i data-lucide="trash-2"></i>Sí, eliminar contrato</button>
+</div>
+<script>lucide.createIcons();</script>
+</body></html>

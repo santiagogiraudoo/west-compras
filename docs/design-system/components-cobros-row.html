@@ -1,0 +1,134 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Cobros row</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body{margin:0;font-family:Inter,sans-serif;background:#FFFEFC;color:#1a1a1a;padding:20px;font-size:13px;}
+  .tbl-wrap{width:900px;max-width:100%;}
+  table{width:100%;border-collapse:collapse;table-layout:fixed;}
+
+  /* column widths — fixed so nothing stretches */
+  col.c-prop    {width:200px;}
+  col.c-tenant  {width:120px;}
+  col.c-dollar  {width:14px;}     /* $ sign column */
+  col.c-amount  {width:80px;}     /* digits column */
+  col.c-day     {width:50px;}
+  col.c-action  {width:90px;}
+
+  th{
+    text-align:left;font-size:10px;font-weight:700;
+    text-transform:uppercase;letter-spacing:0.08em;color:#737373;
+    padding:6px 10px 6px 0;border-bottom:1px solid #e8e8e3;
+    white-space:nowrap;
+  }
+  th.amount-head{text-align:right;padding-right:10px;}       /* header aligns over digits */
+  th.day-head{text-align:left;padding-left:6px;}
+  th.dollar-head{padding:0;}                                  /* $ column has no header text */
+
+  td{padding:10px 10px 10px 0;vertical-align:middle;font-size:13px;}
+  td:first-child{padding-left:10px;}
+
+  tr.body-row{border-bottom:1px solid #f0f0ec;}
+  tr.body-row.mora    {border-left:3px solid #ef4444;}
+  tr.body-row.partial {border-left:3px solid #f59e0b;}
+  tr.body-row.ok      {border-left:3px solid transparent;}
+
+  .prop{font-weight:500;color:#1B4332;}
+  .sub{font-size:11px;color:#737373;margin-top:1px;}
+
+  /* money cells */
+  .dollar{
+    text-align:left;padding-right:0;
+    font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;
+    color:#737373;font-size:12px;
+  }
+  .amount{
+    text-align:right;padding-left:2px;
+    font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;
+    font-variant-numeric:tabular-nums;
+    font-size:13px;
+  }
+  .amount.saldo{font-weight:600;}
+  .red{color:#dc2626;}
+  .green{color:#059669;}
+  .muted{color:#a3a3a3;}
+
+  /* dash aligned as a right-anchored em-dash placeholder spanning both money cols */
+  .dash{
+    text-align:right;color:#a3a3a3;
+    font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+
+  .daychip{
+    display:inline-block;min-width:28px;text-align:center;
+    padding:2px 6px;font-size:11px;border-radius:9999px;
+    background:#fee2e2;color:#b91c1c;font-weight:500;
+    font-variant-numeric:tabular-nums;
+  }
+  .btn{
+    display:inline-flex;align-items:center;gap:4px;
+    height:28px;padding:0 10px;border-radius:6px;
+    font-size:12px;border:1px solid #e8e8e3;background:#fff;
+    cursor:pointer;
+  }
+  .btn svg{width:14px;height:14px;}
+</style></head><body>
+<div class="tbl-wrap">
+<table>
+  <colgroup>
+    <col class="c-prop">
+    <col class="c-tenant">
+    <col class="c-dollar"><col class="c-amount"><!-- Adeudado -->
+    <col class="c-dollar"><col class="c-amount"><!-- Pagado -->
+    <col class="c-dollar"><col class="c-amount"><!-- Saldo -->
+    <col class="c-dollar"><col class="c-amount"><!-- Mora -->
+    <col class="c-day">
+    <col class="c-action">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>Propiedad</th>
+      <th>Inquilino</th>
+      <th class="dollar-head"></th><th class="amount-head">Adeudado</th>
+      <th class="dollar-head"></th><th class="amount-head">Pagado</th>
+      <th class="dollar-head"></th><th class="amount-head">Saldo</th>
+      <th class="dollar-head"></th><th class="amount-head">Mora</th>
+      <th class="day-head">Días</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="body-row mora">
+      <td><div class="prop">Depto Palermo 3A</div><div class="sub">Honduras 4521</div></td>
+      <td>García J.</td>
+      <td class="dollar">$</td><td class="amount">285.000</td>
+      <td class="dollar">$</td><td class="amount muted">0</td>
+      <td class="dollar red">$</td><td class="amount saldo red">285.000</td>
+      <td class="dollar red">$</td><td class="amount red">12.400</td>
+      <td><span class="daychip">14</span></td>
+      <td><button class="btn"><i data-lucide="credit-card"></i>Pagar</button></td>
+    </tr>
+    <tr class="body-row partial">
+      <td><div class="prop">Casa Belgrano</div><div class="sub">Echeverría 2214</div></td>
+      <td>Fernández M.</td>
+      <td class="dollar">$</td><td class="amount">480.000</td>
+      <td class="dollar">$</td><td class="amount">200.000</td>
+      <td class="dollar">$</td><td class="amount saldo">280.000</td>
+      <td class="dash muted" colspan="2">—</td>
+      <td class="muted">—</td>
+      <td><button class="btn"><i data-lucide="credit-card"></i>Pagar</button></td>
+    </tr>
+    <tr class="body-row ok">
+      <td><div class="prop">Local Once</div><div class="sub">Av. Corrientes 2100</div></td>
+      <td>Souza Cía. SRL</td>
+      <td class="dollar">$</td><td class="amount">920.000</td>
+      <td class="dollar">$</td><td class="amount">920.000</td>
+      <td class="dollar green">$</td><td class="amount saldo green">0</td>
+      <td class="dash muted" colspan="2">—</td>
+      <td class="muted">—</td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<script>lucide.createIcons();</script>
+</body></html>

@@ -1,0 +1,40 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Sidebar</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body{margin:0;font-family:Inter,sans-serif;padding:0;background:#FFFEFC;font-size:13px;}
+  .wrap{display:flex;height:360px;}
+  aside{width:230px;background:oklch(0.25 0.055 163.7);color:oklch(0.92 0.01 163);padding:10px 8px;display:flex;flex-direction:column;gap:2px;}
+  .logo{background:oklch(0.32 0.06 163.7);border-radius:6px;padding:8px 12px;text-align:center;margin:4px 0 10px;color:#fff;font-weight:700;letter-spacing:-.01em;}
+  .nav{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:6px;color:oklch(0.92 0.01 163 / 0.8);font-size:13px;font-weight:500;cursor:pointer;}
+  .nav svg{width:18px;height:18px;}
+  .nav.active{background:oklch(0.32 0.06 163.7);color:oklch(0.95 0.008 163);}
+  .nav:hover:not(.active){background:oklch(0.32 0.06 163.7);}
+  .main{flex:1;background:#FFFEFC;padding:20px;}
+  h1{font-size:32px;color:#1B4332;font-weight:700;margin:0 0 8px;letter-spacing:-.02em;}
+  .tabs{display:flex;gap:0;border-bottom:1px solid #e8e8e3;}
+  .tab{padding:8px 16px;font-size:13px;color:#737373;cursor:pointer;}
+  .tab.active{color:#1a1a1a;font-weight:500;border-bottom:2px solid #1B4332;margin-bottom:-1px;}
+</style></head><body>
+<div class="wrap">
+  <aside>
+    <div class="logo">West</div>
+    <div class="nav active"><i data-lucide="building-2"></i>Propiedades</div>
+    <div class="nav"><i data-lucide="folder-kanban"></i>Grupos</div>
+    <div class="nav"><i data-lucide="file-text"></i>Contratos</div>
+    <div class="nav"><i data-lucide="users"></i>Personas</div>
+    <div class="nav"><i data-lucide="dollar-sign"></i>Cobros Pendientes</div>
+    <div class="nav"><i data-lucide="wallet"></i>Caja</div>
+    <div class="nav"><i data-lucide="trending-up"></i>Índices</div>
+    <div class="nav"><i data-lucide="receipt"></i>Gastos</div>
+  </aside>
+  <div class="main">
+    <h1>Propiedades</h1>
+    <div class="tabs">
+      <div class="tab active">Todas</div>
+      <div class="tab">Vendidas</div>
+    </div>
+  </div>
+</div>
+<script>lucide.createIcons();</script>
+</body></html>

@@ -1,0 +1,124 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Toasts</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#737373;
+    --bg:#FFFEFC; --surface:#fff; --panel:#f5f5f0; --line:#e8e8e3; --line-soft:#f0f0ec;
+    --green:#1B4332; --green-50:#f0f6f2; --green-ink:#0f2a1f;
+    --gold:#B8960C;
+    --red:#dc2626; --red-50:#fef2f2; --red-ink:#991b1b;
+    --amber:#f59e0b; --amber-50:#fffbeb; --amber-ink:#92400e;
+    --blue:#2563eb; --blue-50:#eff4ff; --blue-ink:#1e3a8a;
+  }
+  body{margin:0;font-family:Inter,sans-serif;background:var(--bg);color:var(--ink);padding:24px;font-size:14px;}
+  .eyebrow{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:24px 0 8px;}
+  .eyebrow:first-child{margin-top:0;}
+  .note{font-size:11.5px;color:var(--muted);margin:0 0 10px;max-width:520px;}
+  .stack{display:flex;flex-direction:column;gap:12px;align-items:flex-start;}
+
+  /* ── Toast card — same family as toast-undo.tsx / toast-success.tsx ── */
+  .toast{position:relative;display:flex;align-items:center;gap:12px;overflow:hidden;
+    width:360px;background:var(--surface);border:1px solid var(--line);
+    border-radius:6px;padding:12px 14px;box-shadow:0 10px 15px -3px rgba(0,0,0,0.1),0 4px 6px -4px rgba(0,0,0,0.1);}
+
+  /* icon chip — round, tinted by semantic */
+  .chip{display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    width:32px;height:32px;border-radius:9999px;}
+  .chip svg{width:16px;height:16px;}
+  .chip.success{background:var(--green-50);} .chip.success svg{color:var(--green);}
+  .chip.error{background:var(--red-50);}     .chip.error svg{color:var(--red);}
+  .chip.info{background:var(--blue-50);}      .chip.info svg{color:var(--blue);}
+  .chip.warning{background:var(--amber-50);}  .chip.warning svg{color:var(--amber);}
+  .chip.neutral{background:var(--panel);}     .chip.neutral svg{color:var(--muted);}
+
+  .body{min-width:0;flex:1;}
+  .msg{font-size:14px;font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .desc{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+  /* outline action button — 30px / radius 5px, green like "Deshacer"/"Ver" */
+  .action{display:inline-flex;align-items:center;gap:4px;flex-shrink:0;height:30px;padding:0 10px;
+    border:1px solid var(--green);border-radius:5px;background:#fff;color:var(--green);
+    font-size:12px;font-weight:500;font-family:Inter,sans-serif;cursor:pointer;transition:background .15s;}
+  .action:hover{background:var(--green-50);}
+  .action svg{width:14px;height:14px;}
+
+  /* countdown bar — drains left→right, gold; pauses on hover (Discord/Gmail) */
+  .bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--line-soft);}
+  .bar > i{display:block;height:100%;background:var(--gold);transform-origin:left;
+    animation:drain 6000ms linear infinite;}
+  .toast:hover .bar > i{animation-play-state:paused;}
+  @keyframes drain{from{transform:scaleX(1);}to{transform:scaleX(0);}}
+
+  .spec{font-size:11.5px;color:var(--muted);margin-top:6px;max-width:520px;line-height:1.6;}
+  code{background:var(--panel);padding:1px 5px;border-radius:3px;font-size:11.5px;color:var(--green-ink);font-family:ui-monospace,Menlo,monospace;}
+</style></head><body>
+
+<div class="eyebrow">Toast con acción "Ver" + barra de countdown — variante destacada</div>
+<p class="note">Disparada al crear o editar algo en la Cuenta Corriente (pago, cargo, plan, nota, alerta, liquidación, ticket).
+El botón "Ver" abre el detalle del item. La barra gold se vacía con el tiempo restante y se <strong>pausa al pasar el mouse</strong>.
+Helper: <code>toastSuccess(message, { onView, description?, duration? })</code> en <code>src/lib/utils/toast-success.tsx</code>.</p>
+<div class="stack">
+  <div class="toast">
+    <div class="chip success"><i data-lucide="circle-check"></i></div>
+    <div class="body"><div class="msg">Pago registrado: $225.000</div></div>
+    <button class="action"><i data-lucide="eye"></i>Ver</button>
+    <div class="bar"><i></i></div>
+  </div>
+  <div class="toast">
+    <div class="chip success"><i data-lucide="circle-check"></i></div>
+    <div class="body">
+      <div class="msg">Liquidación registrada</div>
+      <div class="desc">Período Junio 2026 · corte 30/06</div>
+    </div>
+    <button class="action"><i data-lucide="eye"></i>Ver</button>
+    <div class="bar"><i></i></div>
+  </div>
+</div>
+
+<div class="eyebrow">Deshacer — gemela de la anterior (borrado reversible)</div>
+<p class="note">Misma tarjeta; chip neutro + botón "Deshacer". Helper existente: <code>toastDeletedWithUndo(...)</code> en <code>src/lib/utils/toast-undo.tsx</code>.</p>
+<div class="stack">
+  <div class="toast">
+    <div class="chip neutral"><i data-lucide="trash-2"></i></div>
+    <div class="body"><div class="msg">Cargo eliminado</div></div>
+    <button class="action"><i data-lucide="undo-2"></i>Deshacer</button>
+    <div class="bar"><i></i></div>
+  </div>
+</div>
+
+<div class="eyebrow">Familia semántica — success / error / info / warning</div>
+<p class="note">Toasts efímeros sin acción. Hoy los <code>toast.success/error/info/warning</code> planos se rinden con
+<code>richColors</code> de sonner (<code>&lt;Toaster richColors /&gt;</code>); el chip teñido es la dirección del DS —
+la misma tarjeta blanca, sólo cambia el tinte del chip. Reservar <strong>rojo/ámbar</strong> sólo para estado
+(error / advertencia), nunca decorativo. El <strong>azul</strong> de info queda fuera de la paleta 60/30/10 y sólo
+aparece acá como tinte de chip (heredado del richColors de sonner).</p>
+<div class="stack">
+  <div class="toast">
+    <div class="chip success"><i data-lucide="circle-check"></i></div>
+    <div class="body"><div class="msg">Nota creada</div></div>
+  </div>
+  <div class="toast">
+    <div class="chip error"><i data-lucide="circle-alert"></i></div>
+    <div class="body"><div class="msg">No se pudo registrar el pago</div></div>
+  </div>
+  <div class="toast">
+    <div class="chip info"><i data-lucide="info"></i></div>
+    <div class="body"><div class="msg">Saldo recalculado desde los cargos</div></div>
+  </div>
+  <div class="toast">
+    <div class="chip warning"><i data-lucide="triangle-alert"></i></div>
+    <div class="body"><div class="msg">El contrato vence en 30 días</div></div>
+  </div>
+</div>
+
+<p class="spec" style="margin-top:24px;">
+  <strong>Tarjeta:</strong> ancho 360px · fondo <code>#fff</code> · borde <code>#e8e8e3</code> · radio 6px · padding 12/14px · sombra <code>shadow-lg</code>.<br>
+  <strong>Chip:</strong> 32×32px · redondo · bg tinte semántico (<code>#f0f6f2</code> success · <code>#fef2f2</code> error · <code>#eff4ff</code> info · <code>#fffbeb</code> warning · <code>#f5f5f0</code> neutral) · ícono lucide 16px en el color del semántico.<br>
+  <strong>Mensaje:</strong> Inter 14px/500 <code>#1a1a1a</code>, truncado. <strong>Descripción:</strong> 12px <code>#737373</code>, opcional.<br>
+  <strong>Acción:</strong> botón outline verde — 30px alto · radio 5px · borde+texto <code>#1B4332</code> · hover bg <code>#f0f6f2</code> · ícono antes del label.<br>
+  <strong>Barra countdown:</strong> 3px alto · canal <code>#f0f0ec</code> · relleno gold <code>#B8960C</code> que escala de 1→0 en <code>duration</code> (default 6s) · pausa en hover.
+</p>
+
+<script>lucide.createIcons();</script>
+</body></html>

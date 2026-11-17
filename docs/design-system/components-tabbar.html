@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Tab bar</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body{margin:0;font-family:Inter,sans-serif;background:#FFFEFC;padding:0;color:#1a1a1a;font-size:13px;}
+  .tabbar{display:flex;border-bottom:1px solid #e8e8e3;background:#FFFEFC;}
+  .tab{display:flex;align-items:center;gap:8px;width:180px;padding:8px 16px;border-right:1px solid rgba(232,232,227,0.3);color:#737373;font-size:13px;}
+  .tab.active{color:#1a1a1a;font-weight:500;border-bottom:2px solid #1B4332;margin-bottom:-1px;}
+  .tab svg{width:14px;height:14px;flex-shrink:0;}
+  .tab .x{margin-left:auto;width:18px;height:18px;display:flex;align-items:center;justify-content:center;border-radius:3px;opacity:0.4;}
+  .tab.active .x{opacity:0.6;}
+  .tab .x:hover{background:rgba(239,68,68,0.2);color:#dc2626;opacity:1;}
+  .plus{display:flex;align-items:center;padding:0 10px;color:#737373;}
+  .breadcrumb{display:flex;align-items:center;gap:4px;padding:8px 16px;font-size:13px;border-bottom:1px solid #e8e8e3;}
+  .bc-parent{color:#737373;}
+  .bc-parent:hover{color:#1B4332;text-decoration:underline;text-underline-offset:2px;cursor:pointer;}
+  .bc-sep{color:rgba(115,115,115,0.5);width:14px;height:14px;}
+  .bc-current{font-weight:500;}
+</style></head><body>
+<div class="tabbar">
+  <div class="tab active"><i data-lucide="building-2"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis;">Propiedades</span><span class="x"><i data-lucide="x"></i></span></div>
+  <div class="tab"><i data-lucide="building-2"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis;">Depto Palermo 3A</span><span class="x"><i data-lucide="x"></i></span></div>
+  <div class="tab"><i data-lucide="file-text"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis;">Ctr. Gómez · 01/25</span><span class="x"><i data-lucide="x"></i></span></div>
+  <div class="plus"><i data-lucide="plus"></i></div>
+</div>
+<div class="breadcrumb">
+  <span class="bc-parent">Contratos</span>
+  <i class="bc-sep" data-lucide="chevron-right"></i>
+  <span class="bc-current">Ctr. Gómez · 01/2025</span>
+</div>
+<script>lucide.createIcons();</script>
+</body></html>
