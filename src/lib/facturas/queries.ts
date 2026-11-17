@@ -71,12 +71,17 @@ export async function obtenerFactura(id: bigint) {
     include: { items: { orderBy: { orden: "asc" } } },
   });
   if (!c) return null;
-  const [proveedor, remitos] = await Promise.all([
+  const [proveedor, remitos, pagos] = await Promise.all([
     prisma.proveedor.findUnique({ where: { codigo: c.proveedor_codigo }, select: PROVEEDOR_SELECT }),
     prisma.remito.findMany({ where: { comprobante_id: c.id }, orderBy: { fecha: "asc" } }),
+    // En qué OP está: lo imputado por OP, con su estado. Una anulada queda en 0.
+    prisma.$queryRaw<{ numero: string; estado: string; fecha: string; importe: string }[]>`
+      select o.numero, o.estado, coalesce(o.fecha_salida_caja, o.fecha_op)::text as fecha, i.importe::text as importe
+      from cc.imputaciones i join cc.ordenes_pago o on o.numero = i.op_numero
+      where i.comprobante_id = ${c.id} order by o.numero`,
   ]);
   const requisitos = requisitosFactura({ ...c, tieneRemito: remitos.length > 0 || !!c.retiro_por }, proveedor);
-  return { c, proveedor, remitos, requisitos };
+  return { c, proveedor, remitos, pagos, requisitos };
 }
 
 /** Listas cerradas de la base: lo que no está acá, la base lo rechaza. */

@@ -17,7 +17,7 @@ export default async function FichaFacturaPage({ params }: { params: Promise<{ i
   if (!/^\d+$/.test(id)) notFound();
   const [datos, listas] = await Promise.all([obtenerFactura(BigInt(id)), listasDeCarga()]);
   if (!datos) notFound();
-  const { c, proveedor, remitos, requisitos } = datos;
+  const { c, proveedor, remitos, pagos, requisitos } = datos;
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
@@ -88,6 +88,22 @@ export default async function FichaFacturaPage({ params }: { params: Promise<{ i
                   <li key={String(r.id)} className="flex justify-between px-4 py-2">
                     <span>{r.numero ?? "S/N"} · {formatDate(r.fecha)} · {r.retiro_por ?? "—"}{r.autorizo ? ` · autorizó ${r.autorizo}` : ""}</span>
                     {r.archivo_link?.startsWith("http") && <a href={r.archivo_link} target="_blank" rel="noreferrer" className="text-primary underline">Ver</a>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="rounded-md border bg-card text-sm">
+            <h2 className="border-b px-4 py-2 font-medium">Órdenes de pago</h2>
+            {pagos.length === 0 ? (
+              <p className="px-4 py-3 text-muted-foreground">No está en ninguna OP.</p>
+            ) : (
+              <ul className="divide-y">
+                {pagos.map((p) => (
+                  <li key={p.numero} className="flex justify-between px-4 py-2">
+                    <span>{p.numero} · {p.estado} · {formatDate(p.fecha)}</span>
+                    <MoneyCell value={Number(p.importe)} currency="ARS" decimals={2} />
                   </li>
                 ))}
               </ul>
