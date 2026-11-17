@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Inbox, Home, Users } from "lucide-react";
+import { Inbox, Home, Users, BookOpen, FileText } from "lucide-react";
 import { Toaster } from "sonner";
 import { auth } from "@/lib/auth";
 import { SessionProvider } from "@/components/providers/SessionProvider";
@@ -10,6 +10,8 @@ import { QueryProvider } from "@/app/providers";
 const MENU = [
   { href: "/", label: "Inicio", icon: Home },
   { href: "/bandeja", label: "Bandeja de facturas", icon: Inbox },
+  { href: "/cuenta", label: "Cuentas corrientes", icon: BookOpen },
+  { href: "/op", label: "Órdenes de pago", icon: FileText },
   { href: "/proveedores", label: "Proveedores", icon: Users },
 ];
 
