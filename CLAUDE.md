@@ -49,7 +49,27 @@ máximo, derivar en vez de guardar, una regla pareja antes que una excepción.
 - Botones `size="sm"` con icono lucide antes del texto. No inventar primitivos nuevos.
 - Montos en formato argentino ($1.234.567,89).
 
+## Alcance y entidades (Adriano, 17/11 — detalle en docs/proyecto/03_definiciones.md)
+- **La app es solo de West Desarrolladora**: la unidad de negocio que desarrolla, compra,
+  vende y alquila propiedades. West Capital es el family office (el global). Ninguna de
+  las dos es una persona jurídica: los que existen de verdad son los titulares
+  (Giraudo Hernando, Yrigoyen Developer, Doblege). No confundir la unidad con la SAS
+  "West Desarrolladora" que se va a constituir.
+- Plata de West Desarrolladora usada para algo de West Capital (ej.: maíz para el
+  Feedlot) **no es un gasto**: es un crédito a favor de West Desarrolladora frente a West
+  Capital. Es el "movimiento entre entidades" que ya existe en la app de alquileres.
+- **La orden de compra sigue en ClickUp** (presupuestos, plazos, entrega). La compra entra
+  a la app recién con el remito o la confirmación de compra.
+- **Una sola lista de categorías de gasto**, la de la app de alquileres (Tasas en vez de ABL).
+- **Proveedor = una persona de la app dada de alta como proveedor**, como se la da de alta
+  como propietario.
+- Topes: en dólar blue promedio compra/venta, desde una API; los montos se definen
+  después y tienen que ser editables. Presupuesto: uno por obra; propiedades, 1 o 2
+  cánones por mes.
+
 ## Reglas del negocio (de Adriano, 17/11; detalle en docs/)
+- Tolerancia factura vs compra: **cero** (solo centavos, menos de $1).
+- Todos los pagos de West Desarrolladora pasan por Adriano.
 - Se aprueba una sola vez: si la compra estaba dentro del tope y la factura cruza con
   la compra y el remito, no pide otra firma.
 - OP con facturas de varias unidades: cada línea la aprueba quien aprueba su unidad;
