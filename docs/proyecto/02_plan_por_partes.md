@@ -24,9 +24,17 @@ Decisiones de Adriano: repo aparte que después se une a la app de alquileres co
 
 ## Fase 1 en detalle
 
-1. **Inicio** (hecho, primera versión): lo que hay que hacer, leído de `cc.v_alertas` y `cc.v_calidad`. Falta el tablero abajo.
+1. **Inicio** (hecho): lo que hay que hacer, leído de `cc.v_alertas` y `cc.v_calidad`, y abajo el tablero de deuda (solo West Desarrolladora).
 2. **Bandeja**: facturas que no pasaron solas, con el motivo. Tocar abre la ficha.
 3. **Ficha de factura**: PDF a la izquierda (necesita permiso de lectura de SharePoint), datos a la derecha con lo que falta marcado, renglones, botón aprobar que no se habilita hasta que esté todo.
 4. **Proveedor**: alta con los 5 datos obligatorios y su ficha.
 
 No entra en la fase 1: OP, aprobaciones, WhatsApp, compras, topes.
+
+## Fase 2 en detalle (17/11)
+
+1. **Cuenta corriente** (`/cuenta/[proveedor]`): facturas abiertas con vencimiento y extracto debe/haber; saldo, saldo a favor y PDF a pedido.
+2. **Armado de OP** (`/op/nueva`): facturas aprobadas libres de un proveedor, un solo titular, reservada Prevista con `cc.proxima_op` + `cc.cargar_pagos`. Necesita `sql/002_reservas_op.sql` aplicado.
+3. **OP abiertas** (`/op`): previstas con sus facturas.
+
+Criterio de deuda: lo que falta pagar = saldo de `cc.v_saldo_comprobante` + lo imputado en OP previstas.
