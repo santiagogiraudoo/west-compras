@@ -86,3 +86,51 @@ export async function reservarOP(proveedor: string, ids: string[]): Promise<Resu
     throw e;
   }
 }
+
+/**
+ * Anula una OP Prevista armada en la app: Estado "Anulada" y cada imputación corregida
+ * a 0, todo con cc.cargar_pagos (la app no borra en cc). Las facturas vuelven a quedar
+ * libres. Las OP que vienen de ClickUp no se tocan acá: su estado lo sincroniza el
+ * plomero y anularlas en la base dejaría la base distinta de ClickUp.
+ */
+export async function anularOP(numero: string): Promise<ResultadoOP> {
+  const session = await auth();
+  if (!session?.user || session.user.role === "consulta") {
+    return { ok: false, mensaje: "No tenés permiso para anular OP." };
+  }
+
+  const ops = await prisma.$queryRaw<{ estado: string; origen: string }[]>`
+    select estado, origen from cc.ordenes_pago where numero = ${numero}`;
+  if (!ops.length) return { ok: false, mensaje: "No encontré la OP." };
+  if (ops[0].estado !== "Prevista") return { ok: false, mensaje: `La OP está ${ops[0].estado}: solo se anula una Prevista.` };
+  if (ops[0].origen !== "app") return { ok: false, mensaje: "Esta OP viene de ClickUp: anulala allá." };
+
+  const imps = await prisma.$queryRaw<{ proveedor: string | null; comprobante: string | null }[]>`
+    select c.proveedor_codigo as proveedor, c.numero as comprobante
+    from cc.imputaciones i left join cc.comprobantes c on c.id = i.comprobante_id
+    where i.op_numero = ${numero}`;
+  if (imps.some((i) => !i.comprobante)) return { ok: false, mensaje: "La OP tiene pagos a cuenta: anulala a mano." };
+
+  const carga = {
+    ordenes: [{ "N° OP": numero, Estado: "Anulada", "Total imputado": "0" }],
+    imputaciones: imps.map((i) => ({
+      "N° OP": numero, "Comprobante (clave)": `${i.proveedor}|${i.comprobante}`, "Importe imputado": "0", Corregir: "SI",
+    })),
+  };
+  try {
+    await prisma.$transaction(async (tx) => {
+      const [{ r }] = await tx.$queryRaw<{ r: ResultadoCarga & { corregidas: number } }[]>`
+        select cc.cargar_pagos(${JSON.stringify(carga)}::jsonb, 'app') as r`;
+      if (r.errores?.length) throw new Rechazo(r.errores.map((e) => e.error).join(" · "));
+      if (r.ordenes !== 1 || r.corregidas !== imps.length) throw new Rechazo("La base no anuló toda la OP.");
+    });
+  } catch (e) {
+    if (e instanceof Rechazo) return { ok: false, mensaje: `La base lo rechazó: ${e.message}` };
+    throw e;
+  }
+
+  revalidatePath("/op");
+  revalidatePath("/cuenta");
+  revalidatePath("/");
+  return { ok: true, mensaje: `OP ${numero} anulada: sus facturas quedaron libres` };
+}

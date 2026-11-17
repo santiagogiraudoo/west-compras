@@ -5,6 +5,7 @@ import { Monto } from "@/components/cuenta/DeudaPorProveedor";
 import { MoneyCell } from "@/components/shared/MoneyCell";
 import { formatDate } from "@/lib/utils";
 import { listarOPAbiertas } from "@/lib/cuenta/queries";
+import { AnularOP } from "./AnularOP";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export default async function OPPage() {
                     {o.estado}{o.estado_clickup && o.estado_clickup !== o.estado ? ` · ClickUp: ${o.estado_clickup}` : ""}
                   </span>
                   <MoneyCell value={Number(o.total_imputado)} currency="ARS" decimals={2} className="text-primary" />
+                  {o.origen === "app" && <AnularOP numero={o.numero} />}
                 </div>
               </div>
               <table className="w-full text-sm">
