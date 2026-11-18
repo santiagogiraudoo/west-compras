@@ -1,4 +1,4 @@
-# Órdenes de compra · borrador para pensar (18/11/2026)
+# Órdenes de compra (18/11/2026)
 
 Punto de partida (Adriano, 17/11): **la orden de compra sigue en ClickUp** (presupuestos, plazos, entrega) y entra a la app recién con el remito o la confirmación de compra. Fase 4 está lista cuando "una factura que cruza con su compra y su remito pasa sin que nadie la toque".
 
@@ -27,9 +27,21 @@ Punto de partida (Adriano, 17/11): **la orden de compra sigue en ClickUp** (pres
 - Todo derivado: estado de la compra y saldo en una vista, nada guardado a mano.
 - Lo único que cambia de lo hecho es de dónde sale el monto que se compara con el tope.
 
-## Preguntas para Adriano
+## Decisiones (Adriano, 18/11)
 
-1. En ClickUp, ¿qué lista y qué estado quieren decir "compra confirmada"? De ahí la lee el plomero.
-2. El importe de la compra, ¿con IVA o sin IVA? (Hoy el remito se acepta contra el total o el neto.)
-3. ¿Quién autoriza la compra hoy en ClickUp, y queda escrito en la tarea?
-4. Compra en negro: ¿se carga como comprobante "Sin factura" para que pase por la OP como cualquier otra?
+1. **Cuándo entra**: la lista Compras de ClickUp va por pedido confirmado → esperando remito → hecho. "Hecho" es cuando pasaron el remito. La compra entra a la base desde "pedido confirmado".
+2. **Importe**: siempre el total con IVA. El IVA lo ven Candela y el plomero con su Excel.
+3. **Quién autoriza**: normalmente quien la pide o el encargado de la unidad.
+4. **Compra en negro**: se carga como comprobante "Sin factura" (la base ya lo acepta) y pasa por la OP como cualquier otra.
+
+## Hecho en la base (sql/017, dev y production)
+
+- `cc.compras` y `cc.cargar_compras` (claves: ClickUp id, Nombre, Proveedor (elegir), Unidad, Importe, Para qué, Estado, Pidió, Autorizó, Fecha, Remitos). Frena proveedor sin alta, unidad que no existe y un remito en dos compras.
+- `cc.remitos.compra_id`: la compra se cuelga del remito.
+- `app.v_compras`: facturado (facturas de sus remitos firmados), saldo y qué le falta cargar.
+
+## Lo que falta
+
+- **ClickUp no tiene los datos cargados**: en las tareas "hecho" que miré, Precio estimado y Unidad están vacíos y el importe está escrito en la descripción. Para cruzar sin que nadie toque nada, al pasar a "pedido confirmado" tienen que estar Proveedor, Unidad, importe total con IVA y quién autorizó. Opciones: hacer obligatorios esos campos en la lista (y renombrar "Precio estimado" a "Importe confirmado (con IVA)"), o que el plomero los complete leyendo la descripción.
+- **El plomero** (repo west-plomero) tiene que leer la lista Compras y llamar a `cc.cargar_compras`, y al cargar un remito, decir de qué compra es.
+- **La app**: el tope se evalúa contra la compra (`evaluarTope` recibe la compra en vez de la factura) y la tarjeta de aprobación muestra la compra y su saldo. Se hace cuando haya compras cargadas.
