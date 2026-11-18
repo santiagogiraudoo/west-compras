@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { hoyArgentina, listarAbiertos } from "@/lib/cuenta/queries";
 import { validarSeleccionOP } from "@/lib/cuenta/calculos";
 import { faltantesProveedor } from "@/lib/facturas/requisitos";
+import { problemaConstancia } from "@/lib/op/constancias";
 import { calcularPago, RETENCIONES, type DatosPago } from "@/lib/op/pago";
 import { aResolver, decide, noCruzaRenglon, quita, SE_DECIDE, SE_DESCARTA, type Decision } from "@/lib/op/estados";
 import { DIAS_MISMA_COMPRA, evaluarTope } from "@/lib/op/topes";
@@ -364,4 +365,28 @@ export async function pagarOP(numero: string, form: FormData): Promise<Resultado
   }
   revalidar();
   return { ok: true, mensaje: `${numero} pagada` };
+}
+
+/**
+ * Dejar una constancia en la OP: una foto o un PDF, con una nota opcional. Queda en
+ * app.constancias_op (sql/014) hasta tener SharePoint. Se agregan, no se borran.
+ */
+export async function subirConstancia(numero: string, form: FormData): Promise<ResultadoOP> {
+  const u = await usuario();
+  if (!u || u.role === "consulta") return { ok: false, mensaje: "No tenés permiso para subir constancias." };
+  const archivo = form.get("archivo");
+  const subido = archivo instanceof File ? archivo : null;
+  const problema = problemaConstancia(subido);
+  if (problema || !subido) return { ok: false, mensaje: problema ?? "Elegí una foto o un PDF." };
+  const nota = String(form.get("nota") ?? "").trim().slice(0, 500) || null;
+
+  const existe = await prisma.$queryRaw<{ n: number }[]>`select 1 as n from cc.ordenes_pago where numero = ${numero}`;
+  if (!existe.length) return { ok: false, mensaje: "No encontré la OP." };
+
+  const bytes = Buffer.from(await subido.arrayBuffer());
+  await prisma.$executeRaw`
+    insert into app.constancias_op (op_numero, nombre, tipo, archivo, nota, subido_por)
+    values (${numero}, ${subido.name.slice(0, 200) || "constancia"}, ${subido.type}, ${bytes}, ${nota}, ${u.name})`;
+  revalidatePath(`/op/${numero}`);
+  return { ok: true, mensaje: `Constancia guardada en la ${numero}` };
 }
