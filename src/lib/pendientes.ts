@@ -3,7 +3,7 @@ import { MARCA } from "@/lib/marca";
 
 /** Una cosa para hacer: sale de cc.v_alertas o de cc.v_calidad, sin copiarla. */
 export interface Pendiente {
-  origen: "alerta" | "calidad" | "op";
+  origen: "alerta" | "calidad" | "op" | "control";
   tipo: string;
   proveedor: string | null;
   detalle: string | null;
@@ -29,7 +29,11 @@ export async function listarPendientes(): Promise<Pendiente[]> {
       from cc.v_alertas
       union all
       select 'calidad', problema, proveedor_codigo, proveedor_codigo, detalle, 100, clave
-      from cc.v_calidad)
+      from cc.v_calidad
+      union all
+      -- Lo que no cierra en las OP de la app (sql/015): va primero, es un error.
+      select 'control', control, proveedor_codigo, proveedor_codigo, op_numero || ': ' || detalle, 0, op_numero
+      from app.v_controles)
     select origen, tipo, proveedor, detalle, orden from p
     where not exists (
         select 1 from cc.comprobantes c join cc.unidades u on u.codigo = c.unidad_codigo
