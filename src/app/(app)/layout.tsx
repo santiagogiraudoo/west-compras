@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Inbox, Home, Users, BookOpen, FileText, Banknote } from "lucide-react";
+import { Inbox, Home, Users, BookOpen, FileText, Banknote, ClipboardCheck, Settings } from "lucide-react";
 import { Toaster } from "sonner";
 import { auth } from "@/lib/auth";
 import { SessionProvider } from "@/components/providers/SessionProvider";
@@ -12,8 +12,10 @@ const MENU = [
   { href: "/bandeja", label: "Bandeja de facturas", icon: Inbox },
   { href: "/cuenta", label: "Cuentas corrientes", icon: BookOpen },
   { href: "/op", label: "Órdenes de pago", icon: FileText },
-  { href: "/pagos", label: "Pagos", icon: Banknote },
+  { href: "/aprobar", label: "Para aprobar", icon: ClipboardCheck },
+  { href: "/pagos", label: "Para pagar", icon: Banknote },
   { href: "/proveedores", label: "Proveedores", icon: Users },
+  { href: "/configuracion", label: "Configuración", icon: Settings },
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {

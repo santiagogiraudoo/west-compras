@@ -105,7 +105,7 @@ export function ArmarOP({ proveedor, faltan, facturas, hoy }: Props) {
           disabled={pendiente || errores.length > 0 || faltan.length > 0}>
           <FilePlus className="h-4 w-4" /> {pendiente ? "Reservando…" : "Reservar OP"}
         </Button>
-        <p className="text-xs text-muted-foreground">Queda Prevista. Las retenciones y el pago se cargan después.</p>
+        <p className="text-xs text-muted-foreground">Queda en armado: después la mandás a aprobar desde Órdenes de pago.</p>
       </aside>
     </div>
   );
