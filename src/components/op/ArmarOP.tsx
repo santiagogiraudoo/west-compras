@@ -12,6 +12,7 @@ import { MoneyCell } from "@/components/shared/MoneyCell";
 import { formatDate } from "@/lib/utils";
 import { validarSeleccionOP, type Abierto } from "@/lib/cuenta/calculos";
 import { reservarOP } from "@/app/(app)/op/actions";
+import { leerImporte } from "@/lib/op/extraordinaria";
 
 interface Props {
   proveedor: { codigo: string; razon_social: string; cuit: string | null; cbu: string | null; alias: string | null; banco: string | null; cuenta_titular: string | null };
@@ -28,9 +29,15 @@ interface Props {
 export function ArmarOP({ proveedor, faltan, facturas, hoy }: Props) {
   const router = useRouter();
   const [sel, setSel] = useState<Set<string>>(new Set());
+  // Pago parcial: lo que se escribe para pagar de cada factura elegida (vacío = todo lo libre).
+  const [parcial, setParcial] = useState<Record<string, string>>({});
   const [pendiente, startTransition] = useTransition();
 
-  const elegidas = useMemo(() => facturas.filter((f) => sel.has(f.id)), [facturas, sel]);
+  const elegidas = useMemo(() => facturas.filter((f) => sel.has(f.id)).map((f) => {
+    const t = parcial[f.id]?.trim();
+    if (!t) return f;
+    try { return { ...f, libre: leerImporte(t) }; } catch { return f; }
+  }), [facturas, sel, parcial]);
   const { errores, total, titular } = validarSeleccionOP(elegidas);
   const titularElegido = elegidas[0]?.facturado_a ?? null;
 
@@ -42,7 +49,8 @@ export function ArmarOP({ proveedor, faltan, facturas, hoy }: Props) {
 
   function reservar() {
     startTransition(async () => {
-      const r = await reservarOP(proveedor.codigo, [...sel]);
+      const importes = Object.fromEntries([...sel].filter((id) => parcial[id]?.trim()).map((id) => [id, parcial[id]]));
+      const r = await reservarOP(proveedor.codigo, [...sel], importes);
       if (!r.ok) { toast.error(r.mensaje); return; }
       toast.success(r.mensaje);
       router.push("/op");
@@ -79,7 +87,14 @@ export function ArmarOP({ proveedor, faltan, facturas, hoy }: Props) {
                   <TableCell className={f.vencimiento && f.vencimiento < hoy ? "text-red-700" : ""}>
                     {formatDate(f.vencimiento)}
                   </TableCell>
-                  <TableCell className="text-right"><MoneyCell value={Number(f.libre)} currency="ARS" decimals={0} /></TableCell>
+                  <TableCell className="text-right">
+                    <MoneyCell value={Number(f.libre)} currency="ARS" decimals={0} />
+                    {sel.has(f.id) && (
+                      <input value={parcial[f.id] ?? ""} onChange={(e) => setParcial((x) => ({ ...x, [f.id]: e.target.value }))}
+                        placeholder="pagar menos" inputMode="decimal" aria-label={`Importe a pagar de ${f.numero}`}
+                        className="mt-1 ml-auto block h-7 w-28 rounded border bg-white px-2 text-right text-xs" />
+                    )}
+                  </TableCell>
                 </TableRow>
               );
             })}
