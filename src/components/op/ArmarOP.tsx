@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { MoneyCell } from "@/components/shared/MoneyCell";
 import { formatDate } from "@/lib/utils";
 import { validarSeleccionOP, type Abierto } from "@/lib/cuenta/calculos";
-import { reservarOP } from "../actions";
+import { reservarOP } from "@/app/(app)/op/actions";
 
 interface Props {
   proveedor: { codigo: string; razon_social: string; cuit: string | null; cbu: string | null; alias: string | null; banco: string | null; cuenta_titular: string | null };

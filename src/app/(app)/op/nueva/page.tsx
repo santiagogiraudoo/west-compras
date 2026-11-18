@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { prisma } from "@/lib/prisma";
 import { faltantesProveedor } from "@/lib/facturas/requisitos";
 import { hoyArgentina, listarAbiertos } from "@/lib/cuenta/queries";
-import { ArmarOP } from "./ArmarOP";
+import { ArmarOP } from "@/components/op/ArmarOP";
 
 export const dynamic = "force-dynamic";
 

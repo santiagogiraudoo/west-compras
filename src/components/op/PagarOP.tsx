@@ -17,7 +17,7 @@ import { MoneyCell } from "@/components/shared/MoneyCell";
 import { Copiar } from "@/components/shared/Copiar";
 import { calcularPago, MEDIOS_PAGO, RETENCIONES, type ClaveRetencion } from "@/lib/op/pago";
 import { cotejarComprobante, type LecturaComprobante } from "@/lib/pagos/cotejo";
-import { leerComprobantePago, pagarOP } from "../op/actions";
+import { leerComprobantePago, pagarOP } from "@/app/(app)/op/actions";
 
 interface Props {
   numero: string;

@@ -44,7 +44,7 @@ export function TarjetaOP({ op, usuario, deuda, ultimas, enFicha }: Props) {
   const enDecision = SE_DECIDE.includes(op.estado);
   const puede = mias.length > 0 && enDecision;
   const resuelve = resolvibles.length > 0 && enDecision;
-  // Quitar se puede también con la OP Autorizada (mientras no se pagó): así sale de Para pagar.
+  // Quitar se puede también con la OP Autorizada (mientras no se pagó): así vuelve del paso Pagar.
   const enQuita = SE_QUITA.includes(op.estado) && usuario.role !== "consulta";
   const quitaAlgo = enQuita && op.lineas.some((l) => quita(l, usuario) && (l.decision === "Observada" || l.decision === "Bloqueada"));
   const quitaAprob = enQuita && op.lineas.some((l) => quita(l, usuario) && l.decision === "Aprobada");

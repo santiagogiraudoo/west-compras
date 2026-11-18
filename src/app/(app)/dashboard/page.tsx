@@ -48,9 +48,9 @@ export default async function DashboardPage() {
     { label: "En la bandeja, sin aprobar", valor: suma(bandeja.map((b) => b.total)).toFixed(2), sub: `${bandeja.length} facturas`, href: "/bandeja", color: "bg-[#a3a3a3]" },
     { label: "Aprobadas, sin OP", valor: libre.toFixed(2), sub: `${abiertos.filter((a) => Number(a.libre) > 0.5).length} facturas`, href: "/op/nueva", color: "bg-[#B8960C]" },
     { label: "OP en armado", valor: totalOps(delEstado("En armado")).toFixed(2), sub: `${delEstado("En armado").length} OP`, href: "/op", color: "bg-[#B8960C]" },
-    { label: "OP a aprobar", valor: totalOps(delEstado("A aprobar")).toFixed(2), sub: `${delEstado("A aprobar").length} OP`, href: "/aprobar", color: "bg-[#f59e0b]" },
-    { label: "OP frenadas", valor: totalOps(delEstado("Observada", "Bloqueada")).toFixed(2), sub: `${delEstado("Observada", "Bloqueada").length} OP`, href: "/aprobar", color: "bg-[#ea580c]" },
-    { label: "Autorizadas, para pagar", valor: totalOps(delEstado("Autorizada")).toFixed(2), sub: `${delEstado("Autorizada").length} OP`, href: "/pagos", color: "bg-[#1B4332]" },
+    { label: "OP a aprobar", valor: totalOps(delEstado("A aprobar")).toFixed(2), sub: `${delEstado("A aprobar").length} OP`, href: "/op?paso=aprobar", color: "bg-[#f59e0b]" },
+    { label: "OP frenadas", valor: totalOps(delEstado("Observada", "Bloqueada")).toFixed(2), sub: `${delEstado("Observada", "Bloqueada").length} OP`, href: "/op?paso=aprobar", color: "bg-[#ea580c]" },
+    { label: "Autorizadas, para pagar", valor: totalOps(delEstado("Autorizada")).toFixed(2), sub: `${delEstado("Autorizada").length} OP`, href: "/op?paso=pagar", color: "bg-[#1B4332]" },
     { label: "En OP de ClickUp", valor: enClickUp.toFixed(2), sub: "se pagan allá", href: "/op", color: "bg-[#737373]" },
   ];
   const maxEmbudo = Math.max(...embudo.map((e) => Number(e.valor)));

@@ -69,7 +69,7 @@ export default async function FichaOPPage({ params }: { params: Promise<{ numero
             {SE_DESCARTA.includes(op.estado) && <AccionOP numero={op.numero} accion="descartar" />}
             {op.estado === "En armado" && <AccionOP numero={op.numero} accion="enviar" />}
             {op.estado === "Autorizada" && (
-              <Link href="/pagos" className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-[#163828]">
+              <Link href="/op?paso=pagar" className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-[#163828]">
                 Ir a pagar <ExternalLink className="h-3.5 w-3.5" />
               </Link>
             )}

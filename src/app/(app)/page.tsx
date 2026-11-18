@@ -53,10 +53,10 @@ export default async function InicioPage() {
       nota: "por aprobar o completar", icon: ICONOS.Inbox, tono: "bg-[#f5f5f0] text-[#737373]" },
     { href: "/op/nueva", label: "Aprobadas sin OP", n: libres.length, monto: libres.reduce((t, a) => t.plus(a.libre), new Decimal(0)).toFixed(2),
       nota: "listas para una OP", icon: ICONOS.FilePlus, tono: "bg-[#B8960C]/10 text-[#B8960C]" },
-    { href: "/aprobar", label: "OP para aprobar", n: aAprobar.length, monto: totalDe(aAprobar),
+    { href: "/op?paso=aprobar", label: "OP para aprobar", n: aAprobar.length, monto: totalDe(aAprobar),
       nota: frenadas ? `${frenadas} frenada${frenadas > 1 ? "s" : ""}` : "esperan firma", icon: ICONOS.ClipboardCheck,
       tono: frenadas ? "bg-orange-50 text-orange-600" : "bg-amber-50 text-amber-600" },
-    { href: "/pagos", label: "OP para pagar", n: autorizadas.length, monto: totalDe(autorizadas),
+    { href: "/op?paso=pagar", label: "OP para pagar", n: autorizadas.length, monto: totalDe(autorizadas),
       nota: primera ? `la primera vence ${formatDate(primera)}` : "nada autorizado", icon: ICONOS.Banknote, tono: "bg-emerald-50 text-emerald-600" },
   ];
 
@@ -74,8 +74,8 @@ export default async function InicioPage() {
     <div className="px-8 py-6 space-y-6 max-w-[1400px] mx-auto">
       <Bienvenida nombre={nombre} hoy={hoy} hora={hora} frase={frase} accesos={[
         { href: "/op/nueva", label: "Armar OP", n: porVencer.length, icon: ICONOS.FilePlus },
-        { href: "/aprobar", label: "Para aprobar", n: aAprobar.length, icon: ICONOS.ClipboardCheck },
-        { href: "/pagos", label: "Para pagar", n: autorizadas.length, icon: ICONOS.Banknote },
+        { href: "/op?paso=aprobar", label: "Para aprobar", n: aAprobar.length, icon: ICONOS.ClipboardCheck },
+        { href: "/op?paso=pagar", label: "Para pagar", n: autorizadas.length, icon: ICONOS.Banknote },
       ]} />
 
       <Flujo pasos={pasos} />
@@ -124,7 +124,7 @@ export default async function InicioPage() {
                     <span className="rounded-full bg-primary/10 px-2 py-px text-[11px] font-semibold text-primary">{lista.length}</span>
                     {href && (href.startsWith("/op/nueva")
                       ? <span className="ml-auto text-xs font-normal text-muted-foreground">tocá el proveedor para armarle la OP</span>
-                      : <span className="ml-auto text-xs font-normal text-muted-foreground">se resuelve en <Link href={href} className="text-primary underline-offset-2 hover:underline">{href === "/aprobar" ? "Para aprobar" : href === "/pagos" ? "Para pagar" : "Órdenes de pago"}</Link></span>)}
+                      : <span className="ml-auto text-xs font-normal text-muted-foreground">se resuelve en <Link href={href} className="text-primary underline-offset-2 hover:underline">{href.includes("paso=aprobar") ? "Órdenes de pago · Aprobar" : href.includes("paso=pagar") ? "Órdenes de pago · Pagar" : "Órdenes de pago"}</Link></span>)}
                   </summary>
                   <ul className="divide-y divide-[#f2f1ec]">
                     {lista.map((p, i) => (

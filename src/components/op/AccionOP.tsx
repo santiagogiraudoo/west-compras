@@ -43,7 +43,7 @@ const ACCIONES: Record<Accion, {
   },
   desaprobar: {
     label: "Quitar aprobación", icon: RotateCcw, variant: "ghost", clase: DISCRETO,
-    pide: { titulo: "Quitar la aprobación de", ayuda: "Los renglones aprobados vuelven a esperar decisión. Si la OP estaba Autorizada, sale de Para pagar.", placeholder: "Por qué se quita (ej.: hay que revisar el precio)" },
+    pide: { titulo: "Quitar la aprobación de", ayuda: "Los renglones aprobados vuelven a esperar decisión. Si la OP estaba autorizada, vuelve al paso Aprobar.", placeholder: "Por qué se quita (ej.: hay que revisar el precio)" },
   },
   observar: {
     label: "Observar", icon: MessageSquareWarning, variant: "outline", clase: FRENA,
