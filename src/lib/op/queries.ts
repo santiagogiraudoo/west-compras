@@ -182,3 +182,32 @@ export async function historialOP(numero: string): Promise<EventoOP[]> {
     group by h.cuando, h.quien, h.que, h.detalle
     order by h.cuando desc, h.que`;
 }
+
+/** Una OP de la app ya cerrada: pagada o descartada. */
+export interface OPCerrada {
+  numero: string;
+  estado: "Pagada" | "Descartada";
+  razon_social: string;
+  proveedor_codigo: string;
+  total_imputado: string;
+  neto_transferir: string | null;
+  /** Pagada: el día que salió la plata. Descartada: el día que se descartó. */
+  fecha: string | null;
+  comprobante_link: string | null;
+  motivo_descarte: string | null;
+}
+
+/** Las OP de la app pagadas o descartadas en los últimos `dias`, la más nueva arriba. */
+export async function listarCerradas(hoy: string, dias = 60): Promise<OPCerrada[]> {
+  return prisma.$queryRaw<OPCerrada[]>`
+    select o.numero, e.estado, p.razon_social, o.proveedor_codigo, o.total_imputado::text, o.neto_transferir::text,
+      (case when e.estado = 'Pagada' then coalesce(o.fecha_salida_caja, o.fecha_op)
+            else (a.descartada_en at time zone 'America/Argentina/Mendoza')::date end)::text as fecha,
+      o.comprobante_link, a.motivo_descarte
+    from app.ops a
+    join app.v_op_estado e on e.op_numero = a.op_numero and e.estado in ('Pagada', 'Descartada')
+    join cc.ordenes_pago o on o.numero = a.op_numero
+    join cc.proveedores p on p.codigo = o.proveedor_codigo
+    where coalesce(o.fecha_salida_caja, o.fecha_op, (a.descartada_en)::date) >= ${hoy}::date - ${dias}::int
+    order by 7 desc nulls last, o.numero desc`;
+}

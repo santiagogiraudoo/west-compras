@@ -154,13 +154,13 @@ export function pendientesOP(ops: OPPendiente[], hoy: string): PendienteOP[] {
     } else if (o.estado === "A aprobar") {
       const n = o.enviada_en ? diasEntre(o.enviada_en, hoy) : 0;
       const quienes = [...new Set(o.lineas.filter((l) => !l.decision).map((l) => l.aprobador ?? "un admin"))];
-      out.push({ ...base, tipo: "OP esperando aprobación", detalle: `${o.numero} esperando a ${quienes.join(" y ")} ${hace(n)}`, href: "/aprobar" });
+      out.push({ ...base, tipo: "OP esperando aprobación", detalle: `${o.numero} esperando a ${quienes.join(" y ")} ${hace(n)}`, href: "/op?paso=aprobar" });
     } else if (o.estado === "Observada" || o.estado === "Bloqueada") {
       const l = o.lineas.find((x) => x.decision === (o.estado === "Observada" ? "Observada" : "Bloqueada"));
-      out.push({ ...base, tipo: `OP ${o.estado.toLowerCase()}`, detalle: `${o.numero}: ${l?.usuario ?? ""}${l?.motivo ? ` — ${l.motivo}` : ""}`, href: "/aprobar" });
+      out.push({ ...base, tipo: `OP ${o.estado.toLowerCase()}`, detalle: `${o.numero}: ${l?.usuario ?? ""}${l?.motivo ? ` — ${l.motivo}` : ""}`, href: "/op?paso=aprobar" });
     } else if (o.estado === "Autorizada") {
       const vence = o.lineas.map((l) => l.vencimiento).filter((v): v is string => !!v).sort()[0];
-      out.push({ ...base, tipo: "OP autorizada para pagar", detalle: `${o.numero}${vence ? ` vence ${vence.split("-").reverse().join("/")}` : ""}`, href: "/pagos" });
+      out.push({ ...base, tipo: "OP autorizada para pagar", detalle: `${o.numero}${vence ? ` vence ${vence.split("-").reverse().join("/")}` : ""}`, href: "/op?paso=pagar" });
     }
   }
   return out;

@@ -105,9 +105,9 @@ describe("escenario semanal: OP esperando y autorizadas", () => {
   it("cada estado manda a su pantalla", () => {
     const p = pendientesOP(OPS, "2026-11-18");
     expect(p.find((x) => x.tipo === "OP en armado")?.href).toBe("/op");
-    expect(p.find((x) => x.tipo === "OP esperando aprobación")?.href).toBe("/aprobar");
-    expect(p.find((x) => x.tipo === "OP observada")?.href).toBe("/aprobar");
-    expect(p.find((x) => x.tipo === "OP autorizada para pagar")?.href).toBe("/pagos");
+    expect(p.find((x) => x.tipo === "OP esperando aprobación")?.href).toBe("/op?paso=aprobar");
+    expect(p.find((x) => x.tipo === "OP observada")?.href).toBe("/op?paso=aprobar");
+    expect(p.find((x) => x.tipo === "OP autorizada para pagar")?.href).toBe("/op?paso=pagar");
   });
 
   it("la cola de pagos ordena por el vencimiento más cercano de cada OP", () => {

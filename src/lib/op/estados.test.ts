@@ -120,7 +120,7 @@ describe("pendientesOP", () => {
       "OP-3: Santiago Giraudo — falta remito",
       "OP-4 vence 20/11/2026",
     ]);
-    expect(p.map((x) => x.href)).toEqual(["/op", "/aprobar", "/aprobar", "/pagos"]);
+    expect(p.map((x) => x.href)).toEqual(["/op", "/op?paso=aprobar", "/op?paso=aprobar", "/op?paso=pagar"]);
   });
 });
 
