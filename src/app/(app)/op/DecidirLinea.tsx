@@ -3,12 +3,12 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Check, MessageSquareWarning } from "lucide-react";
+import { Ban, Check, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog";
+  AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { Decision } from "@/lib/op/pago";
 import { decidirLinea } from "./actions";
 
@@ -19,7 +19,11 @@ interface Props {
   decision: Decision | null;
 }
 
-/** Aprobar u observar una línea de la OP. Observar pide el motivo y frena toda la OP. */
+/**
+ * Aprobar u observar una línea de la OP. Sin decidir: Aprobar (un clic) y Observar.
+ * Ya decidida: solo el cambio a la otra, discreto. Observar pide el motivo, como anular
+ * un gasto en alquileres, porque frena toda la OP.
+ */
 export function DecidirLinea({ numero, comprobanteId, factura, decision }: Props) {
   const router = useRouter();
   const [pendiente, startTransition] = useTransition();
@@ -37,35 +41,51 @@ export function DecidirLinea({ numero, comprobanteId, factura, decision }: Props
     });
   }
 
+  const sinDecidir = decision === null;
+
   return (
-    <div className="flex justify-end gap-1">
+    <div className="flex items-center justify-end gap-1.5">
       {decision !== "Aprobada" && (
-        <Button size="sm" variant="outline" disabled={pendiente} onClick={() => decidir("Aprobada")}>
-          <Check className="h-4 w-4" /> Aprobar
+        <Button size="sm" variant={sinDecidir ? "default" : "outline"} disabled={pendiente}
+          className={sinDecidir ? "h-8" : "h-7 text-xs"} onClick={() => decidir("Aprobada")}>
+          {pendiente ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Aprobar
         </Button>
       )}
       {decision !== "Observada" && (
-        <Dialog open={abierto} onOpenChange={setAbierto}>
-          <DialogTrigger asChild>
-            <Button size="sm" variant="ghost" disabled={pendiente}>
-              <MessageSquareWarning className="h-4 w-4" /> Observar
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Observar {factura}</DialogTitle>
-              <DialogDescription>Una línea observada frena toda la {numero} hasta que se apruebe o se anule la OP.</DialogDescription>
-            </DialogHeader>
-            <Textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={3}
-              placeholder="Qué hay que revisar (ej.: el remito no coincide con la factura)" />
-            <DialogFooter>
-              <Button size="sm" disabled={pendiente || motivo.trim().length < 5} onClick={() => decidir("Observada")}>
-                <MessageSquareWarning className="h-4 w-4" /> Observar línea
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button size="sm" variant={sinDecidir ? "outline" : "ghost"} disabled={pendiente}
+          className={sinDecidir
+            ? "h-8 border-[#f3c9c9] text-[#b91c1c] hover:bg-[#fdf5f5] hover:text-[#b91c1c]"
+            : "h-7 text-xs text-muted-foreground hover:text-[#b91c1c]"}
+          onClick={() => setAbierto(true)}>
+          <Ban className="h-4 w-4" /> Observar
+        </Button>
       )}
+
+      <AlertDialog open={abierto} onOpenChange={setAbierto}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Observar {factura}</AlertDialogTitle>
+            <AlertDialogDescription>
+              Frena toda la {numero}: no pasa a Pagos hasta que esta factura se apruebe o se anule la OP.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1.5">
+            <label htmlFor={`motivo-${comprobanteId}`} className="text-sm font-medium">Qué hay que revisar</label>
+            <Textarea id={`motivo-${comprobanteId}`} value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={3}
+              placeholder="Ej.: el remito no coincide con la factura" autoFocus />
+          </div>
+          <AlertDialogFooter>
+            <Button size="sm" variant="ghost" onClick={() => setAbierto(false)} disabled={pendiente}>
+              <X className="h-4 w-4" /> Cancelar
+            </Button>
+            <Button size="sm" disabled={pendiente || motivo.trim().length < 5}
+              className="bg-[#b91c1c] text-white hover:bg-[#991b1b]"
+              onClick={() => decidir("Observada")}>
+              {pendiente ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />} Observar factura
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

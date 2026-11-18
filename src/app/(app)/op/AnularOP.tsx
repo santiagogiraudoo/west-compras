@@ -28,7 +28,8 @@ export function AnularOP({ numero }: { numero: string }) {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button size="sm" variant="outline" disabled={pendiente}>
+        <Button size="sm" variant="outline" disabled={pendiente}
+          className="h-8 border-[#f3c9c9] text-[#b91c1c] hover:bg-[#fdf5f5] hover:text-[#b91c1c]">
           <Ban className="h-4 w-4" /> Anular
         </Button>
       </AlertDialogTrigger>
