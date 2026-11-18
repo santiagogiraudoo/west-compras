@@ -64,14 +64,14 @@ export async function listarAbiertos(proveedor?: string): Promise<Abierto[]> {
 export async function listarMovimientos(proveedor: string): Promise<Movimiento[]> {
   return prisma.$queryRaw<Movimiento[]>`
     select c.fecha::text as fecha, c.tipo || ' ' || c.numero as concepto, c.unidad_codigo as unidad,
-      c.total::text as importe, 'comprobante' as clase
+      c.total::text as importe, 'comprobante' as clase, c.id::text as ref, false as de_app
     from cc.comprobantes c join cc.unidades u on u.codigo = c.unidad_codigo and u.marca = ${MARCA}
     where c.proveedor_codigo = ${proveedor} and c.estado_aprobacion = 'Aprobado'
     union all
     select coalesce(o.fecha_salida_caja, o.fecha_op)::text,
       -- Una OP que imputa 0 neto aplicó una nota de crédito a facturas: no salió plata.
       case when sum(i.importe) = 0 then 'Compensación ' else 'Pago ' end || o.numero, null,
-      (-sum(i.importe))::text, 'pago'
+      (-sum(i.importe))::text, 'pago', o.numero, exists (select 1 from app.ops a where a.op_numero = o.numero)
     from cc.ordenes_pago o
     join cc.imputaciones i on i.op_numero = o.numero
     join cc.v_orden_pago v on v.numero = o.numero
@@ -107,7 +107,7 @@ export async function listarOPAbiertas(): Promise<FilaOP[]> {
     select o.numero, o.fecha_op::text, o.estado, e.estado_actual as estado_clickup, o.proveedor_codigo,
       p.razon_social, o.titular, o.total_imputado::text, o.origen,
       coalesce(json_agg(json_build_object('tipo', c.tipo, 'numero', c.numero, 'unidad', c.unidad_codigo,
-        'importe', i.importe::text, 'vencimiento', c.vencimiento::text) order by c.fecha)
+        'importe', o.importe::text, 'vencimiento', c.vencimiento::text) order by c.fecha)
         filter (where u.marca = ${MARCA}), '[]') as facturas,
       coalesce(sum(i.importe) filter (where u.marca is distinct from ${MARCA}), 0)::text as otras
     from cc.ordenes_pago o
@@ -120,4 +120,49 @@ export async function listarOPAbiertas(): Promise<FilaOP[]> {
     group by o.numero, p.codigo, e.estado_actual
     having bool_or(u.marca = ${MARCA})
     order by o.numero desc`;
+}
+
+export interface DetalleFactura {
+  id: string;
+  archivo_link: string | null;
+  descripcion: string | null;
+  neto: string;
+  iva: string;
+  percepciones: string;
+  estado: string | null;
+  items: { descripcion: string; cantidad: string | null; precio: string | null; subtotal: string | null }[];
+  remitos: { numero: string | null; fecha: string | null; retiro_por: string | null; archivo_link: string | null }[];
+  ops: { numero: string; estado: string; importe: string; fecha: string | null; de_app: boolean }[];
+}
+
+/**
+ * Lo que se ve al abrir una factura en la cuenta del proveedor: importes, ítems, remitos
+ * y las OP que la llevan (previstas o pagadas), con su PDF. Para varias de una vez.
+ */
+export async function detallesFacturas(ids: string[]): Promise<Record<string, DetalleFactura>> {
+  if (ids.length === 0) return {};
+  const filas = await prisma.$queryRaw<DetalleFactura[]>`
+    select c.id::text, case when c.archivo_link like 'http%' then c.archivo_link end as archivo_link, c.descripcion,
+      c.neto::text, c.iva::text, coalesce(c.percepciones, 0)::text as percepciones, c.estado_aprobacion as estado,
+      coalesce((select json_agg(json_build_object('descripcion', it.descripcion, 'cantidad', it.cantidad::text,
+        'precio', it.precio_unitario::text, 'subtotal', it.subtotal::text) order by it.orden, it.id)
+        from cc.comprobante_items it where it.comprobante_id = c.id), '[]') as items,
+      coalesce((select json_agg(json_build_object('numero', r.numero, 'fecha', r.fecha::text, 'retiro_por', r.retiro_por,
+        'archivo_link', case when r.archivo_link like 'http%' then r.archivo_link end) order by r.fecha)
+        from cc.remitos r where r.comprobante_id = c.id and r.estado = 'ok'), '[]') as remitos,
+      coalesce((select json_agg(json_build_object('numero', o.numero, 'estado', o.estado, 'importe', o.importe::text,
+        'fecha', coalesce(o.fecha_salida_caja, o.fecha_op)::text, 'de_app', exists (select 1 from app.ops a where a.op_numero = o.numero))
+        order by o.numero)
+        from (
+          select o.numero, o.estado, i.importe, o.fecha_salida_caja, o.fecha_op
+          from cc.imputaciones i join cc.ordenes_pago o on o.numero = i.op_numero
+          where i.comprobante_id = c.id and i.importe <> 0 and o.estado <> 'Anulada'
+          union
+          -- Las OP previstas de ClickUp la reservan en cc.op_cc, sin imputación hasta pagarse.
+          select o.numero, o.estado, c.total, o.fecha_salida_caja, o.fecha_op
+          from cc.op_cc oc join cc.ordenes_pago o on o.numero = oc.op_numero
+          where oc.cc_clickup_id = 'factura:' || c.id and o.estado = 'Prevista'
+            and not exists (select 1 from cc.imputaciones i2 where i2.op_numero = o.numero and i2.comprobante_id = c.id)) o), '[]') as ops
+    from cc.comprobantes c where c.id = any(${ids.map((x) => BigInt(x))})`;
+  return Object.fromEntries(filas.map((f) => [f.id, f]));
 }

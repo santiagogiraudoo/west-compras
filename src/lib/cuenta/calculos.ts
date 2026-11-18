@@ -108,6 +108,10 @@ export interface Movimiento {
   importe: string;
   /** "comprobante" o "pago": el mismo día van primero los comprobantes. */
   clase: "comprobante" | "pago";
+  /** El id del comprobante o el número de la OP, para abrir su detalle. */
+  ref?: string | null;
+  /** La OP es de la app (tiene ficha). */
+  de_app?: boolean;
 }
 
 export interface LineaExtracto {
@@ -117,6 +121,9 @@ export interface LineaExtracto {
   debe: string;
   haber: string;
   saldo: string;
+  clase?: "comprobante" | "pago";
+  ref?: string | null;
+  de_app?: boolean;
 }
 
 export interface Extracto {
@@ -144,7 +151,7 @@ export function armarExtracto(movs: Movimiento[]): Extracto {
     haber = haber.plus(h);
     debe = debe.plus(d);
     saldo = saldo.plus(imp);
-    return { fecha: m.fecha, concepto: m.concepto, unidad: m.unidad, debe: d.toFixed(2), haber: h.toFixed(2), saldo: saldo.toFixed(2) };
+    return { fecha: m.fecha, concepto: m.concepto, unidad: m.unidad, debe: d.toFixed(2), haber: h.toFixed(2), saldo: saldo.toFixed(2), clase: m.clase, ref: m.ref ?? null, de_app: m.de_app ?? false };
   });
   return { lineas, debe: debe.toFixed(2), haber: haber.toFixed(2), saldo: saldo.toFixed(2) };
 }
