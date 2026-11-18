@@ -1,5 +1,5 @@
 import {
-  Banknote, BookOpen, ClipboardCheck, FilePlus, FileText, Home, Inbox, PieChart, Receipt, Settings, Users, type LucideIcon,
+  Banknote, BookOpen, ChartColumn, ClipboardCheck, FilePlus, FileText, Home, Inbox, PieChart, Receipt, Settings, Users, type LucideIcon,
 } from 'lucide-react';
 
 export interface Seccion {
@@ -14,6 +14,7 @@ export interface Seccion {
  */
 export const SECCIONES: Seccion[] = [
   { href: '/', label: 'Inicio', icon: Home },
+  { href: '/dashboard', label: 'Dashboard', icon: ChartColumn },
   { href: '/bandeja', label: 'Bandeja de facturas', icon: Inbox },
   { href: '/cuenta', label: 'Cuentas corrientes', icon: BookOpen },
   { href: '/op', label: 'Órdenes de pago', icon: FileText },
