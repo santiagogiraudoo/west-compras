@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Decimal from "decimal.js";
 import {
-  Archive, Banknote, CheckCircle, TriangleAlert, Clock, FilePlus, ListChecks, MessageSquareWarning, PenLine, Users, Workflow, type LucideIcon,
+  Archive, Banknote, CheckCircle, FileWarning, TriangleAlert, Clock, FilePlus, ListChecks, MessageSquareWarning, PenLine, Users, Workflow, type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MoneyCell } from "@/components/shared/MoneyCell";
@@ -82,9 +82,14 @@ export default async function OPPage({ searchParams }: { searchParams: Promise<{
           </p>
         </div>
         {edita && (
-          <Button size="sm" asChild>
-            <Link href="/op/nueva"><FilePlus className="h-4 w-4" /> Nueva OP</Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/op/extraordinaria"><FileWarning className="h-4 w-4" /> Operación extraordinaria</Link>
+            </Button>
+            <Button size="sm" asChild>
+              <Link href="/op/nueva"><FilePlus className="h-4 w-4" /> Nueva OP</Link>
+            </Button>
+          </div>
         )}
       </div>
 
