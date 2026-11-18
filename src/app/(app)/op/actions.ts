@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { listarAbiertos } from "@/lib/cuenta/queries";
+import { hoyArgentina, listarAbiertos, listarOPAbiertas } from "@/lib/cuenta/queries";
+import { calcularPago, estadoAprobacion, RETENCIONES, type DatosPago, type Decision } from "@/lib/op/pago";
 import { validarSeleccionOP } from "@/lib/cuenta/calculos";
 import { faltantesProveedor } from "@/lib/facturas/requisitos";
 
@@ -133,4 +134,100 @@ export async function anularOP(numero: string): Promise<ResultadoOP> {
   revalidatePath("/cuenta");
   revalidatePath("/");
   return { ok: true, mensaje: `${numero} anulada: sus facturas quedaron libres` };
+}
+
+/** La OP como está ahora en la base, con sus líneas: todo se vuelve a leer en el server. */
+async function leerOP(numero: string) {
+  const ops = await listarOPAbiertas();
+  return ops.find((o) => o.numero === numero) ?? null;
+}
+
+/**
+ * Aprobar u observar una línea (factura imputada) de una OP Prevista armada en la app.
+ * Por ahora aprueba el rol admin: "todos los pagos de West Desarrolladora pasan por
+ * Adriano". Se agrega una decisión nueva (vale la última); la base guarda la historia.
+ * Las OP de ClickUp se aprueban en ClickUp, como hasta ahora.
+ */
+export async function decidirLinea(
+  numero: string, comprobanteId: string, decision: Decision, motivo: string,
+): Promise<ResultadoOP> {
+  const session = await auth();
+  if (!session?.user || session.user.role !== "admin") {
+    return { ok: false, mensaje: "Solo un administrador aprueba líneas de OP." };
+  }
+  if (decision !== "Aprobada" && decision !== "Observada") return { ok: false, mensaje: "Decisión inválida." };
+  if (decision === "Observada" && motivo.trim().length < 5) {
+    return { ok: false, mensaje: "Escribí por qué se observa (al menos 5 letras)." };
+  }
+
+  const op = await leerOP(numero);
+  if (!op) return { ok: false, mensaje: "La OP ya no está abierta." };
+  if (op.origen !== "app") return { ok: false, mensaje: "Esta OP viene de ClickUp: se aprueba allá." };
+  const linea = op.facturas.find((f) => f.id === comprobanteId);
+  if (!linea) return { ok: false, mensaje: "Esa factura no está en la OP." };
+
+  const userId = (session.user as { id: number }).id;
+  await prisma.$executeRaw`
+    insert into app.aprobaciones_op (op_numero, comprobante_id, decision, motivo, usuario_id, usuario)
+    values (${numero}, ${BigInt(comprobanteId)}, ${decision}, ${motivo.trim() || null}, ${userId}, ${session.user.name ?? ""})`;
+
+  revalidatePath("/op");
+  revalidatePath("/pagos");
+  return { ok: true, mensaje: `${linea.tipo} ${linea.numero}: ${decision.toLowerCase()}` };
+}
+
+/**
+ * Registrar el pago de una OP autorizada: pasa a Pagada con fecha de salida de caja,
+ * medio, retenciones, neto, referencia y link del comprobante, todo con
+ * cc.cargar_pagos. La base vuelve a frenar si alguna línea no está aprobada (sql/007)
+ * o si total − retenciones ≠ neto.
+ */
+export async function pagarOP(numero: string, datos: DatosPago): Promise<ResultadoOP> {
+  const session = await auth();
+  if (!session?.user || session.user.role === "consulta") {
+    return { ok: false, mensaje: "No tenés permiso para registrar pagos." };
+  }
+
+  const op = await leerOP(numero);
+  if (!op) return { ok: false, mensaje: "La OP ya no está abierta." };
+  if (op.origen !== "app") return { ok: false, mensaje: "Esta OP viene de ClickUp: se paga allá." };
+  if (estadoAprobacion(op.facturas) !== "Autorizada") {
+    return { ok: false, mensaje: "La OP todavía no tiene todas sus líneas aprobadas." };
+  }
+  const prov = await prisma.proveedor.findUnique({ where: { codigo: op.proveedor_codigo } });
+  if (!prov) return { ok: false, mensaje: "No encontré el proveedor." };
+  const faltan = faltantesProveedor(prov);
+  if (faltan.length) return { ok: false, mensaje: `Antes de pagar completá el alta: falta ${faltan.join(", ")}` };
+
+  const p = calcularPago(op.total_imputado, datos, hoyArgentina());
+  if (p.errores.length) return { ok: false, mensaje: p.errores.join(" · ") };
+
+  const fila: Record<string, string> = {
+    "N° OP": numero,
+    Estado: "Pagada",
+    "Fecha salida de caja": datos.fecha,
+    "Medio de pago": datos.medio,
+    "Neto a transferir": p.neto,
+  };
+  for (const r of RETENCIONES) fila[r.campo] = p.retenciones[r.clave];
+  if (datos.referencia.trim()) fila["Referencia bancaria"] = datos.referencia.trim();
+  if (datos.comprobante.trim()) fila["Comprobante (link)"] = datos.comprobante.trim();
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const [{ r }] = await tx.$queryRaw<{ r: ResultadoCarga }[]>`
+        select cc.cargar_pagos(${JSON.stringify({ ordenes: [fila] })}::jsonb, 'app') as r`;
+      if (r.errores?.length) throw new Rechazo(r.errores.map((e) => e.error).join(" · "));
+      if (r.ordenes !== 1) throw new Rechazo("La base no grabó el pago.");
+    });
+  } catch (e) {
+    if (e instanceof Rechazo) return { ok: false, mensaje: `La base lo rechazó: ${e.message}` };
+    throw e;
+  }
+
+  revalidatePath("/op");
+  revalidatePath("/pagos");
+  revalidatePath("/cuenta");
+  revalidatePath("/");
+  return { ok: true, mensaje: `${numero} pagada` };
 }
