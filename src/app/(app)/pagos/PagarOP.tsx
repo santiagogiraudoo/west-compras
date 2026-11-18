@@ -48,7 +48,12 @@ export function PagarOP({ numero, proveedor, total, medio: medioInicial, hoy }: 
     RETENCIONES.map((r) => [r.clave, ret[r.clave] == null ? "" : String(ret[r.clave])]),
   ) as Record<ClaveRetencion, string>;
   const calculo = calcularPago(total, { fecha, medio, referencia, comprobante: link, retenciones }, hoy);
-  const errores = [...calculo.errores, ...(!archivo && !link.trim() ? ["Subí el comprobante o pegá su link"] : [])];
+  const errores = [
+    ...calculo.errores,
+    ...(!archivo && !link.trim() ? ["Subí el comprobante o pegá su link"] : []),
+    ...(archivo && !["application/pdf", "image/jpeg", "image/png"].includes(archivo.type) ? ["El comprobante tiene que ser PDF, JPG o PNG"] : []),
+    ...(archivo && archivo.size > 5 * 1024 * 1024 ? ["El comprobante pesa más de 5 MB"] : []),
+  ];
 
   function pagar() {
     const form = new FormData();
@@ -59,7 +64,13 @@ export function PagarOP({ numero, proveedor, total, medio: medioInicial, hoy }: 
     for (const r of RETENCIONES) form.set(`ret_${r.clave}`, retenciones[r.clave]);
     if (archivo) form.set("archivo", archivo);
     startTransition(async () => {
-      const r = await pagarOP(numero, form);
+      let r;
+      try {
+        r = await pagarOP(numero, form);
+      } catch {
+        toast.error("No se pudo registrar el pago. Probá de nuevo; si sigue, avisá.");
+        return;
+      }
       if (!r.ok) { toast.error(r.mensaje); return; }
       toast.success(r.mensaje);
       setAbierto(false);

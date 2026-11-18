@@ -14,6 +14,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ numero:
   if (!r.length) return new Response("Sin comprobante", { status: 404 });
   const nombre = r[0].nombre.replace(/[^\w.\- ]/g, "_");
   return new Response(Buffer.from(r[0].archivo), {
-    headers: { "Content-Type": r[0].tipo, "Content-Disposition": `inline; filename="${nombre}"` },
+    headers: {
+      "Content-Type": r[0].tipo,
+      "Content-Disposition": `inline; filename="${nombre}"`,
+      "X-Content-Type-Options": "nosniff",
+    },
   });
 }

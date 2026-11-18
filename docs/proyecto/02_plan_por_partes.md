@@ -47,7 +47,10 @@ Ciclo de la OP armada en la app: **En armado → A aprobar → Autorizada → Pa
 2. **Aprobadores** (`/configuracion`, `app.aprobadores`): unidad → usuario. Por defecto Adriano; West Club (UN-02) para Santiago Giraudo mientras dure la obra (hay que crearle el usuario y elegirlo ahí). Columnas de tope (USD blue) vacías y sin usar.
 3. **Para aprobar** (`/aprobar`): una tarjeta por OP con proveedor, total, unidad y vencimiento; chequeos en verde/amarillo (cruza con remito, tiene PDF, alta del proveedor, precio contra la última compra con margen de 5 %); tabla Factura · Fecha → Vto. · Quién · Para qué · Unidad · Monto con link al PDF; Aprobar / Observar / Bloquear (con comentario) sobre los renglones de las unidades de quien aprueba, y los de otros en gris con su estado. Un renglón observado o bloqueado frena toda la OP. Cada decisión queda en `app.aprobaciones_op` con quién, cuándo y el comentario. Ver más: ítems con el precio anterior, deuda con el proveedor, últimas compras.
 4. **Para pagar** (`/pagos`, Candela): autorizadas por vencimiento, con CBU, alias, titular y CUIT para copiar; retenciones a mano, neto calculado y comprobante (archivo o link). Queda Pagada con `cc.cargar_pagos` y sus imputaciones.
-5. **La base frena**: no se paga una OP de la app que no esté Autorizada (trigger), y `cargar_pagos` rechaza si total − retenciones ≠ neto.
+5. **La base frena**: no se paga una OP de la app que no esté Autorizada (trigger), y `cargar_pagos` rechaza si total − retenciones ≠ neto. El pago bloquea la OP mientras se registra: dos personas pagando a la vez no la pisan.
+6. **Resolver**: lo observado o bloqueado le llega a Adriano, que lo resuelve con un botón aparte y comentario. Aprobar lo propio nunca pisa la observación de otro.
+7. **Inicio**: OP en armado, esperando a alguien ("esperando a X hace N días"), observadas o bloqueadas, y autorizadas para pagar.
+8. **Sin doble pago con ClickUp**: una factura que una OP prevista de ClickUp lleva en `cc.op_cc` no se puede poner en otra OP (en production eran 33 facturas, $16,2 millones).
 
 Falta (espera respuestas):
 - **Topes**: con topes, el renglón que cruza compra, remito y factura dentro del tope se aprueba solo ("se aprueba una sola vez"). Los define Santiago.
