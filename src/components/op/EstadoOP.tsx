@@ -1,16 +1,19 @@
+import { Ban, CheckCheck, CheckCircle, Clock, MessageSquareWarning, PencilLine, Trash2, type LucideIcon } from "lucide-react";
+import { StatusPill, type PillTone } from "@/components/shared/StatusPill";
 import type { EstadoOP } from "@/lib/op/estados";
 
-const COLOR: Record<EstadoOP, string> = {
-  "En armado": "border-slate-200 bg-slate-50 text-slate-700",
-  "A aprobar": "border-amber-200 bg-amber-50 text-amber-900",
-  Observada: "border-orange-200 bg-orange-50 text-orange-900",
-  Bloqueada: "border-red-200 bg-red-50 text-red-800",
-  Autorizada: "border-emerald-200 bg-emerald-50 text-emerald-900",
-  Pagada: "border-emerald-300 bg-emerald-100 text-emerald-900",
-  Descartada: "border-slate-200 bg-slate-100 text-slate-500",
+export const ESTADO_OP: Record<EstadoOP, { tone: PillTone; icon: LucideIcon }> = {
+  "En armado": { tone: "slate", icon: PencilLine },
+  "A aprobar": { tone: "amber", icon: Clock },
+  Observada: { tone: "orange", icon: MessageSquareWarning },
+  Bloqueada: { tone: "red", icon: Ban },
+  Autorizada: { tone: "success", icon: CheckCircle },
+  Pagada: { tone: "success", icon: CheckCheck },
+  Descartada: { tone: "neutral", icon: Trash2 },
 };
 
-/** El estado de una OP de la app (app.v_op_estado) como etiqueta. */
-export function EstadoOPBadge({ estado }: { estado: EstadoOP }) {
-  return <span className={`rounded-full border px-2 py-0.5 text-xs ${COLOR[estado]}`}>{estado}</span>;
+/** El estado de una OP de la app (app.v_op_estado), con el chip de estado de alquileres. */
+export function EstadoOPBadge({ estado, size = "sm" }: { estado: EstadoOP; size?: "sm" | "md" }) {
+  const e = ESTADO_OP[estado];
+  return <StatusPill tone={e.tone} icon={e.icon} size={size}>{estado}</StatusPill>;
 }

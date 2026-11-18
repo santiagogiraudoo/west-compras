@@ -25,9 +25,12 @@ export default async function AprobarPage() {
 
   const seccion = (titulo: string, ayuda: string, lista: OPConLineas[]) => lista.length > 0 && (
     <section className="space-y-3">
-      <div>
-        <h2 className="font-medium">{titulo} <span className="text-muted-foreground">· {lista.length}</span></h2>
-        <p className="text-xs text-muted-foreground">{ayuda}</p>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h2 className="flex items-center gap-2 text-base font-semibold text-primary">
+          {titulo}
+          <span className="rounded-full bg-primary/10 px-2 py-px text-[11px] font-semibold text-primary">{lista.length}</span>
+        </h2>
+        <span className="text-xs text-muted-foreground">{ayuda}</span>
       </div>
       {lista.map((o) => (
         <TarjetaOP key={o.numero} op={o} usuario={usuario} deuda={deuda[o.proveedor_codigo] ?? null} ultimas={ultimas[o.proveedor_codigo] ?? []} />
@@ -36,16 +39,20 @@ export default async function AprobarPage() {
   );
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="px-8 py-6 space-y-6 max-w-[1400px] mx-auto">
       <div>
-        <h1 className="text-xl font-semibold text-primary">Para aprobar</h1>
+        <h1 className="text-2xl font-bold text-primary">Para aprobar</h1>
         <p className="text-sm text-muted-foreground">
           Cada renglón lo aprueba quien aprueba su unidad. Un renglón observado o bloqueado frena toda la OP.
         </p>
       </div>
-      {ops.length === 0 && <p className="rounded-md border bg-card p-6 text-sm text-muted-foreground">No hay OP para aprobar.</p>}
+      {ops.length === 0 && (
+        <div className="border border-border/60 rounded-lg bg-white p-12 text-center">
+          <p className="text-sm text-muted-foreground">No hay OP para aprobar.</p>
+        </div>
+      )}
       {seccion("Te toca", "Renglones de tus unidades sin decidir. Si todo está en verde, se aprueba de un toque.", teToca)}
-      {seccion("Observadas y bloqueadas", "Frenadas hasta que las resuelva quien las observó o Adriano, o se descarten.", frenadas)}
+      {seccion("Observadas y bloqueadas", "Frenadas hasta que se resuelvan, se quite la observación o se descarten.", frenadas)}
       {seccion("Esperando a otros", "Tus renglones ya están decididos o son de otras unidades.", deOtros)}
     </div>
   );
