@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { CheckCircle, ChevronRight, CircleAlert, Clock, ExternalLink, Paperclip, TriangleAlert, XCircle, type LucideIcon } from "lucide-react";
+import { CheckCircle, ChevronRight, CircleAlert, Clock, ExternalLink, Hourglass, Inbox, Paperclip, Search, TriangleAlert, XCircle, type LucideIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { hoyArgentina } from "@/lib/cuenta/queries";
+import { diasEntre } from "@/lib/op/estados";
 import { MoneyCell } from "@/components/shared/MoneyCell";
 import { StatusPill } from "@/components/shared/StatusPill";
 import { formatDate } from "@/lib/utils";
@@ -43,8 +46,18 @@ function cruce(f: FilaBandeja): { ok: boolean | null; texto: string } {
  * (como los grupos de Cobros pendientes de alquileres). Cada fila se abre y muestra sus
  * remitos y si cruzan, con accesos al PDF, a los remitos y a la ficha.
  */
-export default async function BandejaPage() {
-  const filas = await listarBandeja();
+export default async function BandejaPage({ searchParams }: { searchParams: Promise<{ grupo?: string; q?: string }> }) {
+  const { grupo, q } = await searchParams;
+  const todas = await listarBandeja();
+  const hoy = hoyArgentina();
+  // Buscar por proveedor o número, y quedarse con un grupo (los chips de arriba).
+  const busca = (q ?? "").trim().toLowerCase();
+  const filas = todas.filter((f) => (!busca || f.proveedor.toLowerCase().includes(busca) || f.numero.toLowerCase().includes(busca))
+    && (!grupo || grupoDe(f) === grupo));
+  const edad = (f: FilaBandeja) => diasEntre(f.fecha.toISOString().slice(0, 10), hoy);
+  const masVieja = todas.length ? Math.max(...todas.map(edad)) : 0;
+  const sinRemito = todas.filter((f) => f.remitos.length === 0 && !f.retiro_por).length;
+  const link = (g?: string) => { const sp = new URLSearchParams(); if (g) sp.set("grupo", g); if (q) sp.set("q", q); const t = sp.toString(); return t ? `/bandeja?${t}` : "/bandeja"; };
 
   return (
     <div className="px-8 py-6 space-y-6 max-w-[1400px] mx-auto">
@@ -55,9 +68,39 @@ export default async function BandejaPage() {
         </p>
       </div>
 
+      {/* Resumen y filtros: cada grupo es un chip que filtra */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Link href={link()} className={`flex items-center gap-3 rounded-lg border bg-[#FFFEFC] p-3.5 transition hover:border-[#1B4332]/40 ${!grupo ? "border-[#1B4332] ring-1 ring-[#1B4332]/20" : "border-border/60"}`}>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#B8960C]/10 text-[#B8960C]"><Inbox className="h-[18px] w-[18px]" /></div>
+          <div className="min-w-0"><p className="text-xs text-muted-foreground">En la bandeja</p>
+            <p className="text-lg font-semibold leading-6 text-primary">{todas.length} <span className="text-xs font-normal text-muted-foreground">· {$(todas.reduce((t, f) => t + f.total, 0))}</span></p></div>
+        </Link>
+        {GRUPOS.map((g) => {
+          const n = todas.filter((f) => grupoDe(f) === g.clave).length;
+          return (
+            <Link key={g.clave} href={link(grupo === g.clave ? undefined : g.clave)}
+              className={`flex items-center gap-3 rounded-lg border bg-[#FFFEFC] p-3.5 transition hover:border-[#1B4332]/40 ${grupo === g.clave ? "border-[#1B4332] ring-1 ring-[#1B4332]/20" : "border-border/60"}`}>
+              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${g.cabeza}`}><g.icon className="h-[18px] w-[18px]" /></div>
+              <div className="min-w-0"><p className="text-xs text-muted-foreground">{g.titulo}</p>
+                <p className="text-lg font-semibold leading-6 text-primary">{n}</p></div>
+            </Link>
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <form action="/bandeja" className="relative w-full max-w-xs">
+          {grupo && <input type="hidden" name="grupo" value={grupo} />}
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input name="q" defaultValue={q} placeholder="Buscar proveedor o número" className="h-8 pl-8 text-sm" />
+        </form>
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><Hourglass className="h-3.5 w-3.5" /> la más vieja tiene {masVieja} {masVieja === 1 ? "día" : "días"}</span>
+        {sinRemito > 0 && <span className="text-xs text-[#92400e]">· {sinRemito} sin remito ni quién recibió</span>}
+        {(grupo || q) && <Link href="/bandeja" className="text-xs font-medium text-primary underline-offset-2 hover:underline">Ver todas</Link>}
+      </div>
+
       {filas.length === 0 ? (
         <div className="border border-border/60 rounded-lg bg-white p-12 text-center">
-          <p className="text-sm text-muted-foreground">Nada en la bandeja.</p>
+          <p className="text-sm text-muted-foreground">{todas.length === 0 ? "Nada en la bandeja. ¡Al día!" : "Ninguna con ese filtro."}</p>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border/60 bg-white">
@@ -78,7 +121,7 @@ export default async function BandejaPage() {
                     {$(total, "font-semibold")}
                     <span className="ml-auto text-xs font-normal opacity-80">{g.nota}</span>
                   </div>
-                  {lista.map((f) => <Fila key={f.id} f={f} borde={g.borde} lista={g.clave === "lista"} />)}
+                  {lista.map((f) => <Fila key={f.id} f={f} borde={g.borde} lista={g.clave === "lista"} dias={edad(f)} />)}
                 </section>
               );
             })}
@@ -89,12 +132,14 @@ export default async function BandejaPage() {
   );
 }
 
-function Fila({ f, borde, lista }: { f: FilaBandeja; borde: string; lista: boolean }) {
+function Fila({ f, borde, lista, dias }: { f: FilaBandeja; borde: string; lista: boolean; dias: number }) {
   const c = cruce(f);
   return (
     <details className={`group border-b border-l-4 last:border-b-0 ${borde}`}>
       <summary className={`${COLS} cursor-pointer list-none px-4 py-2.5 text-sm hover:bg-muted/30`}>
-        <span>{formatDate(f.fecha)}</span>
+        <span className="leading-tight">{formatDate(f.fecha)}
+          <span className={`block text-[11px] ${dias > 7 ? "font-medium text-[#b91c1c]" : "text-muted-foreground"}`}>{dias <= 0 ? "hoy" : `hace ${dias} d`}</span>
+        </span>
         <span className="min-w-0 whitespace-normal">{f.proveedor}</span>
         <span className="font-medium text-primary">{f.tipo} {f.numero}</span>
         <span className="text-right">{$(f.total)}</span>
