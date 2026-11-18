@@ -9,12 +9,15 @@ import type { Pendiente } from "@/lib/pendientes";
 
 type Pestana = "hacer" | "alertas" | "datos";
 
+/** Los controles de app.v_controles (sql/015 de adriano/fase-3): lo que no cierra en una OP. Van con las alertas, primero. */
+const esControl = (p: Pendiente) => (p.origen as string) === "control";
+
 /** Cuántas se ven de entrada; el resto con "Ver todas". */
 const PRIMERAS = 6;
 
 const PESTANAS: { k: Pestana; label: string; nota: string; de: (p: Pendiente) => boolean }[] = [
   { k: "hacer", label: "Para hacer", nota: "OP y facturas que esperan algo de la app", de: (p) => p.origen === "op" },
-  { k: "alertas", label: "Alertas", nota: "Lo que marca la base: posibles dobles pagos, OP sin pagar, notas de crédito", de: (p) => p.origen === "alerta" },
+  { k: "alertas", label: "Alertas", nota: "Lo que marca la base: posibles dobles pagos, OP sin pagar, notas de crédito", de: (p) => p.origen === "alerta" || esControl(p) },
   { k: "datos", label: "Datos a corregir", nota: "Faltan datos de proveedores o facturas", de: (p) => p.origen === "calidad" },
 ];
 
@@ -39,6 +42,7 @@ function icono(p: Pendiente): { icon: LucideIcon; tono: string } {
   if (p.href?.includes("paso=aprobar")) return { icon: ClipboardCheck, tono: p.tipo.includes("observada") || p.tipo.includes("bloqueada") ? "bg-orange-50 text-orange-600" : "bg-amber-50 text-amber-600" };
   if (p.href?.includes("paso=pagar")) return { icon: Banknote, tono: "bg-emerald-50 text-emerald-600" };
   if (p.origen === "op") return { icon: CalendarClock, tono: "bg-[#f5f5f0] text-[#737373]" };
+  if (esControl(p)) return { icon: AlertTriangle, tono: "bg-red-50 text-red-600" };
   if (p.origen === "alerta") {
     return p.severidad === "alta" ? { icon: AlertTriangle, tono: "bg-red-50 text-red-600" }
       : p.severidad === "media" ? { icon: FileWarning, tono: "bg-amber-50 text-amber-600" }
@@ -67,7 +71,7 @@ export function QueHacer({ pendientes }: { pendientes: Pendiente[] }) {
         <div className="flex gap-1 rounded-lg border border-border/60 bg-[#FFFEFC] p-1" role="tablist">
           {PESTANAS.map((t) => {
             const n = pendientes.filter(t.de).length;
-            const alta = t.k === "alertas" && pendientes.some((p) => t.de(p) && p.severidad === "alta");
+            const alta = t.k === "alertas" && pendientes.some((p) => t.de(p) && (p.severidad === "alta" || esControl(p)));
             return (
               <button key={t.k} type="button" role="tab" aria-selected={pestana === t.k}
                 onClick={() => { setPestana(t.k); setTodas(false); }}
