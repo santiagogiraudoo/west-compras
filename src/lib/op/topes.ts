@@ -49,3 +49,17 @@ export function evaluarTope(e: EntradaTope): { auto: boolean; motivo: string } {
     motivo: `Dentro del tope: US$ ${fmt(compra)} de US$ ${fmt(tope)}${e.topeMesUsd != null ? ` (mes: tope US$ ${fmt(new Decimal(e.topeMesUsd))})` : ""}, blue $${fmt(blue)}`,
   };
 }
+
+/**
+ * Lo que ya suman, dentro de la misma OP, los renglones anteriores de la misma unidad:
+ * va al acumulado de "misma compra" y del mes. Sin esto, tres facturas de US$ 900 en una
+ * OP con tope de US$ 1.000 salían aprobadas solas (cada una se miraba sola).
+ */
+export function previosEnOP(lineas: { unidad: string; importe: string }[]): string[] {
+  const suma = new Map<string, Decimal>();
+  return lineas.map((l) => {
+    const antes = suma.get(l.unidad) ?? new Decimal(0);
+    suma.set(l.unidad, antes.plus(l.importe));
+    return antes.toFixed(2);
+  });
+}

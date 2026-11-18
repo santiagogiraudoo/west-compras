@@ -144,3 +144,12 @@ describe("chequeos con el remito", () => {
     expect(noCruzaRenglon(l)).toEqual(["no coincide con el remito (remito $900 contra factura $1.210)"]);
   });
 });
+
+describe("noCruzaRenglon: lo que nunca sale aprobado solo", () => {
+  it("compra sin factura y remito sin importe piden firma", () => {
+    const base = { tipo: "Factura A", numero: "1", items: null, tiene_remito: true, archivo_link: "x", remito_importe: "1210", factura_total: "1210", factura_neto: "1000" };
+    expect(noCruzaRenglon(base)).toEqual([]);
+    expect(noCruzaRenglon({ ...base, tipo: "Sin factura" })).toContain("compra sin factura");
+    expect(noCruzaRenglon({ ...base, remito_importe: null })).toEqual(["el remito no tiene importe para cruzar"]);
+  });
+});

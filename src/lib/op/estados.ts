@@ -227,7 +227,11 @@ export function noCruzaRenglon(
   l: Pick<LineaAprobacion, "tipo" | "numero" | "items" | "tiene_remito" | "archivo_link" | "remito_importe" | "factura_total" | "factura_neto">,
 ): string[] {
   const no: string[] = [];
+  // Compra en negro: "aprobación sí o sí" (Adriano 17/11), nunca sale sola por tope.
+  if (l.tipo === "Sin factura") no.push("compra sin factura");
   if (!l.tiene_remito && !sinRemitoAparte(l.tipo)) no.push("sin remito");
+  // Tolerancia cero: sin importe en el remito (o solo "quién retiró") nadie comparó montos.
+  else if (!sinRemitoAparte(l.tipo) && l.remito_importe == null) no.push("el remito no tiene importe para cruzar");
   const dif = diferenciaRemito(l);
   if (dif) no.push(`no coincide con el remito (${dif})`);
   if (!l.archivo_link && l.tipo !== "Sin factura") no.push("sin PDF");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluarTope, type EntradaTope } from "./topes";
+import { evaluarTope, previosEnOP, type EntradaTope } from "./topes";
 
 const base: EntradaTope = {
   importe: "160000", acumuladoCompra: "0", acumuladoMes: "0",
@@ -27,5 +27,18 @@ describe("evaluarTope", () => {
   });
   it("justo en el tope pasa", () => {
     expect(evaluarTope({ ...base, importe: "800000" }).auto).toBe(true); // 500 exacto
+  });
+});
+
+describe("previosEnOP", () => {
+  it("suma los renglones anteriores de la misma unidad, no los de otras", () => {
+    expect(previosEnOP([
+      { unidad: "UN-01", importe: "900" }, { unidad: "UN-02", importe: "50" }, { unidad: "UN-01", importe: "900" }, { unidad: "UN-01", importe: "900" },
+    ])).toEqual(["0.00", "0.00", "900.00", "1800.00"]);
+  });
+  it("con lo anterior de la OP, la tercera factura de US$ 900 ya no entra en un tope de US$ 1.000", () => {
+    const previos = previosEnOP([{ unidad: "UN-01", importe: "900" }, { unidad: "UN-01", importe: "900" }]);
+    const r = evaluarTope({ importe: "900", acumuladoCompra: previos[1], acumuladoMes: "0", topeCompraUsd: "1000", topeMesUsd: null, blue: "1", noCruza: [] });
+    expect(r.auto).toBe(false);
   });
 });
