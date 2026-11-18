@@ -9,7 +9,7 @@ import { resumirDeuda } from "@/lib/cuenta/calculos";
 import { listarBandeja } from "@/lib/facturas/queries";
 import { listarOPsApp } from "@/lib/op/queries";
 import { antiguedad, ranking, serieMensual, ultimosMeses } from "@/lib/dashboard/calculos";
-import { compradoPorMes, pagadoDesde, tiempos } from "@/lib/dashboard/queries";
+import { compradoPorMes, pagadoDesde, sinCondicionDePago, tiempos } from "@/lib/dashboard/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -25,14 +25,17 @@ export default async function DashboardPage() {
   const hoy = hoyArgentina();
   const meses = ultimosMeses(hoy, MESES);
   const desde = `${meses[0]}-01`;
-  const [comprado, pagado, t, abiertos, bandeja, ops] = await Promise.all([
-    compradoPorMes(desde), pagadoDesde(desde), tiempos(hoy), listarAbiertos(), listarBandeja(), listarOPsApp(),
+  const [comprado, pagado, t, abiertos, bandeja, ops, sinCondicion] = await Promise.all([
+    compradoPorMes(desde), pagadoDesde(desde), tiempos(hoy), listarAbiertos(), listarBandeja(), listarOPsApp(), sinCondicionDePago(hoy),
   ]);
 
   const serie = serieMensual(meses, comprado, pagado);
   const esteMes = serie[serie.length - 1];
   const deuda = resumirDeuda(abiertos, hoy);
   const tramos = antiguedad(abiertos, hoy);
+  const vencidoDelDia = suma(abiertos.filter((a) => a.vencimiento && a.vencimiento < hoy && a.vencimiento <= a.fecha && Number(a.deuda) > 0.5).map((a) => a.deuda));
+  // Lo vencido que ya está en una OP prevista: no falta decidir, falta que salga la plata.
+  const vencidoEnOp = suma(abiertos.filter((a) => a.vencimiento && a.vencimiento < hoy && Number(a.deuda) > 0.5).map((a) => a.en_op));
   const pctVencido = Number(deuda.deuda) > 0 ? Math.round((Number(deuda.vencido) / Number(deuda.deuda)) * 100) : 0;
 
   // Dónde está la plata hoy, de la bandeja al pago.
@@ -68,7 +71,7 @@ export default async function DashboardPage() {
     { label: "Vencido", v: <MoneyCell value={Number(deuda.vencido)} currency="ARS" decimals={0} className={Number(deuda.vencido) > 0 ? "text-red-700" : ""} />,
       sub: `${pctVencido} % de la deuda`, icon: AlertTriangle, tono: "bg-red-50 text-red-600" },
     { label: "Pagado en término", v: t.en_termino == null ? "—" : `${t.en_termino} %`,
-      sub: t.atraso != null && t.atraso > 0 ? `mediana ${t.atraso} días tarde` : "últimos 90 días",
+      sub: `de ${t.con_plazo} con plazo pactado, 90 días`,
       icon: CalendarCheck, tono: (t.en_termino ?? 100) < 60 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600" },
   ];
 
@@ -93,12 +96,39 @@ export default async function DashboardPage() {
         </Panel>
         <Panel icon={Hourglass} titulo="Antigüedad de la deuda" extra={<>total <MoneyCell value={Number(deuda.deuda)} currency="ARS" decimals={0} /></>}>
           <Antiguedad tramos={tramos} />
+          {(vencidoEnOp.gt(0) || vencidoDelDia.gt(0)) && (
+            <div className="mt-3 space-y-1 border-t border-[#f2f1ec] pt-2 text-xs text-muted-foreground">
+              {vencidoEnOp.gt(0) && (
+                <p>De lo vencido, <MoneyCell value={vencidoEnOp.toNumber()} currency="ARS" decimals={0} className="font-medium text-primary" /> ya
+                  está en una OP: falta que salga la plata.</p>
+              )}
+              {vencidoDelDia.gt(0) && (
+                <p><MoneyCell value={vencidoDelDia.toNumber()} currency="ARS" decimals={0} className="font-medium text-primary" /> es de facturas que
+                  vencen el día que se emiten (contado o proveedor sin condición de pago).</p>
+              )}
+            </div>
+          )}
+          {sinCondicion.length > 0 && (
+            <div className="mt-3 rounded-md border-l-[3px] border-l-[#f59e0b] bg-[#fffbeb] px-3 py-2 text-xs text-[#92400e]">
+              <p className="font-semibold">Sin condición de pago cargada</p>
+              <ul className="mt-1 space-y-0.5">
+                {sinCondicion.map((p) => (
+                  <li key={p.codigo} className="flex gap-2">
+                    <a href={`/proveedores/${p.codigo}`} className="font-medium underline-offset-2 hover:underline">{p.razon_social}</a>
+                    <span className="ml-auto">{p.facturas} {p.facturas === 1 ? "factura" : "facturas"} en 90 días</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1">Sus facturas figuran vencidas desde el primer día. Cargala en la ficha del proveedor.</p>
+            </div>
+          )}
         </Panel>
         <Panel icon={Clock} titulo="Cuánto tarda cada paso" extra="mediana, 90 días">
           <Tiempo label="De la factura a la carga" dias={t.carga} nota="fecha de la factura → la carga el plomero o Claude" alerta={(t.carga ?? 0) > 7} />
           <Tiempo label="De la carga al pago" dias={t.carga_a_pago} nota="entra a la base → sale la plata" />
           <Tiempo label="De la factura al pago" dias={t.factura_a_pago} nota={`${t.pagadas} facturas pagadas`} />
-          <Tiempo label="Atraso contra el vencimiento" dias={t.atraso} nota="positivo: se pagó después de vencer" alerta={(t.atraso ?? 0) > 0} />
+          <Tiempo label="Atraso contra el vencimiento" dias={t.atraso} nota="con plazo pactado; positivo: tarde" alerta={(t.atraso ?? 0) > 0} />
+          <Tiempo label="Contado o sin condición: factura al pago" dias={t.contado_a_pago} nota="vencen el día que se emiten" />
         </Panel>
       </div>
 

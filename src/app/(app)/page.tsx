@@ -4,7 +4,9 @@ import { listarPendientes, type Pendiente } from "@/lib/pendientes";
 import { listarOPsApp } from "@/lib/op/queries";
 import { pendientesOP } from "@/lib/op/estados";
 import { hoyArgentina, listarAbiertos } from "@/lib/cuenta/queries";
-import { resumirDeuda } from "@/lib/cuenta/calculos";
+import Decimal from "decimal.js";
+import { porVencerSinOP, resumirDeuda } from "@/lib/cuenta/calculos";
+import { formatDate } from "@/lib/utils";
 import { TableroDeuda } from "@/components/cuenta/TableroDeuda";
 import { MoneyCell } from "@/components/shared/MoneyCell";
 
@@ -17,12 +19,20 @@ const ABIERTO_HASTA = 6;
 export default async function InicioPage() {
   const hoy = hoyArgentina();
   const [alertas, abiertos, ops] = await Promise.all([listarPendientes(), listarAbiertos(), listarOPsApp()]);
-  // Primero lo de las OP de la app (se resuelve en la app), después las alertas de la base.
-  const pendientes: Pendiente[] = [...pendientesOP(ops, hoy).map((p) => ({ ...p, origen: "op" as const })), ...alertas];
+  // Primero lo que vence sin OP (para pagar en término), después lo de las OP de la app
+  // (se resuelve en la app) y al final las alertas de la base.
+  const porVencer: Pendiente[] = porVencerSinOP(abiertos, hoy).map((v) => ({
+    origen: "op", tipo: "Vence pronto y no está en ninguna OP", proveedor: v.razon_social, href: `/op/nueva?proveedor=${v.proveedor_codigo}`,
+    detalle: `${v.facturas} ${v.facturas === 1 ? "factura" : "facturas"} por ${Number(v.libre).toLocaleString("es-AR", { maximumFractionDigits: 0 })} · ${v.vence < hoy ? "venció" : "vence"} ${formatDate(v.vence)}`,
+  }));
+  const pendientes: Pendiente[] = [...porVencer, ...pendientesOP(ops, hoy).map((p) => ({ ...p, origen: "op" as const })), ...alertas];
   const grupos = new Map<string, Pendiente[]>();
   for (const p of pendientes) grupos.set(p.tipo, [...(grupos.get(p.tipo) ?? []), p]);
   const tablero = resumirDeuda(abiertos, hoy);
   const conVencido = tablero.porProveedor.filter((p) => Number(p.vencido) > 0).length;
+  // Lo vencido que vence el mismo día que se emite (contado o proveedor sin condición de pago).
+  const vencidoDelDia = abiertos.filter((a) => a.vencimiento && a.vencimiento < hoy && a.vencimiento <= a.fecha && Number(a.deuda) > 0.5)
+    .reduce((t, a) => t.plus(a.deuda), new Decimal(0));
 
   return (
     <div className="px-8 py-6 space-y-6 max-w-[1400px] mx-auto">
@@ -35,7 +45,7 @@ export default async function InicioPage() {
             <TriangleAlert className="h-3.5 w-3.5" /> Hay deuda vencida
           </p>
           <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1.4fr_1fr]">
-            <Celda k="Vencido" sub={`${conVencido} ${conVencido === 1 ? "proveedor" : "proveedores"}`}>
+            <Celda k="Vencido" sub={`${conVencido} ${conVencido === 1 ? "proveedor" : "proveedores"}${vencidoDelDia.gt(0) ? ` · ${vencidoDelDia.toNumber().toLocaleString("es-AR", { maximumFractionDigits: 0 })} de contado o sin condición de pago` : ""}`}>
               <MoneyCell value={Number(tablero.vencido)} currency="ARS" decimals={0} className="text-xl font-semibold text-red-800" />
             </Celda>
             <Celda k="Vence esta semana" sub="en los próximos 7 días" borde>
@@ -69,12 +79,16 @@ export default async function InicioPage() {
                     <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
                     {tipo}
                     <span className="rounded-full bg-primary/10 px-2 py-px text-[11px] font-semibold text-primary">{lista.length}</span>
-                    {href && <span className="ml-auto text-xs font-normal text-muted-foreground">se resuelve en <Link href={href} className="text-primary underline-offset-2 hover:underline">{href === "/aprobar" ? "Para aprobar" : href === "/pagos" ? "Para pagar" : "Órdenes de pago"}</Link></span>}
+                    {href && (href.startsWith("/op/nueva")
+                      ? <span className="ml-auto text-xs font-normal text-muted-foreground">tocá el proveedor para armarle la OP</span>
+                      : <span className="ml-auto text-xs font-normal text-muted-foreground">se resuelve en <Link href={href} className="text-primary underline-offset-2 hover:underline">{href === "/aprobar" ? "Para aprobar" : href === "/pagos" ? "Para pagar" : "Órdenes de pago"}</Link></span>)}
                   </summary>
                   <ul className="divide-y divide-[#f2f1ec]">
                     {lista.map((p, i) => (
                       <li key={i} className="grid grid-cols-[minmax(160px,240px)_minmax(0,1fr)] gap-4 px-4 py-2.5 pl-10 text-[13px]">
-                        <span className="font-medium text-foreground">{p.proveedor ?? "—"}</span>
+                        {p.href?.startsWith("/op/nueva")
+                          ? <Link href={p.href} className="font-medium text-primary underline-offset-2 hover:underline">{p.proveedor}</Link>
+                          : <span className="font-medium text-foreground">{p.proveedor ?? "—"}</span>}
                         <span className="text-[#525252]">{p.detalle ?? ""}</span>
                       </li>
                     ))}
