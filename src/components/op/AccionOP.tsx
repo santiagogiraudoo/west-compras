@@ -3,15 +3,15 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Ban, Check, CheckCheck, MessageSquareWarning, Send, Trash2, type LucideIcon } from "lucide-react";
+import { Ban, Check, CheckCheck, MessageSquareWarning, RotateCcw, Send, Trash2, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { decidirOP, descartarOP, enviarAAprobar } from "@/app/(app)/op/actions";
+import { decidirOP, descartarOP, enviarAAprobar, quitarObservacionOP } from "@/app/(app)/op/actions";
 
-type Accion = "aprobar" | "observar" | "bloquear" | "enviar" | "descartar" | "resolver";
+type Accion = "aprobar" | "observar" | "bloquear" | "enviar" | "descartar" | "resolver" | "quitar";
 
 const ACCIONES: Record<Accion, {
   label: string; icon: LucideIcon; variant: "default" | "outline" | "ghost";
@@ -36,6 +36,10 @@ const ACCIONES: Record<Accion, {
     label: "Descartar", icon: Trash2, variant: "ghost",
     pide: { titulo: "Descartar", ayuda: "Queda descartada y sus facturas vuelven a estar libres. El número no se reutiliza.", placeholder: "Motivo del descarte" },
   },
+  quitar: {
+    label: "Quitar observación", icon: RotateCcw, variant: "outline",
+    pide: { titulo: "Quitar la observación de", ayuda: "Los renglones observados o bloqueados vuelven a esperar decisión. No quedan aprobados.", placeholder: "Por qué se quita (ej.: era un error, ya se aclaró)" },
+  },
 };
 
 /** Un botón de acción sobre una OP de la app. Observar, bloquear y descartar piden comentario. */
@@ -53,6 +57,7 @@ export function AccionOP({ numero, accion }: { numero: string; accion: Accion })
         accion === "enviar" ? await enviarAAprobar(numero)
         : accion === "descartar" ? await descartarOP(numero, texto)
         : accion === "resolver" ? await decidirOP(numero, "Aprobada", texto, true)
+        : accion === "quitar" ? await quitarObservacionOP(numero, texto)
         : await decidirOP(numero, accion === "aprobar" ? "Aprobada" : accion === "observar" ? "Observada" : "Bloqueada", texto);
       if (!r.ok) { toast.error(r.mensaje); return; }
       toast.success(r.mensaje);

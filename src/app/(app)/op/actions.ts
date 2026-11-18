@@ -9,7 +9,7 @@ import { hoyArgentina, listarAbiertos } from "@/lib/cuenta/queries";
 import { validarSeleccionOP } from "@/lib/cuenta/calculos";
 import { faltantesProveedor } from "@/lib/facturas/requisitos";
 import { calcularPago, RETENCIONES, type DatosPago } from "@/lib/op/pago";
-import { aResolver, decide, noCruzaRenglon, SE_DECIDE, SE_DESCARTA, type Decision } from "@/lib/op/estados";
+import { aResolver, decide, noCruzaRenglon, quita, SE_DECIDE, SE_DESCARTA, type Decision } from "@/lib/op/estados";
 import { DIAS_MISMA_COMPRA, evaluarTope } from "@/lib/op/topes";
 import { dolarBlue } from "@/lib/dolar";
 import { estadoOP, listarOPsApp } from "@/lib/op/queries";
@@ -211,6 +211,31 @@ export async function decidirOP(numero: string, decision: Decision, comentario: 
   revalidar();
   const n = mias.length;
   return { ok: true, mensaje: `${numero}: ${n} renglón${n > 1 ? "es" : ""} ${decision.toLowerCase()}${n > 1 ? "s" : ""}` };
+}
+
+/**
+ * Quitar una observación o un bloqueo: los renglones frenados que le tocan a quien entra
+ * (o todos, si es admin) vuelven a "sin decidir", sin pasar por aprobado. Se agrega una
+ * decisión 'Quitada' con su comentario; app.v_aprobacion_linea la saltea (sql/013).
+ */
+export async function quitarObservacionOP(numero: string, comentario: string): Promise<ResultadoOP> {
+  const u = await usuario();
+  if (!u || u.role === "consulta") return { ok: false, mensaje: "No tenés permiso para cambiar la aprobación." };
+  if (comentario.trim().length < 5) return { ok: false, mensaje: "Escribí por qué se quita (al menos 5 letras)." };
+
+  const esta = (await listarOPsApp(SE_DECIDE)).find((o) => o.numero === numero);
+  if (!esta) return { ok: false, mensaje: "La OP no está para aprobar." };
+  const frenadas = esta.lineas.filter((l) => quita(l, u));
+  if (frenadas.length === 0) return { ok: false, mensaje: "No hay renglones observados o bloqueados que puedas quitar." };
+
+  await prisma.$transaction(
+    frenadas.map((l) => prisma.$executeRaw`
+      insert into app.aprobaciones_op (op_numero, comprobante_id, unidad_codigo, decision, motivo, usuario_id, usuario)
+      values (${numero}, ${BigInt(l.id)}, ${l.unidad}, 'Quitada', ${comentario.trim()}, ${u.id}, ${u.name})`),
+  );
+  revalidar();
+  const n = frenadas.length;
+  return { ok: true, mensaje: `${numero}: ${n === 1 ? "se quitó la observación" : `se quitaron ${n} observaciones`}; vuelve a esperar decisión` };
 }
 
 /**

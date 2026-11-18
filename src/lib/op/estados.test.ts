@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aResolver, chequeosOP, decide, diferenciaRemito, noCruzaRenglon, pendientesOP, subasDePrecio, type ItemLinea } from "./estados";
+import { aResolver, chequeosOP, decide, diferenciaRemito, noCruzaRenglon, pendientesOP, quita, subasDePrecio, type ItemLinea } from "./estados";
 
 const item = (precio: string | null, anterior: string | null): ItemLinea =>
   ({ descripcion: "Cemento x 50 kg", cantidad: "10", precio, anterior, anterior_fecha: "2026-10-01" });
@@ -14,6 +14,16 @@ describe("decide", () => {
     expect(decide({ aprobador_id: 7 }, { id: 1, role: "admin" })).toBe(false);
     expect(decide({ aprobador_id: null }, { id: 1, role: "admin" })).toBe(true);
     expect(decide({ aprobador_id: null }, { id: 2, role: "operador" })).toBe(false);
+  });
+});
+
+describe("quita", () => {
+  it("solo un renglón observado o bloqueado, por quien lo decide o un admin", () => {
+    expect(quita({ aprobador_id: 7, decision: "Observada" }, { id: 7, role: "operador" })).toBe(true);
+    expect(quita({ aprobador_id: 7, decision: "Bloqueada" }, { id: 1, role: "admin" })).toBe(true);
+    expect(quita({ aprobador_id: 7, decision: "Observada" }, { id: 8, role: "operador" })).toBe(false);
+    expect(quita({ aprobador_id: 7, decision: "Aprobada" }, { id: 7, role: "operador" })).toBe(false);
+    expect(quita({ aprobador_id: null, decision: null }, { id: 1, role: "admin" })).toBe(false);
   });
 });
 

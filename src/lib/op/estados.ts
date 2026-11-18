@@ -73,6 +73,17 @@ export function aResolver(
     && (linea.decision === "Observada" || linea.decision === "Bloqueada");
 }
 
+/**
+ * Quién puede quitar una observación o un bloqueo (el renglón vuelve a "sin decidir",
+ * sin pasar por aprobado; sql/013): quien decide ese renglón o un admin.
+ */
+export function quita(
+  linea: Pick<LineaAprobacion, "aprobador_id" | "decision">, usuario: { id: number; role: string },
+): boolean {
+  return (linea.decision === "Observada" || linea.decision === "Bloqueada")
+    && (usuario.role === "admin" || decide(linea, usuario));
+}
+
 /** Días enteros entre dos fechas YYYY-MM-DD (o timestamps: se toma la fecha). */
 export function diasEntre(desde: string, hasta: string): number {
   const d = (s: string) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
