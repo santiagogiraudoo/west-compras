@@ -9,7 +9,9 @@ import { hoyArgentina, listarAbiertos } from "@/lib/cuenta/queries";
 import { validarSeleccionOP } from "@/lib/cuenta/calculos";
 import { faltantesProveedor } from "@/lib/facturas/requisitos";
 import { calcularPago, RETENCIONES, type DatosPago } from "@/lib/op/pago";
-import { aResolver, decide, SE_DECIDE, SE_DESCARTA, type Decision } from "@/lib/op/estados";
+import { aResolver, decide, noCruzaRenglon, SE_DECIDE, SE_DESCARTA, type Decision } from "@/lib/op/estados";
+import { DIAS_MISMA_COMPRA, evaluarTope } from "@/lib/op/topes";
+import { dolarBlue } from "@/lib/dolar";
 import { estadoOP, listarOPsApp } from "@/lib/op/queries";
 
 export interface ResultadoOP {
@@ -94,17 +96,83 @@ export async function reservarOP(proveedor: string, ids: string[]): Promise<Resu
   }
 }
 
-/** En armado → A aprobar. Cada renglón le llega a quien aprueba su unidad. */
+/**
+ * En armado → A aprobar. Cada renglón le llega a quien aprueba su unidad, salvo el que
+ * cruza y queda dentro del tope de su unidad: sale aprobado solo ("se aprueba una sola
+ * vez"), con el motivo (US$, tope y cotización) guardado como decisión automática.
+ */
 export async function enviarAAprobar(numero: string): Promise<ResultadoOP> {
   const u = await usuario();
   if (!u || u.role === "consulta") return { ok: false, mensaje: "No tenés permiso." };
   const op = (await listarOPsApp(["En armado"])).find((o) => o.numero === numero);
   if (!op) return { ok: false, mensaje: "La OP ya no está en armado." };
   if (op.lineas.length === 0) return { ok: false, mensaje: "La OP no tiene facturas con importe: descartala." };
-  await prisma.$executeRaw`
-    update app.ops set enviada_por = ${u.name}, enviada_en = now() where op_numero = ${numero} and enviada_en is null`;
+
+  const [blue, contexto] = await Promise.all([dolarBlue(), contextoTopes(numero)]);
+  const autos = op.lineas.flatMap((l) => {
+    const c = contexto.find((x) => x.comprobante_id === l.id && x.unidad === l.unidad);
+    const r = evaluarTope({
+      importe: l.importe, acumuladoCompra: c?.acumulado_compra ?? "0", acumuladoMes: c?.acumulado_mes ?? "0",
+      topeCompraUsd: c?.tope_compra_usd ?? null, topeMesUsd: c?.tope_mes_usd ?? null,
+      blue: blue?.promedio ?? null, noCruza: noCruzaRenglon(l),
+    });
+    return r.auto ? [{ l, motivo: r.motivo }] : [];
+  });
+
+  try {
+  await prisma.$transaction(async (tx) => {
+    const n = await tx.$executeRaw`
+      update app.ops set enviada_por = ${u.name}, enviada_en = now() where op_numero = ${numero} and enviada_en is null`;
+    if (n !== 1) throw new Rechazo("La OP ya se mandó a aprobar.");
+    for (const { l, motivo } of autos) {
+      await tx.$executeRaw`
+        insert into app.aprobaciones_op (op_numero, comprobante_id, unidad_codigo, decision, motivo, usuario_id, usuario)
+        values (${numero}, ${BigInt(l.id)}, ${l.unidad}, 'Aprobada', ${motivo}, ${u.id}, 'Automático por tope')`;
+    }
+  });
+  } catch (e) {
+    if (e instanceof Rechazo) return { ok: false, mensaje: e.message };
+    throw e;
+  }
   revalidar();
-  return { ok: true, mensaje: `${numero} mandada a aprobar` };
+  const solos = autos.length;
+  return {
+    ok: true,
+    mensaje: `${numero} mandada a aprobar${solos ? `: ${solos} renglón${solos > 1 ? "es" : ""} aprobado${solos > 1 ? "s" : ""} solo${solos > 1 ? "s" : ""} por tope` : ""}`,
+  };
+}
+
+/**
+ * Para los topes de cada renglón de la OP: el tope de su unidad, lo del mismo proveedor y
+ * unidad en otras OP vivas con facturas de los últimos días, y lo aprobado este mes en
+ * la unidad (otras OP). Montos en pesos, como texto.
+ */
+async function contextoTopes(numero: string) {
+  return prisma.$queryRaw<{
+    comprobante_id: string; unidad: string; tope_compra_usd: string | null; tope_mes_usd: string | null;
+    acumulado_compra: string; acumulado_mes: string;
+  }[]>`
+    select r.comprobante_id::text, r.unidad_codigo as unidad,
+      ap.tope_compra_usd::text, ap.tope_mes_usd::text,
+      coalesce((
+        select sum(r2.importe) from app.v_op_renglones r2
+        join app.v_op_estado e2 on e2.op_numero = r2.op_numero and e2.estado <> 'Descartada'
+        join cc.comprobantes c2 on c2.id = r2.comprobante_id
+        where r2.op_numero <> r.op_numero and r2.unidad_codigo = r.unidad_codigo
+          and c2.proveedor_codigo = c.proveedor_codigo
+          and abs(c2.fecha - c.fecha) <= ${DIAS_MISMA_COMPRA}), 0)::text as acumulado_compra,
+      coalesce((
+        select sum(r3.importe) from app.v_op_renglones r3
+        join app.v_op_estado e3 on e3.op_numero = r3.op_numero and e3.estado <> 'Descartada'
+        join app.v_aprobacion_linea l3 on l3.op_numero = r3.op_numero and l3.comprobante_id = r3.comprobante_id
+          and l3.unidad_codigo is not distinct from r3.unidad_codigo and l3.decision = 'Aprobada'
+        where r3.op_numero <> r.op_numero and r3.unidad_codigo = r.unidad_codigo
+          and date_trunc('month', l3.creado_en at time zone 'America/Argentina/Mendoza')
+            = date_trunc('month', now() at time zone 'America/Argentina/Mendoza')), 0)::text as acumulado_mes
+    from app.v_op_renglones r
+    join cc.comprobantes c on c.id = r.comprobante_id
+    left join app.aprobadores ap on ap.unidad_codigo = r.unidad_codigo
+    where r.op_numero = ${numero}`;
 }
 
 /**

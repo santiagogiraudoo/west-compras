@@ -149,6 +149,23 @@ export function subasDePrecio(lineas: Pick<LineaAprobacion, "tipo" | "numero" | 
   return subas;
 }
 
+/** Facturas que no llevan remito aparte (notas de crédito o débito, y el tipo Remito). */
+const sinRemitoAparte = (tipo: string) => tipo.startsWith("Nota de") || tipo === "Remito";
+
+/**
+ * Por qué un renglón no cruza (vacío si cruza): lo que impide aprobarlo solo por tope.
+ * Es lo mismo que la línea de chequeos, pero de un renglón.
+ */
+export function noCruzaRenglon(
+  l: Pick<LineaAprobacion, "tipo" | "numero" | "items" | "tiene_remito" | "archivo_link">,
+): string[] {
+  const no: string[] = [];
+  if (!l.tiene_remito && !sinRemitoAparte(l.tipo)) no.push("sin remito");
+  if (!l.archivo_link && l.tipo !== "Sin factura") no.push("sin PDF");
+  if (subasDePrecio([l]).length > 0) no.push("más caro que la última compra");
+  return no;
+}
+
 export interface Chequeo {
   clave: "remito" | "pdf" | "alta" | "precio";
   ok: boolean;

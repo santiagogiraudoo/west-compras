@@ -98,7 +98,7 @@ export function TarjetaOP({ op, usuario, deuda, ultimas }: Props) {
 
 function Renglon({ l, mio }: { l: LineaAprobacion; mio: boolean }) {
   const estado =
-    l.decision === "Aprobada" ? <span className="text-emerald-800">Aprobado por {l.usuario}</span>
+    l.decision === "Aprobada" ? <span className="text-emerald-800">Aprobado por {l.usuario}{l.motivo ? `: ${l.motivo}` : ""}</span>
     : l.decision ? <span className={l.decision === "Bloqueada" ? "text-red-700" : "text-orange-800"}>{l.decision} por {l.usuario}: {l.motivo}</span>
     : <span className="text-muted-foreground">Esperando a {l.aprobador ?? "un admin"}</span>;
   return (
