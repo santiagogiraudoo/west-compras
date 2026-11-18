@@ -7,6 +7,7 @@ import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TableCell, TableRow } from "@/components/ui/table";
 import { guardarAprobador } from "./actions";
 
 interface Props {
@@ -38,23 +39,23 @@ export function FilaAprobador({ unidad, nombre, usuarioId, topeCompra, topeMes, 
   }
 
   return (
-    <tr className="border-t">
-      <td className="px-4 py-1.5"><span className="text-muted-foreground">{unidad}</span> {nombre}</td>
-      <td className="px-2 py-1.5">
+    <TableRow>
+      <TableCell className="min-w-[180px] whitespace-normal"><span className="font-medium">{nombre}</span> <span className="text-xs text-muted-foreground">{unidad}</span></TableCell>
+      <TableCell>
         <Select value={usuario} onValueChange={setUsuario} disabled={!edita}>
           <SelectTrigger className="h-8 w-56"><SelectValue placeholder="Sin aprobador (un admin)" /></SelectTrigger>
           <SelectContent>{usuarios.map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>)}</SelectContent>
         </Select>
-      </td>
-      <td className="px-2 py-1.5"><Input className="h-8 w-28" value={tc} onChange={(e) => setTc(e.target.value)} disabled={!edita} placeholder="—" inputMode="decimal" /></td>
-      <td className="px-2 py-1.5"><Input className="h-8 w-28" value={tm} onChange={(e) => setTm(e.target.value)} disabled={!edita} placeholder="—" inputMode="decimal" /></td>
-      <td className="px-4 py-1.5 text-right">
+      </TableCell>
+      <TableCell><Input className="h-8 w-28" value={tc} onChange={(e) => setTc(e.target.value)} disabled={!edita} placeholder="—" inputMode="decimal" /></TableCell>
+      <TableCell><Input className="h-8 w-28" value={tm} onChange={(e) => setTm(e.target.value)} disabled={!edita} placeholder="—" inputMode="decimal" /></TableCell>
+      <TableCell className="text-right">
         {edita && (
-          <Button size="sm" variant="outline" disabled={!cambio || !usuario || pendiente} onClick={guardar}>
+          <Button size="sm" variant={cambio ? "default" : "outline"} className="h-8" disabled={!cambio || !usuario || pendiente} onClick={guardar}>
             <Save className="h-4 w-4" /> Guardar
           </Button>
         )}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
