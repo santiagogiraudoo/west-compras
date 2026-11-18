@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Decimal from "decimal.js";
-import { FilePlus, FileText, PiggyBank, Receipt, Wallet } from "lucide-react";
+import { CalendarClock, CheckCircle, FilePlus, FileText, PiggyBank, Receipt, TriangleAlert, Wallet } from "lucide-react";
+import { StatusPill } from "@/components/shared/StatusPill";
+import { diasEntre } from "@/lib/op/estados";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MoneyCell } from "@/components/shared/MoneyCell";
@@ -32,11 +34,17 @@ const GOLD = { color: "#B8960C" };
  * facturas abiertas; el saldo a favor es la diferencia (notas de crédito y pagos a cuenta
  * todavía sin aplicar a una factura).
  */
-export default async function CuentaProveedorPage({ params }: { params: Promise<{ codigo: string }> }) {
+/** Movimientos del extracto que se ven de entrada; el resto, con "Ver todo". */
+const ULTIMOS = 30;
+
+export default async function CuentaProveedorPage({ params, searchParams }: {
+  params: Promise<{ codigo: string }>; searchParams: Promise<{ todo?: string }>;
+}) {
   const { codigo } = await params;
+  const { todo } = await searchParams;
   const hoy = hoyArgentina();
   const [proveedor, abiertos, movimientos] = await Promise.all([
-    prisma.proveedor.findUnique({ where: { codigo }, select: { codigo: true, razon_social: true, cuit: true, cbu: true, alias: true, banco: true, cuenta_titular: true } }),
+    prisma.proveedor.findUnique({ where: { codigo }, select: { codigo: true, razon_social: true, cuit: true, cbu: true, alias: true, banco: true, cuenta_titular: true, condicion_pago: true, medio_pago_habitual: true } }),
     listarAbiertos(codigo),
     listarMovimientos(codigo),
   ]);
@@ -49,6 +57,11 @@ export default async function CuentaProveedorPage({ params }: { params: Promise<
   const enOp = abiertos.reduce((t, a) => t.plus(a.en_op), new Decimal(0));
   const aFavor = Decimal.max(0, deuda.minus(extracto.saldo));
   const libre = abiertos.reduce((t, a) => t.plus(a.libre), new Decimal(0));
+
+  // El extracto largo se corta en los últimos movimientos, con el saldo que traían.
+  const corta = !todo && extracto.lineas.length > ULTIMOS;
+  const lineas = corta ? extracto.lineas.slice(-ULTIMOS) : extracto.lineas;
+  const saldoAnterior = corta ? extracto.lineas[extracto.lineas.length - ULTIMOS - 1].saldo : null;
 
   const resumen = [
     { label: "Saldo", v: extracto.saldo },
@@ -69,9 +82,19 @@ export default async function CuentaProveedorPage({ params }: { params: Promise<
             </Link>
             {proveedor.cuit ? ` · CUIT ${proveedor.cuit}` : ""}{cuentaTexto ? ` · ${cuentaTexto}` : ""}
           </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {proveedor.condicion_pago?.trim() ? (
+              <StatusPill tone="success" icon={CalendarClock}>Paga a: {proveedor.condicion_pago}</StatusPill>
+            ) : (
+              <Link href={`/proveedores/${proveedor.codigo}`}>
+                <StatusPill tone="amber" icon={TriangleAlert}>Sin condición de pago: sus facturas vencen el día que se emiten · cargala</StatusPill>
+              </Link>
+            )}
+            {proveedor.medio_pago_habitual && <StatusPill tone="neutral">{proveedor.medio_pago_habitual}</StatusPill>}
+          </div>
         </div>
         <div className="flex gap-2">
-          <DescargarExtracto proveedor={proveedor} hoy={hoy} extracto={extracto} abiertos={abiertos} resumen={resumen} />
+          <DescargarExtracto proveedor={{ codigo: proveedor.codigo, razon_social: proveedor.razon_social, cuit: proveedor.cuit }} hoy={hoy} extracto={extracto} abiertos={abiertos} resumen={resumen} />
           {libre.greaterThan(0.5) && (
             <Button size="sm" asChild>
               <Link href={`/op/nueva?proveedor=${proveedor.codigo}`}><FilePlus className="h-4 w-4" /> Armar OP</Link>
@@ -113,6 +136,7 @@ export default async function CuentaProveedorPage({ params }: { params: Promise<
                   <TableHead className={TH} style={GOLD}>Titular</TableHead>
                   <TableHead className={TH} style={GOLD}>Fecha</TableHead>
                   <TableHead className={TH} style={GOLD}>Vence</TableHead>
+                  <TableHead className={TH} style={GOLD}>Estado</TableHead>
                   <TableHead className={`text-right ${TH}`} style={GOLD}>Total</TableHead>
                   <TableHead className={`text-right ${TH}`} style={GOLD}>Falta pagar</TableHead>
                   <TableHead className={TH} style={GOLD}>En OP</TableHead>
@@ -130,6 +154,7 @@ export default async function CuentaProveedorPage({ params }: { params: Promise<
                     <TableCell className={a.vencimiento && a.vencimiento < hoy && Number(a.deuda) > 0 ? "text-red-700" : ""}>
                       {formatDate(a.vencimiento)}
                     </TableCell>
+                    <TableCell><EstadoFactura a={a} hoy={hoy} /></TableCell>
                     <TableCell className="text-right"><Monto v={a.total} /></TableCell>
                     <TableCell className="text-right"><Monto v={a.deuda} /></TableCell>
                     <TableCell className="text-xs">{a.ops ?? ""}</TableCell>
@@ -156,12 +181,21 @@ export default async function CuentaProveedorPage({ params }: { params: Promise<
               </TableRow>
             </TableHeader>
             <TableBody>
-              {extracto.lineas.map((l, i) => (
+              {saldoAnterior != null && (
+                <TableRow className="text-muted-foreground hover:bg-transparent">
+                  <TableCell colSpan={5}>
+                    Saldo de los {extracto.lineas.length - ULTIMOS} movimientos anteriores ·{" "}
+                    <Link href={`/cuenta/${proveedor.codigo}?todo=1`} className="font-medium text-primary underline-offset-2 hover:underline">ver todo el extracto</Link>
+                  </TableCell>
+                  <TableCell className="text-right"><MoneyCell value={Number(saldoAnterior)} currency="ARS" decimals={0} /></TableCell>
+                </TableRow>
+              )}
+              {lineas.map((l, i) => (
                 <TableRow key={i}>
                   <TableCell>{formatDate(l.fecha)}</TableCell>
                   <TableCell>{l.concepto}</TableCell>
                   <TableCell>{l.unidad ?? ""}</TableCell>
-                  <TableCell className="text-right"><Monto v={l.debe} /></TableCell>
+                  <TableCell className="text-right"><Monto v={l.debe} className="text-[#1B4332]" /></TableCell>
                   <TableCell className="text-right"><Monto v={l.haber} /></TableCell>
                   <TableCell className="text-right"><MoneyCell value={Number(l.saldo)} currency="ARS" decimals={0} /></TableCell>
                 </TableRow>
@@ -178,4 +212,16 @@ export default async function CuentaProveedorPage({ params }: { params: Promise<
       </section>
     </div>
   );
+}
+
+/** En qué anda cada factura abierta: lo más urgente manda. */
+function EstadoFactura({ a, hoy }: { a: { vencimiento: string | null; fecha: string; libre: string; en_op: string; deuda: string }; hoy: string }) {
+  if (Number(a.deuda) <= 0) return <StatusPill tone="neutral">A favor</StatusPill>;
+  const enOp = Number(a.en_op) > 0.5 && Number(a.libre) <= 0.5;
+  const dias = a.vencimiento ? diasEntre(hoy, a.vencimiento) : null;
+  if (enOp) return <StatusPill tone="success" icon={CheckCircle}>{dias != null && dias < 0 ? `En OP · venció hace ${-dias} d` : "En OP"}</StatusPill>;
+  if (dias == null) return <StatusPill tone="neutral">Sin vencimiento</StatusPill>;
+  if (dias < 0) return <StatusPill tone="red" icon={TriangleAlert}>{a.vencimiento! <= a.fecha ? "Contado, sin OP" : `Venció hace ${-dias} ${dias === -1 ? "día" : "días"}`}</StatusPill>;
+  if (dias <= 7) return <StatusPill tone="amber" icon={CalendarClock}>{dias === 0 ? "Vence hoy" : `Vence en ${dias} ${dias === 1 ? "día" : "días"}`}</StatusPill>;
+  return <StatusPill tone="neutral">Vence en {dias} días</StatusPill>;
 }
