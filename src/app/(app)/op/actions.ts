@@ -109,37 +109,41 @@ export async function enviarAAprobar(numero: string): Promise<ResultadoOP> {
   if (op.lineas.length === 0) return { ok: false, mensaje: "La OP no tiene facturas con importe: descartala." };
 
   const [blue, contexto] = await Promise.all([dolarBlue(), contextoTopes(numero)]);
-  const autos = op.lineas.flatMap((l) => {
+  const evaluados = op.lineas.map((l) => {
     const c = contexto.find((x) => x.comprobante_id === l.id && x.unidad === l.unidad);
     const r = evaluarTope({
       importe: l.importe, acumuladoCompra: c?.acumulado_compra ?? "0", acumuladoMes: c?.acumulado_mes ?? "0",
       topeCompraUsd: c?.tope_compra_usd ?? null, topeMesUsd: c?.tope_mes_usd ?? null,
       blue: blue?.promedio ?? null, noCruza: noCruzaRenglon(l),
     });
-    return r.auto ? [{ l, motivo: r.motivo }] : [];
+    return { l, ...r, conTope: c?.tope_compra_usd != null };
   });
+  const autos = evaluados.filter((e) => e.auto);
+  // Con tope cargado pero pide firma: se dice por qué, así no parece que el tope no anduvo.
+  const conFirma = evaluados.filter((e) => !e.auto && e.conTope).map((e) => `${e.l.numero}: ${e.motivo}`);
 
   try {
-  await prisma.$transaction(async (tx) => {
-    const n = await tx.$executeRaw`
-      update app.ops set enviada_por = ${u.name}, enviada_en = now() where op_numero = ${numero} and enviada_en is null`;
-    if (n !== 1) throw new Rechazo("La OP ya se mandó a aprobar.");
-    for (const { l, motivo } of autos) {
-      await tx.$executeRaw`
-        insert into app.aprobaciones_op (op_numero, comprobante_id, unidad_codigo, decision, motivo, usuario_id, usuario)
-        values (${numero}, ${BigInt(l.id)}, ${l.unidad}, 'Aprobada', ${motivo}, ${u.id}, 'Automático por tope')`;
-    }
-  });
+    await prisma.$transaction(async (tx) => {
+      const n = await tx.$executeRaw`
+        update app.ops set enviada_por = ${u.name}, enviada_en = now() where op_numero = ${numero} and enviada_en is null`;
+      if (n !== 1) throw new Rechazo("La OP ya se mandó a aprobar.");
+      for (const { l, motivo } of autos) {
+        await tx.$executeRaw`
+          insert into app.aprobaciones_op (op_numero, comprobante_id, unidad_codigo, decision, motivo, usuario_id, usuario)
+          values (${numero}, ${BigInt(l.id)}, ${l.unidad}, 'Aprobada', ${motivo}, ${u.id}, 'Automático por tope')`;
+      }
+    });
   } catch (e) {
     if (e instanceof Rechazo) return { ok: false, mensaje: e.message };
     throw e;
   }
   revalidar();
   const solos = autos.length;
-  return {
-    ok: true,
-    mensaje: `${numero} mandada a aprobar${solos ? `: ${solos} renglón${solos > 1 ? "es" : ""} aprobado${solos > 1 ? "s" : ""} solo${solos > 1 ? "s" : ""} por tope` : ""}`,
-  };
+  const partes = [
+    solos ? `${solos} renglón${solos > 1 ? "es" : ""} aprobado${solos > 1 ? "s" : ""} solo${solos > 1 ? "s" : ""} por tope` : "",
+    conFirma.length ? `Piden firma: ${conFirma.join(" · ")}` : "",
+  ].filter(Boolean);
+  return { ok: true, mensaje: `${numero} mandada a aprobar${partes.length ? `. ${partes.join(". ")}` : ""}` };
 }
 
 /**
