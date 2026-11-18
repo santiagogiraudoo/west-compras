@@ -44,7 +44,8 @@ export async function listarOPsApp(estados?: EstadoOP[]): Promise<OPConLineas[]>
     prisma.$queryRaw<LineaAprobacion[]>`
       select i.op_numero, c.id::text, c.tipo, c.numero, c.fecha::text, c.vencimiento::text,
         i.unidad_codigo as unidad, un.nombre as unidad_nombre, i.importe::text, i.partida, c.archivo_link,
-        coalesce(c.retiro_por, r.retiro_por) as quien,
+        coalesce(c.retiro_por, r.retiro_por) as quien, r.importe::text as remito_importe,
+        c.total::text as factura_total, c.neto::text as factura_neto,
         coalesce(it.para_que, c.descripcion) as para_que,
         (r.n > 0 or c.retiro_por is not null) as tiene_remito,
         l.decision, l.motivo, l.usuario, (l.creado_en at time zone 'America/Argentina/Mendoza')::date::text as decidido_en,
@@ -55,8 +56,9 @@ export async function listarOPsApp(estados?: EstadoOP[]): Promise<OPConLineas[]>
       join cc.comprobantes c on c.id = i.comprobante_id
       left join cc.unidades un on un.codigo = i.unidad_codigo
       left join lateral (
-        select count(*) as n, string_agg(distinct rm.retiro_por, ', ') as retiro_por
-        from cc.remitos rm where rm.comprobante_id = c.id) r on true
+        -- Solo remitos firmados: "falta" es remito sin firmar y "anulado" no cuenta.
+        select count(*) as n, string_agg(distinct rm.retiro_por, ', ') as retiro_por, sum(rm.importe) as importe
+        from cc.remitos rm where rm.comprobante_id = c.id and rm.estado = 'ok') r on true
       left join lateral (
         select string_agg(distinct x.para_que, ', ') as para_que,
           json_agg(json_build_object('descripcion', x.descripcion, 'cantidad', x.cantidad::text,

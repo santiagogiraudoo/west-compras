@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { chequeosOP, decide, aResolver, pendientesOP, subasDePrecio, type ItemLinea } from "./estados";
+import { aResolver, chequeosOP, decide, diferenciaRemito, noCruzaRenglon, pendientesOP, subasDePrecio, type ItemLinea } from "./estados";
 
 const item = (precio: string | null, anterior: string | null): ItemLinea =>
   ({ descripcion: "Cemento x 50 kg", cantidad: "10", precio, anterior, anterior_fecha: "2026-10-01" });
-const linea = (over: Partial<{ tipo: string; tiene_remito: boolean; archivo_link: string | null; items: ItemLinea[] | null }> = {}) => ({
-  tipo: "Factura A", numero: "0001-00000001", tiene_remito: true, archivo_link: "https://x/f.pdf", items: null, ...over,
+const linea = (over: Partial<{ tipo: string; tiene_remito: boolean; archivo_link: string | null; items: ItemLinea[] | null; remito_importe: string | null }> = {}) => ({
+  tipo: "Factura A", numero: "0001-00000001", tiene_remito: true, archivo_link: "https://x/f.pdf", items: null,
+  remito_importe: null as string | null, factura_total: "1210.00", factura_neto: "1000.00", ...over,
 });
 
 describe("decide", () => {
@@ -80,5 +81,26 @@ describe("pendientesOP", () => {
       "OP-4 vence 20/11/2026",
     ]);
     expect(p.map((x) => x.href)).toEqual(["/op", "/aprobar", "/aprobar", "/pagos"]);
+  });
+});
+
+describe("diferenciaRemito", () => {
+  const f = (remito_importe: string | null) => ({ remito_importe, factura_total: "1210.00", factura_neto: "1000.00" });
+  it("cruza con el total o con el neto, por menos de $1", () => {
+    expect(diferenciaRemito(f("1210.50"))).toBeNull();
+    expect(diferenciaRemito(f("999.40"))).toBeNull();
+    expect(diferenciaRemito(f(null))).toBeNull();
+  });
+  it("tolerancia cero: $1 o más no cruza", () => {
+    expect(diferenciaRemito(f("1209.00"))).toBe("remito $1.209,00 contra factura $1.210,00");
+  });
+});
+
+describe("chequeos con el remito", () => {
+  it("un remito que no coincide es amarillo y no cruza para el tope", () => {
+    const l = linea({ remito_importe: "900.00" });
+    const c = chequeosOP([l], []).find((x) => x.clave === "remito");
+    expect(c).toMatchObject({ ok: false, texto: "No coincide con el remito: 0001-00000001 (remito $900,00 contra factura $1.210,00)" });
+    expect(noCruzaRenglon(l)).toEqual(["no coincide con el remito (remito $900,00 contra factura $1.210,00)"]);
   });
 });

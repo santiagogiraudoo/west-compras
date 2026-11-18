@@ -39,6 +39,10 @@ export interface LineaAprobacion {
   quien: string | null;
   para_que: string | null;
   tiene_remito: boolean;
+  /** Suma de los importes de sus remitos firmados (estado ok); null si ninguno tiene importe. */
+  remito_importe: string | null;
+  factura_total: string;
+  factura_neto: string;
   decision: Decision | null;
   motivo: string | null;
   usuario: string | null;
@@ -149,6 +153,23 @@ export function subasDePrecio(lineas: Pick<LineaAprobacion, "tipo" | "numero" | 
   return subas;
 }
 
+/**
+ * Cruce factura ↔ remito con tolerancia cero (solo centavos, menos de $1; Adriano 17/11).
+ * El importe del remito a veces es el total y a veces el neto de la factura: cruza con
+ * cualquiera de los dos. Sin importe en los remitos no hay con qué comparar: no se marca.
+ * Devuelve el texto del problema, o null si cruza o no hay datos.
+ */
+export function diferenciaRemito(
+  l: Pick<LineaAprobacion, "remito_importe" | "factura_total" | "factura_neto">,
+): string | null {
+  if (l.remito_importe == null) return null;
+  const rem = new Decimal(l.remito_importe);
+  const cierra = (v: string) => rem.minus(v).abs().lt(1);
+  if (cierra(l.factura_total) || cierra(l.factura_neto)) return null;
+  const $ = (v: Decimal.Value) => `$${new Decimal(v).toDecimalPlaces(2).toNumber().toLocaleString("es-AR", { minimumFractionDigits: 2 })}`;
+  return `remito ${$(rem)} contra factura ${$(l.factura_total)}`;
+}
+
 /** Facturas que no llevan remito aparte (notas de crédito o débito, y el tipo Remito). */
 const sinRemitoAparte = (tipo: string) => tipo.startsWith("Nota de") || tipo === "Remito";
 
@@ -157,10 +178,12 @@ const sinRemitoAparte = (tipo: string) => tipo.startsWith("Nota de") || tipo ===
  * Es lo mismo que la línea de chequeos, pero de un renglón.
  */
 export function noCruzaRenglon(
-  l: Pick<LineaAprobacion, "tipo" | "numero" | "items" | "tiene_remito" | "archivo_link">,
+  l: Pick<LineaAprobacion, "tipo" | "numero" | "items" | "tiene_remito" | "archivo_link" | "remito_importe" | "factura_total" | "factura_neto">,
 ): string[] {
   const no: string[] = [];
   if (!l.tiene_remito && !sinRemitoAparte(l.tipo)) no.push("sin remito");
+  const dif = diferenciaRemito(l);
+  if (dif) no.push(`no coincide con el remito (${dif})`);
   if (!l.archivo_link && l.tipo !== "Sin factura") no.push("sin PDF");
   if (subasDePrecio([l]).length > 0) no.push("más caro que la última compra");
   return no;
@@ -177,17 +200,20 @@ export interface Chequeo {
  * mirar. Si todo está en verde, se aprueba de un toque.
  */
 export function chequeosOP(
-  lineas: Pick<LineaAprobacion, "tipo" | "numero" | "items" | "tiene_remito" | "archivo_link">[],
+  lineas: Pick<LineaAprobacion, "tipo" | "numero" | "items" | "tiene_remito" | "archivo_link" | "remito_importe" | "factura_total" | "factura_neto">[],
   faltantesProveedor: string[],
 ): Chequeo[] {
-  const sinRemito = lineas.filter((l) => !l.tiene_remito && !l.tipo.startsWith("Nota de") && l.tipo !== "Remito");
+  const sinRemito = lineas.filter((l) => !l.tiene_remito && !sinRemitoAparte(l.tipo));
+  const noCoinciden = lineas.filter((l) => diferenciaRemito(l) != null);
   const sinPdf = lineas.filter((l) => !l.archivo_link && l.tipo !== "Sin factura");
   const subas = subasDePrecio(lineas);
   const sinHistoria = !lineas.some((l) => (l.items ?? []).some((i) => i.precio && i.anterior));
   const nombres = (ls: { tipo: string; numero: string }[]) => [...new Set(ls.map((l) => l.numero))].join(", ");
   return [
-    { clave: "remito", ok: sinRemito.length === 0,
-      texto: sinRemito.length === 0 ? "Cruza con remito" : `Sin remito: ${nombres(sinRemito)}` },
+    { clave: "remito", ok: sinRemito.length === 0 && noCoinciden.length === 0,
+      texto: sinRemito.length > 0 ? `Sin remito: ${nombres(sinRemito)}`
+        : noCoinciden.length > 0 ? `No coincide con el remito: ${[...new Set(noCoinciden.map((l) => `${l.numero} (${diferenciaRemito(l)})`))].join(", ")}`
+        : "Cruza con remito" },
     { clave: "pdf", ok: sinPdf.length === 0,
       texto: sinPdf.length === 0 ? "Tiene PDF" : `Sin PDF: ${nombres(sinPdf)}` },
     { clave: "alta", ok: faltantesProveedor.length === 0,
