@@ -16,7 +16,8 @@ import { formatDate } from "@/lib/utils";
 import { auth } from "@/lib/auth";
 import { hoyArgentina, listarAbiertos, listarOPAbiertas } from "@/lib/cuenta/queries";
 import { aResolver, decide, diasEntre } from "@/lib/op/estados";
-import { contextoProveedores, facturasDeOP, listarCerradas, listarOPsApp, type OPConLineas } from "@/lib/op/queries";
+import { contextoProveedores, facturasDeOP, listarCerradas, listarOPsApp, listarPagados, type OPConLineas } from "@/lib/op/queries";
+import { Historico } from "@/components/op/flujo/Historico";
 import { problemasOP } from "@/lib/op/controles";
 import { prisma } from "@/lib/prisma";
 import { medioSugerido, vencimientoOP } from "@/lib/op/pago";
@@ -33,12 +34,15 @@ const suma = (vs: string[]) => vs.reduce((t, v) => t.plus(v), new Decimal(0)).to
  * ClickUp. El paso va en la URL (?paso=…); sin paso, se abre donde le toca hacer algo a
  * quien entra.
  */
-export default async function OPPage({ searchParams }: { searchParams: Promise<{ paso?: string }> }) {
-  const { paso: pedido } = await searchParams;
+export default async function OPPage({ searchParams }: { searchParams: Promise<{ paso?: string; mes?: string; q?: string }> }) {
+  const { paso: pedido, mes: mesPedido, q } = await searchParams;
   const hoy = hoyArgentina();
-  const [session, ops, abiertos, cerradas, deClickUp] = await Promise.all([
-    auth(), listarOPsApp(), listarAbiertos(), listarCerradas(hoy), listarOPAbiertas(),
+  const mesActual = hoy.slice(0, 7);
+  const mes = /^\d{4}-\d{2}$/.test(mesPedido ?? "") && mesPedido! <= mesActual ? mesPedido! : mesActual;
+  const [session, ops, abiertos, cerradas, deClickUp, pagados] = await Promise.all([
+    auth(), listarOPsApp(), listarAbiertos(), listarCerradas(hoy), listarOPAbiertas(), listarPagados(mes),
   ]);
+  const descartadas = cerradas.filter((o) => o.estado === "Descartada");
   const usuario = { id: (session?.user as { id: number } | undefined)?.id ?? 0, role: session?.user?.role ?? "consulta" };
   const edita = usuario.role !== "consulta";
 
@@ -61,7 +65,7 @@ export default async function OPPage({ searchParams }: { searchParams: Promise<{
     { clave: "aprobar", numero: 2, label: "Aprobar", icon: ListChecks, n: enAprobacion.length, total: suma(enAprobacion.map((o) => o.total_imputado)),
       aviso: teToca.length ? `te toca firmar ${teToca.length}` : undefined },
     { clave: "pagar", numero: 3, label: "Pagar", icon: Banknote, n: autorizadas.length, total: suma(autorizadas.map((o) => o.total_imputado)) },
-    { clave: "pagadas", label: "Cerradas", icon: Archive, n: cerradas.length, total: "0" },
+    { clave: "pagadas", label: "Pagadas", icon: Archive, n: pagados.length, total: "0" },
     { clave: "clickup", label: "ClickUp", icon: Workflow, n: deClickUp.length, total: "0" },
   ];
   // Sin paso en la URL: donde le toca hacer algo (firmar, pagar), si no, armar.
@@ -112,9 +116,14 @@ export default async function OPPage({ searchParams }: { searchParams: Promise<{
       )}
 
       {activo === "pagadas" && (
-        <Seccion titulo="Pagadas y descartadas" n={cerradas.length} ayuda="De los últimos 60 días, la más nueva arriba.">
-          {cerradas.length ? <TablaCerradas ops={cerradas} /> : <Vacio>No se cerró ninguna OP en los últimos 60 días.</Vacio>}
-        </Seccion>
+        <div className="space-y-8">
+          <Historico pagados={pagados} mes={mes} hoy={hoy} q={q ?? ""} />
+          {descartadas.length > 0 && (
+            <Seccion titulo="Descartadas en la app" n={descartadas.length} ayuda="De los últimos 60 días, con el motivo. Sus facturas quedaron libres.">
+              <TablaCerradas ops={descartadas} />
+            </Seccion>
+          )}
+        </div>
       )}
 
       {activo === "clickup" && (
