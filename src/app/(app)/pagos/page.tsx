@@ -60,7 +60,7 @@ export default async function PagosPage() {
                   </dl>
                   {paga && (
                     <PagarOP numero={o.numero} proveedor={o.razon_social} total={o.total_imputado}
-                      medio={medioSugerido(o.medio_pago_habitual)} hoy={hoy} />
+                      medio={medioSugerido(o.medio_pago_habitual)} hoy={hoy} cbu={o.cbu} alias={o.alias} />
                   )}
                 </div>
               </article>

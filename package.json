@@ -13,6 +13,7 @@
     "usuario": "npx tsx --env-file=.env scripts/crear-usuario.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.10.0",
     "@hookform/resolvers": "^5.2.2",
     "@prisma/adapter-pg": "^7.4.2",
     "@prisma/client": "^7.4.2",

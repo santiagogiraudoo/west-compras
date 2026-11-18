@@ -9,6 +9,7 @@ import { hoyArgentina, listarAbiertos } from "@/lib/cuenta/queries";
 import { validarSeleccionOP } from "@/lib/cuenta/calculos";
 import { faltantesProveedor } from "@/lib/facturas/requisitos";
 import { problemaConstancia } from "@/lib/op/constancias";
+import { leerComprobante, type ResultadoLectura } from "@/lib/pagos/leer-comprobante";
 import { calcularPago, RETENCIONES, type DatosPago } from "@/lib/op/pago";
 import { aResolver, decide, noCruzaRenglon, quita, SE_DECIDE, SE_DESCARTA, type Decision } from "@/lib/op/estados";
 import { DIAS_MISMA_COMPRA, evaluarTope } from "@/lib/op/topes";
@@ -389,4 +390,19 @@ export async function subirConstancia(numero: string, form: FormData): Promise<R
     values (${numero}, ${subido.name.slice(0, 200) || "constancia"}, ${subido.type}, ${bytes}, ${nota}, ${u.name})`;
   revalidatePath(`/op/${numero}`);
   return { ok: true, mensaje: `Constancia guardada en la ${numero}` };
+}
+
+/**
+ * Lee el comprobante del pago con la API de Claude para precargar "Registrar pago"
+ * (monto, fecha, referencia, medio, cuenta de destino). No guarda nada: el archivo se
+ * guarda recién al confirmar el pago (pagarOP). Quien paga revisa lo leído.
+ */
+export async function leerComprobantePago(form: FormData): Promise<ResultadoLectura> {
+  const u = await usuario();
+  if (!u || u.role === "consulta") return { ok: false, mensaje: "No tenés permiso para registrar pagos." };
+  const archivo = form.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) return { ok: false, mensaje: "Elegí el comprobante." };
+  if (!TIPOS_COMPROBANTE.includes(archivo.type)) return { ok: false, mensaje: "El comprobante tiene que ser PDF, JPG o PNG." };
+  if (archivo.size > MAX_COMPROBANTE) return { ok: false, mensaje: "El comprobante pesa más de 5 MB." };
+  return leerComprobante(Buffer.from(await archivo.arrayBuffer()), archivo.type);
 }
