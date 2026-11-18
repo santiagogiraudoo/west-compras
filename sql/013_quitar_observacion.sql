@@ -2,7 +2,7 @@
 -- pasar por aprobado. Se agrega una decisión 'Quitada' (con comentario, como observar)
 -- y la vista de la última decisión la saltea: el renglón queda sin decisión y la OP
 -- vuelve a "A aprobar" si no queda otro renglón frenado. La historia sigue completa en
--- app.aprobaciones_op. Se aplica con el dueño de la base.
+-- app.aprobaciones_op. Se aplica con el dueño de la base. Aplicado en dev-app-compras el 18/11.
 
 alter table app.aprobaciones_op drop constraint if exists aprobaciones_op_decision_check;
 alter table app.aprobaciones_op add constraint aprobaciones_op_decision_check
