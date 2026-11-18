@@ -87,11 +87,25 @@ export function aResolver(
  *   primero se quita y vuelve a "sin decidir"; no salta de observado a aprobado.
  */
 export function aDecidir<L extends Pick<LineaAprobacion, "id" | "unidad" | "aprobador_id" | "decision">>(
-  lineas: L[], usuario: { id: number; role: string }, renglon?: { id: string; unidad: string },
+  lineas: L[], usuario: { id: number; role: string }, renglon?: { id: string; unidad: string }, decision?: Decision,
 ): L[] {
   if (!renglon) return lineas.filter((l) => decide(l, usuario) && l.decision == null);
+  // Aprobar una que ya está aprobada no agrega nada: se saltea.
   return lineas.filter((l) => l.id === renglon.id && l.unidad === renglon.unidad && decide(l, usuario)
-    && l.decision !== "Observada" && l.decision !== "Bloqueada");
+    && l.decision !== "Observada" && l.decision !== "Bloqueada" && !(decision === "Aprobada" && l.decision === "Aprobada"));
+}
+
+/**
+ * Qué renglones vuelven a "sin decidir" al quitar una decisión. Sin renglón, según `cual`:
+ * los frenados (observados o bloqueados) o los aprobados. Con renglón, esa factura sola,
+ * tenga la decisión que tenga. Siempre los que puede quitar quien entra (`quita`).
+ */
+export function aQuitar<L extends Pick<LineaAprobacion, "id" | "unidad" | "aprobador_id" | "decision">>(
+  lineas: L[], usuario: { id: number; role: string }, cual: "frenadas" | "aprobadas", renglon?: { id: string; unidad: string },
+): L[] {
+  return lineas.filter((l) => quita(l, usuario) && (renglon
+    ? l.id === renglon.id && l.unidad === renglon.unidad
+    : cual === "aprobadas" ? l.decision === "Aprobada" : l.decision === "Observada" || l.decision === "Bloqueada"));
 }
 
 /**

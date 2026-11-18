@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aDecidir, aResolver, chequeosOP, decide, diferenciaRemito, noCruzaRenglon, pendientesOP, quita, subasDePrecio, type ItemLinea } from "./estados";
+import { aDecidir, aQuitar, aResolver, chequeosOP, decide, diferenciaRemito, noCruzaRenglon, pendientesOP, quita, subasDePrecio, type ItemLinea } from "./estados";
 
 const item = (precio: string | null, anterior: string | null): ItemLinea =>
   ({ descripcion: "Cemento x 50 kg", cantidad: "10", precio, anterior, anterior_fecha: "2026-10-01" });
@@ -43,6 +43,17 @@ describe("aDecidir", () => {
     expect(aDecidir([...ls], yo, { id: "2", unidad: "UN-01" })).toHaveLength(1);
     expect(aDecidir([...ls], yo, { id: "3", unidad: "UN-01" })).toHaveLength(0);
     expect(aDecidir([...ls], yo, { id: "4", unidad: "UN-02" })).toHaveLength(0);
+  });
+  it("aprobar una ya aprobada no agrega nada; observarla sí", () => {
+    expect(aDecidir([...ls], yo, { id: "2", unidad: "UN-01" }, "Aprobada")).toHaveLength(0);
+    expect(aDecidir([...ls], yo, { id: "2", unidad: "UN-01" }, "Observada")).toHaveLength(1);
+  });
+  it("quitar: por tipo sin renglón; con renglón, esa factura con la decisión que tenga", () => {
+    expect(aQuitar([...ls], yo, "frenadas").map((l) => l.id)).toEqual(["3"]);
+    expect(aQuitar([...ls], yo, "aprobadas").map((l) => l.id)).toEqual(["2"]);
+    expect(aQuitar([...ls], yo, "frenadas", { id: "2", unidad: "UN-01" }).map((l) => l.id)).toEqual(["2"]);
+    expect(aQuitar([...ls], yo, "frenadas", { id: "1", unidad: "UN-01" })).toHaveLength(0);
+    expect(aQuitar([...ls], { id: 1, role: "admin" }, "frenadas", { id: "3", unidad: "UN-01" })).toHaveLength(1);
   });
 });
 

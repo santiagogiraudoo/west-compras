@@ -11,7 +11,7 @@ import { faltantesProveedor } from "@/lib/facturas/requisitos";
 import { problemaConstancia } from "@/lib/op/constancias";
 import { leerComprobante, type ResultadoLectura } from "@/lib/pagos/leer-comprobante";
 import { calcularPago, RETENCIONES, type DatosPago } from "@/lib/op/pago";
-import { aDecidir, aResolver, noCruzaRenglon, quita, SE_DECIDE, SE_DESCARTA, SE_QUITA, SE_SACA, type Decision } from "@/lib/op/estados";
+import { aDecidir, aQuitar, aResolver, noCruzaRenglon, quita, SE_DECIDE, SE_DESCARTA, SE_QUITA, SE_SACA, type Decision } from "@/lib/op/estados";
 import { DIAS_MISMA_COMPRA, evaluarTope } from "@/lib/op/topes";
 import { dolarBlue } from "@/lib/dolar";
 import { estadoOP, listarOPsApp } from "@/lib/op/queries";
@@ -203,7 +203,7 @@ export async function decidirOP(
   const esta = (await listarOPsApp(SE_DECIDE)).find((o) => o.numero === numero);
   if (!esta) return { ok: false, mensaje: "La OP no está para aprobar." };
   // Sin renglón: los propios sin decidir. Con renglón: esa factura sola.
-  const mias = resolver ? esta.lineas.filter((l) => aResolver(l, u)) : aDecidir(esta.lineas, u, renglon);
+  const mias = resolver ? esta.lineas.filter((l) => aResolver(l, u)) : aDecidir(esta.lineas, u, renglon, decision);
   if (mias.length === 0) {
     return { ok: false, mensaje: resolver ? "No hay renglones observados por otros para resolver."
       : renglon ? "Esa factura no es tuya o está frenada: primero quitá la observación."
@@ -226,16 +226,19 @@ export async function decidirOP(
  * estado. Vale también con la OP Autorizada, mientras no se pagó: así sale de Para pagar.
  * Se agrega una decisión 'Quitada' con su comentario; app.v_aprobacion_linea la saltea (sql/013).
  */
-export async function quitarObservacionOP(numero: string, comentario: string, cual: "frenadas" | "aprobadas" = "frenadas"): Promise<ResultadoOP> {
+export async function quitarObservacionOP(
+  numero: string, comentario: string, cual: "frenadas" | "aprobadas" = "frenadas", renglon?: { id: string; unidad: string },
+): Promise<ResultadoOP> {
   const u = await usuario();
   if (!u || u.role === "consulta") return { ok: false, mensaje: "No tenés permiso para cambiar la aprobación." };
   if (comentario.trim().length < 5) return { ok: false, mensaje: "Escribí por qué se quita (al menos 5 letras)." };
 
   const esta = (await listarOPsApp(SE_QUITA)).find((o) => o.numero === numero);
   if (!esta) return { ok: false, mensaje: "La OP ya no se puede cambiar (pagada o descartada)." };
-  const frenadas = esta.lineas.filter((l) => quita(l, u)
-    && (cual === "aprobadas" ? l.decision === "Aprobada" : l.decision === "Observada" || l.decision === "Bloqueada"));
+  // Sin renglón: las frenadas o las aprobadas. Con renglón: esa factura sola.
+  const frenadas = aQuitar(esta.lineas, u, cual, renglon);
   if (frenadas.length === 0) {
+    if (renglon) return { ok: false, mensaje: "Esa factura no tiene una decisión que puedas quitar." };
     return { ok: false, mensaje: cual === "aprobadas" ? "No hay renglones aprobados que puedas quitar." : "No hay renglones observados o bloqueados que puedas quitar." };
   }
 
@@ -246,7 +249,7 @@ export async function quitarObservacionOP(numero: string, comentario: string, cu
   );
   revalidar();
   const n = frenadas.length;
-  const que = cual === "aprobadas" ? (n === 1 ? "se quitó la aprobación" : `se quitaron ${n} aprobaciones`) : (n === 1 ? "se quitó la observación" : `se quitaron ${n} observaciones`);
+  const que = renglon ? "se quitó la decisión de la factura" : cual === "aprobadas" ? (n === 1 ? "se quitó la aprobación" : `se quitaron ${n} aprobaciones`) : (n === 1 ? "se quitó la observación" : `se quitaron ${n} observaciones`);
   return { ok: true, mensaje: `${numero}: ${que}; vuelve a esperar decisión` };
 }
 
