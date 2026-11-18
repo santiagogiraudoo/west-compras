@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { armarExtracto, resumirDeuda, sumarDias, validarSeleccionOP, type Abierto } from "./calculos";
+import { armarExtracto, porVencerSinOP, resumirDeuda, sumarDias, validarSeleccionOP, type Abierto } from "./calculos";
 
 const ab = (o: Partial<Abierto>): Abierto => ({
   id: "1", proveedor_codigo: "PR-1", razon_social: "Corralón", unidad_codigo: "UN-01", facturado_a: "Doblege",
@@ -80,5 +80,24 @@ describe("validarSeleccionOP", () => {
 
   it("vacía no se puede", () => {
     expect(validarSeleccionOP([]).errores).toEqual(["Elegí al menos una factura"]);
+  });
+});
+
+describe("porVencerSinOP", () => {
+  const hoy = "2026-11-18";
+  it("con plazo, sin OP, que vence en 7 días o ya venció; la que vence primero arriba", () => {
+    const r = porVencerSinOP([
+      ab({ id: "1", proveedor_codigo: "PR-1", vencimiento: "2026-11-22", libre: "100" }),
+      ab({ id: "2", proveedor_codigo: "PR-1", vencimiento: "2026-11-20", libre: "50" }),
+      ab({ id: "3", proveedor_codigo: "PR-2", razon_social: "Pinturería", vencimiento: "2026-11-15", libre: "30" }),
+      ab({ id: "4", proveedor_codigo: "PR-3", vencimiento: "2026-11-25", libre: "10" }), // vence el día 7: afuera
+      ab({ id: "5", proveedor_codigo: "PR-4", vencimiento: "2026-11-20", libre: "0", en_op: "80" }), // ya en OP
+      ab({ id: "6", proveedor_codigo: "PR-5", fecha: "2026-11-17", vencimiento: "2026-11-17" }), // contado
+      ab({ id: "7", proveedor_codigo: "PR-6", vencimiento: null }), // sin vencimiento
+    ], hoy);
+    expect(r).toEqual([
+      { proveedor_codigo: "PR-2", razon_social: "Pinturería", facturas: 1, libre: "30.00", vence: "2026-11-15" },
+      { proveedor_codigo: "PR-1", razon_social: "Corralón", facturas: 2, libre: "150.00", vence: "2026-11-20" },
+    ]);
   });
 });

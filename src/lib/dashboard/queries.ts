@@ -31,10 +31,14 @@ export interface Tiempos {
   pagadas: number;
   /** Mediana de días entre la fecha de la factura y el pago. */
   factura_a_pago: number | null;
-  /** Mediana de días entre el vencimiento y el pago (positivo: tarde). */
+  /** Pagadas con plazo pactado (vencen después de emitirse): las únicas donde "en término" dice algo. */
+  con_plazo: number;
+  /** Mediana de días entre el vencimiento y el pago, con plazo (positivo: tarde). */
   atraso: number | null;
-  /** Porcentaje de las pagadas con vencimiento que salieron en término. */
+  /** Porcentaje de las pagadas con plazo que salieron en término. */
   en_termino: number | null;
+  /** Mediana de días entre la factura y el pago, de las que vencen el día que se emiten. */
+  contado_a_pago: number | null;
   /** Mediana de días entre la fecha de la factura y su carga (plomero o lectura con Claude). */
   carga: number | null;
   /** Mediana de días entre que la factura entra a la base y sale la plata. */
@@ -56,12 +60,27 @@ export async function tiempos(hoy: string): Promise<Tiempos> {
     select
       (select count(*)::int from recientes) as pagadas,
       (select percentile_cont(0.5) within group (order by pago - fecha)::int from recientes) as factura_a_pago,
-      (select percentile_cont(0.5) within group (order by pago - vencimiento)::int from recientes where vencimiento is not null) as atraso,
-      (select round(100.0 * count(*) filter (where pago <= vencimiento) / nullif(count(*), 0))::int from recientes where vencimiento is not null) as en_termino,
+      -- Contado o sin condición de pago: vencen el día que se emiten, así que siempre
+      -- "salen tarde". El término se mide solo con plazo pactado; lo otro, en días.
+      (select count(*)::int from recientes where vencimiento > fecha) as con_plazo,
+      (select percentile_cont(0.5) within group (order by pago - vencimiento)::int from recientes where vencimiento > fecha) as atraso,
+      (select round(100.0 * count(*) filter (where pago <= vencimiento) / nullif(count(*), 0))::int from recientes where vencimiento > fecha) as en_termino,
+      (select percentile_cont(0.5) within group (order by pago - fecha)::int from recientes where vencimiento is null or vencimiento <= fecha) as contado_a_pago,
       (select percentile_cont(0.5) within group (order by (c.creado_en at time zone 'America/Argentina/Mendoza')::date - c.fecha)::int
         from cc.comprobantes c join cc.unidades u on u.codigo = c.unidad_codigo and u.marca = ${MARCA}
         where c.origen in ('claude', 'plomero') and c.creado_en >= ${hoy}::date - 90) as carga,
       -- La fecha de la OP de ClickUp es la del pago: se mide desde la carga de la factura.
       (select percentile_cont(0.5) within group (order by pago - cargada)::int from recientes where origen in ('claude', 'plomero')) as carga_a_pago`;
   return t;
+}
+
+/** Proveedores sin condición de pago con facturas en los últimos 90 días: sus facturas vencen el día que se emiten. */
+export async function sinCondicionDePago(hoy: string): Promise<{ codigo: string; razon_social: string; facturas: number; total: string }[]> {
+  return prisma.$queryRaw`
+    select p.codigo, p.razon_social, count(*)::int as facturas, sum(c.total)::text as total
+    from cc.comprobantes c
+    join cc.unidades u on u.codigo = c.unidad_codigo and u.marca = ${MARCA}
+    join cc.proveedores p on p.codigo = c.proveedor_codigo
+    where c.estado_aprobacion <> 'Anulado' and c.fecha >= ${hoy}::date - 90 and coalesce(trim(p.condicion_pago), '') = ''
+    group by 1, 2 order by 3 desc`;
 }
