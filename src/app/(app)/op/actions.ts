@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import Decimal from "decimal.js";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hoyArgentina, listarAbiertos } from "@/lib/cuenta/queries";
@@ -132,8 +133,8 @@ export async function decidirOP(numero: string, decision: Decision, comentario: 
 
   await prisma.$transaction(
     mias.map((l) => prisma.$executeRaw`
-      insert into app.aprobaciones_op (op_numero, comprobante_id, decision, motivo, usuario_id, usuario)
-      values (${numero}, ${BigInt(l.id)}, ${decision}, ${comentario.trim() || null}, ${u.id}, ${u.name})`),
+      insert into app.aprobaciones_op (op_numero, comprobante_id, unidad_codigo, decision, motivo, usuario_id, usuario)
+      values (${numero}, ${BigInt(l.id)}, ${l.unidad}, ${decision}, ${comentario.trim() || null}, ${u.id}, ${u.name})`),
   );
   revalidar();
   const n = mias.length;
@@ -239,8 +240,11 @@ export async function pagarOP(numero: string, form: FormData): Promise<Resultado
   for (const r of RETENCIONES) fila[r.campo] = p.retenciones[r.clave];
   if (datos.referencia.trim()) fila["Referencia bancaria"] = datos.referencia.trim();
   // Las imputaciones van de nuevo, iguales: cargar_pagos las cuenta como ya cargadas.
-  const imputaciones = op.lineas.map((l) => ({
-    "N° OP": numero, "Comprobante (clave)": `${op.proveedor_codigo}|${l.numero}`, "Importe imputado": l.importe,
+  // Una factura partida en renglones por unidad es una sola imputación: se suman sus partes.
+  const porFactura = new Map<string, Decimal>();
+  for (const l of op.lineas) porFactura.set(l.numero, (porFactura.get(l.numero) ?? new Decimal(0)).plus(l.importe));
+  const imputaciones = [...porFactura].map(([factura, importe]) => ({
+    "N° OP": numero, "Comprobante (clave)": `${op.proveedor_codigo}|${factura}`, "Importe imputado": importe.toFixed(2),
   }));
 
   try {

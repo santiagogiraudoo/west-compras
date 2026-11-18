@@ -43,16 +43,17 @@ export async function listarOPsApp(estados?: EstadoOP[]): Promise<OPConLineas[]>
       order by o.numero`,
     prisma.$queryRaw<LineaAprobacion[]>`
       select i.op_numero, c.id::text, c.tipo, c.numero, c.fecha::text, c.vencimiento::text,
-        c.unidad_codigo as unidad, un.nombre as unidad_nombre, i.importe::text, c.archivo_link,
+        i.unidad_codigo as unidad, un.nombre as unidad_nombre, i.importe::text, i.partida, c.archivo_link,
         coalesce(c.retiro_por, r.retiro_por) as quien,
         coalesce(it.para_que, c.descripcion) as para_que,
         (r.n > 0 or c.retiro_por is not null) as tiene_remito,
         l.decision, l.motivo, l.usuario, (l.creado_en at time zone 'America/Argentina/Mendoza')::date::text as decidido_en,
         au.id as aprobador_id, au.name as aprobador, it.items
-      from cc.imputaciones i
+      -- Un renglón por factura y unidad: una factura con ítems de varias unidades se parte.
+      from app.v_op_renglones i
       join app.v_op_estado e on e.op_numero = i.op_numero and e.estado not in ('Pagada', 'Descartada')
       join cc.comprobantes c on c.id = i.comprobante_id
-      left join cc.unidades un on un.codigo = c.unidad_codigo
+      left join cc.unidades un on un.codigo = i.unidad_codigo
       left join lateral (
         select count(*) as n, string_agg(distinct rm.retiro_por, ', ') as retiro_por
         from cc.remitos rm where rm.comprobante_id = c.id) r on true
@@ -72,13 +73,14 @@ export async function listarOPsApp(estados?: EstadoOP[]): Promise<OPConLineas[]>
               and lower(trim(ci2.descripcion)) = lower(trim(ci.descripcion))
               and ci2.precio_unitario > 0 and coalesce(c2.estado_aprobacion, '') <> 'Anulado'
             order by c2.fecha desc, c2.id desc limit 1) prev on true
-          where ci.comprobante_id = c.id) x) it on true
+          where ci.comprobante_id = c.id
+            and coalesce(ci.unidad_codigo, c.unidad_codigo) is not distinct from i.unidad_codigo) x) it on true
       left join app.v_aprobacion_linea l on l.op_numero = i.op_numero and l.comprobante_id = i.comprobante_id
-      left join app.aprobadores ap on ap.unidad_codigo = c.unidad_codigo
+        and l.unidad_codigo is not distinct from i.unidad_codigo
+      left join app.aprobadores ap on ap.unidad_codigo = i.unidad_codigo
       -- Un aprobador inactivo o de consulta no puede decidir: el renglón queda para un admin.
       left join app.users au on au.id = ap.usuario_id and au.active and au.role in ('admin', 'operador')
-      where i.importe <> 0
-      order by i.op_numero, c.fecha, c.numero`,
+      order by i.op_numero, c.fecha, c.numero, i.unidad_codigo`,
   ]);
   return ops
     .filter((o) => !estados || estados.includes(o.estado))

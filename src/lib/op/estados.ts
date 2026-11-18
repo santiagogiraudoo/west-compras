@@ -33,6 +33,8 @@ export interface LineaAprobacion {
   unidad: string;
   unidad_nombre: string;
   importe: string;
+  /** La factura tiene ítems de varias unidades: este renglón es la parte de una. */
+  partida: boolean;
   archivo_link: string | null;
   quien: string | null;
   para_que: string | null;
@@ -165,7 +167,7 @@ export function chequeosOP(
   const sinPdf = lineas.filter((l) => !l.archivo_link && l.tipo !== "Sin factura");
   const subas = subasDePrecio(lineas);
   const sinHistoria = !lineas.some((l) => (l.items ?? []).some((i) => i.precio && i.anterior));
-  const nombres = (ls: { tipo: string; numero: string }[]) => ls.map((l) => l.numero).join(", ");
+  const nombres = (ls: { tipo: string; numero: string }[]) => [...new Set(ls.map((l) => l.numero))].join(", ");
   return [
     { clave: "remito", ok: sinRemito.length === 0,
       texto: sinRemito.length === 0 ? "Cruza con remito" : `Sin remito: ${nombres(sinRemito)}` },

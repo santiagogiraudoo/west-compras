@@ -29,6 +29,7 @@ export function TarjetaOP({ op, usuario, deuda, ultimas }: Props) {
   const chequeos = chequeosOP(op.lineas, op.faltan);
   const subas = subasDePrecio(op.lineas);
   const unidades = [...new Set(op.lineas.map((l) => l.unidad_nombre || l.unidad))].join(", ");
+  const partidas = op.lineas.some((l) => l.partida);
   const vence = vencimientoOP(op.lineas);
   const puede = mias.length > 0 && SE_DECIDE.includes(op.estado);
   const resuelve = resolvibles.length > 0 && SE_DECIDE.includes(op.estado);
@@ -65,11 +66,16 @@ export function TarjetaOP({ op, usuario, deuda, ultimas }: Props) {
             </tr>
           </thead>
           <tbody>
-            {[...mias, ...resolvibles, ...otras].map((l) => <Renglon key={l.id} l={l} mio={!otras.includes(l)} />)}
+            {[...mias, ...resolvibles, ...otras].map((l) => <Renglon key={`${l.id}-${l.unidad}`} l={l} mio={!otras.includes(l)} />)}
           </tbody>
         </table>
       </div>
 
+      {partidas && (
+        <p className="border-t px-4 py-2 text-xs text-muted-foreground">
+          Hay facturas con ítems de varias unidades: cada parte la aprueba quien aprueba su unidad (monto en proporción a sus ítems).
+        </p>
+      )}
       <footer className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3">
         <details className="group text-xs [&_summary]:cursor-pointer">
           <summary className="text-primary underline-offset-2 hover:underline">Ver más</summary>
@@ -107,7 +113,7 @@ function Renglon({ l, mio }: { l: LineaAprobacion; mio: boolean }) {
       <td className="px-2 py-1.5">{formatDate(l.fecha)} → {l.vencimiento ? formatDate(l.vencimiento) : "—"}</td>
       <td className="px-2 py-1.5">{l.quien ?? "—"}</td>
       <td className="max-w-[260px] truncate px-2 py-1.5" title={l.para_que ?? ""}>{l.para_que ?? "—"}</td>
-      <td className="px-2 py-1.5">{l.unidad_nombre || l.unidad}</td>
+      <td className="px-2 py-1.5">{l.unidad_nombre || l.unidad}{l.partida ? <span className="text-xs text-muted-foreground"> (parte)</span> : null}</td>
       <td className="px-2 py-1.5 text-right">{$(l.importe)}</td>
       <td className="max-w-[280px] truncate px-4 py-1.5 text-xs" title={l.motivo ?? ""}>{estado}</td>
     </tr>
