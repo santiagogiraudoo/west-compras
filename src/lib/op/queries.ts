@@ -46,7 +46,9 @@ export async function listarOPsApp(estados?: EstadoOP[]): Promise<OPConLineas[]>
         i.unidad_codigo as unidad, un.nombre as unidad_nombre, i.importe::text, i.partida, c.archivo_link,
         coalesce(c.retiro_por, r.retiro_por) as quien, r.importe::text as remito_importe,
         c.total::text as factura_total, c.neto::text as factura_neto,
-        coalesce(it.para_que, c.descripcion) as para_que,
+        -- Para qué: solo lo cargado en los renglones. La nota de la factura (descripcion)
+        -- es de cuando se procesa la factura ("revisada OK", CAE, remitos) y no va acá.
+        it.para_que as para_que,
         (r.n > 0 or c.retiro_por is not null) as tiene_remito,
         l.decision, l.motivo, l.usuario, (l.creado_en at time zone 'America/Argentina/Mendoza')::date::text as decidido_en,
         au.id as aprobador_id, au.name as aprobador, it.items
