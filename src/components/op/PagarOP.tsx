@@ -11,7 +11,7 @@ import { DateInput } from "@/components/ui/date-input";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { MoneyCell } from "@/components/shared/MoneyCell";
 import { Copiar } from "@/components/shared/Copiar";
@@ -115,9 +115,9 @@ export function PagarOP({ numero, proveedor, total, medio: medioInicial, hoy, cb
 
   return (
     <Dialog open={abierto} onOpenChange={setAbierto}>
-      <DialogTrigger asChild>
-        <Button size="sm"><Banknote className="h-4 w-4" /> Registrar pago</Button>
-      </DialogTrigger>
+      {/* Botón común en vez de DialogTrigger: el aria-controls que le pone Radix no
+          coincidía entre el server y el navegador y React avisaba de la hidratación. */}
+      <Button size="sm" onClick={() => setAbierto(true)}><Banknote className="h-4 w-4" /> Registrar pago</Button>
       <DialogContent className="flex max-h-[88vh] flex-col gap-0 overflow-hidden border-l-[3px] border-l-[#1B4332] p-0 sm:max-w-2xl">
         <DialogHeader className="border-b bg-[#FFFEFC] px-6 pt-5 pb-3">
           <DialogTitle className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[#1B4332]">
