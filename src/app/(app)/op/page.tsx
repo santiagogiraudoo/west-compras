@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Decimal from "decimal.js";
 import {
-  Archive, Banknote, CheckCircle, Clock, FilePlus, ListChecks, MessageSquareWarning, PenLine, Users, Workflow, type LucideIcon,
+  Archive, Banknote, CheckCircle, TriangleAlert, Clock, FilePlus, ListChecks, MessageSquareWarning, PenLine, Users, Workflow, type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MoneyCell } from "@/components/shared/MoneyCell";
@@ -16,7 +16,9 @@ import { formatDate } from "@/lib/utils";
 import { auth } from "@/lib/auth";
 import { hoyArgentina, listarAbiertos, listarOPAbiertas } from "@/lib/cuenta/queries";
 import { aResolver, decide, diasEntre } from "@/lib/op/estados";
-import { contextoProveedores, listarCerradas, listarOPsApp, type OPConLineas } from "@/lib/op/queries";
+import { contextoProveedores, facturasDeOP, listarCerradas, listarOPsApp, type OPConLineas } from "@/lib/op/queries";
+import { problemasOP } from "@/lib/op/controles";
+import { prisma } from "@/lib/prisma";
 import { medioSugerido, vencimientoOP } from "@/lib/op/pago";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +49,10 @@ export default async function OPPage({ searchParams }: { searchParams: Promise<{
     .sort((a, b) => (a.vence ?? "9999").localeCompare(b.vence ?? "9999"));
   const libres = porProveedor(abiertos.filter((a) => Number(a.libre) > 0.5));
   const teToca = enAprobacion.filter((o) => o.estado === "A aprobar" && o.lineas.some((l) => decide(l, usuario) && !l.decision));
+  // Lo que frena cada OP viva (factura anulada, la misma en ClickUp, imputada de más):
+  // se avisa en la tarjeta y la base lo vuelve a frenar al pagar.
+  const vivas = [...enArmado, ...enAprobacion, ...autorizadas];
+  const frenos = Object.fromEntries(await Promise.all(vivas.map(async (o) => [o.numero, problemasOP(await facturasDeOP(prisma, o.numero))] as const)));
 
   const pasos: PasoInfo[] = [
     { clave: "armar", numero: 1, label: "Armar", icon: FilePlus, n: enArmado.length + libres.length,
@@ -92,14 +98,14 @@ export default async function OPPage({ searchParams }: { searchParams: Promise<{
         </div>
       )}
 
-      {activo === "aprobar" && <PasoAprobar ops={enAprobacion} usuario={usuario} hoy={hoy} />}
+      {activo === "aprobar" && <PasoAprobar ops={enAprobacion} usuario={usuario} hoy={hoy} frenos={frenos} />}
 
       {activo === "pagar" && (
         <Seccion titulo="Autorizadas" n={autorizadas.length} ayuda="La que vence primero arriba. Al registrar el pago se sube el comprobante y se lee solo."
           total={suma(autorizadas.map((o) => o.total_imputado))}>
           {autorizadas.length === 0 ? <Vacio>No hay OP autorizadas para pagar.</Vacio> : (
             <div className="space-y-4">
-              {autorizadas.map((o) => <TarjetaPago key={o.numero} o={o} hoy={hoy} paga={edita} />)}
+              {autorizadas.map((o) => <TarjetaPago key={o.numero} o={o} hoy={hoy} paga={edita} problemas={frenos[o.numero] ?? []} />)}
             </div>
           )}
         </Seccion>
@@ -190,7 +196,9 @@ function TablaLibres({ libres, hoy, puede }: { libres: Libre[]; hoy: string; pue
  * Paso 2: una tarjeta por OP. Arriba lo que le toca a quien entra (facturas de sus
  * unidades sin decidir); después las observadas y bloqueadas; al final lo que espera a otros.
  */
-async function PasoAprobar({ ops, usuario, hoy }: { ops: OPConLineas[]; usuario: { id: number; role: string }; hoy: string }) {
+async function PasoAprobar({ ops, usuario, hoy, frenos }: {
+  ops: OPConLineas[]; usuario: { id: number; role: string }; hoy: string; frenos: Record<string, string[]>;
+}) {
   const { deuda, ultimas } = await contextoProveedores([...new Set(ops.map((o) => o.proveedor_codigo))]);
   const teToca = ops.filter((o) => o.estado === "A aprobar" && o.lineas.some((l) => decide(l, usuario) && !l.decision));
   const puedeResolver = (o: OPConLineas) => o.lineas.some((l) => decide(l, usuario) || aResolver(l, usuario));
@@ -209,7 +217,10 @@ async function PasoAprobar({ ops, usuario, hoy }: { ops: OPConLineas[]; usuario:
     { label: "Esperando a otros", v: String(deOtros.length), nota: "nada tuyo para decidir", icon: Users, tono: "bg-emerald-50 text-emerald-600" },
   ];
   const lista = (l: OPConLineas[]) => l.map((o) => (
-    <TarjetaOP key={o.numero} op={o} usuario={usuario} deuda={deuda[o.proveedor_codigo] ?? null} ultimas={ultimas[o.proveedor_codigo] ?? []} />
+    <div key={o.numero} className="space-y-2">
+      <Frenos problemas={frenos[o.numero] ?? []} numero={o.numero} />
+      <TarjetaOP op={o} usuario={usuario} deuda={deuda[o.proveedor_codigo] ?? null} ultimas={ultimas[o.proveedor_codigo] ?? []} />
+    </div>
   ));
 
   if (ops.length === 0) return <Vacio>No hay OP esperando aprobación.</Vacio>;
@@ -238,7 +249,7 @@ async function PasoAprobar({ ops, usuario, hoy }: { ops: OPConLineas[]; usuario:
 }
 
 /** Paso 3: la OP autorizada con la cuenta para copiar y el botón para registrar el pago. */
-function TarjetaPago({ o, hoy, paga }: { o: OPConLineas & { vence: string | null }; hoy: string; paga: boolean }) {
+function TarjetaPago({ o, hoy, paga, problemas }: { o: OPConLineas & { vence: string | null }; hoy: string; paga: boolean; problemas: string[] }) {
   const vencida = o.vence != null && o.vence < hoy;
   const unidades = [...new Set(o.lineas.map((l) => l.unidad_nombre || l.unidad))].join(", ");
   return (
@@ -256,6 +267,7 @@ function TarjetaPago({ o, hoy, paga }: { o: OPConLineas & { vence: string | null
           <MoneyCell value={Number(o.total_imputado)} currency="ARS" decimals={0} className="block text-[20px] font-semibold leading-7 text-primary" />
         </div>
       </div>
+      {problemas.length > 0 && <div className="px-5 pt-4"><Frenos problemas={problemas} numero={o.numero} /></div>}
       <div className="flex flex-wrap items-end justify-between gap-4 px-5 py-4">
         <dl className="grid gap-x-8 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
           <Dato k="CBU / CVU"><Copiar etiqueta="CBU" valor={o.cbu} /></Dato>
@@ -270,11 +282,22 @@ function TarjetaPago({ o, hoy, paga }: { o: OPConLineas & { vence: string | null
             <Link href={`/op/${o.numero}`} className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-primary hover:underline">
               Revisar facturas o quitar aprobación
             </Link>
-            <PagarOP numero={o.numero} proveedor={o.razon_social} total={o.total_imputado} medio={medioSugerido(o.medio_pago_habitual)} hoy={hoy} cbu={o.cbu} alias={o.alias} />
+            {problemas.length === 0 && <PagarOP numero={o.numero} proveedor={o.razon_social} total={o.total_imputado} medio={medioSugerido(o.medio_pago_habitual)} hoy={hoy} cbu={o.cbu} alias={o.alias} />}
           </div>
         )}
       </div>
     </FichaCard>
+  );
+}
+
+/** Lo que frena una OP: no se puede pagar (ni mandar a aprobar) hasta resolverlo. */
+function Frenos({ problemas, numero }: { problemas: string[]; numero: string }) {
+  if (problemas.length === 0) return null;
+  return (
+    <div className="rounded-md border-l-[3px] border-l-[#dc2626] bg-[#fef2f2] px-3 py-2 text-[13px] text-[#991b1b]">
+      <p className="flex items-center gap-1.5 font-semibold"><TriangleAlert className="h-4 w-4" /> {numero} no se puede pagar así</p>
+      <ul className="mt-1 list-disc space-y-0.5 pl-5">{problemas.map((t) => <li key={t}>{t}</li>)}</ul>
+    </div>
   );
 }
 
