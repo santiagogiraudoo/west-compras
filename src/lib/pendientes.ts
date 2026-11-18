@@ -9,6 +9,12 @@ export interface Pendiente {
   detalle: string | null;
   /** Dónde se resuelve, si es algo de la app. */
   href?: string;
+  /** Código del proveedor, para llevar a su cuenta o a su ficha. */
+  codigo?: string | null;
+  /** De cc.v_alertas: alta, media o baja. */
+  severidad?: string | null;
+  /** A qué apunta (número de factura u OP), para buscarla. */
+  ref?: string | null;
 }
 
 /**
@@ -24,17 +30,18 @@ export interface Pendiente {
 export async function listarPendientes(): Promise<Pendiente[]> {
   const filas = await prisma.$queryRaw<(Pendiente & { orden: number })[]>`
     with p as (
-      select 'alerta' as origen, tipo, codigo as prov, proveedor, detalle, orden,
+      select 'alerta' as origen, tipo, codigo as prov, proveedor, detalle, orden, severidad,
         split_part(id, '|', -1) as ref
       from cc.v_alertas
       union all
-      select 'calidad', problema, proveedor_codigo, proveedor_codigo, detalle, 100, clave
-      from cc.v_calidad)
-    select origen, tipo, proveedor, detalle, orden from p
+      -- v_calidad trae el código del proveedor: se muestra su razón social.
+      select 'calidad', q.problema, q.proveedor_codigo, coalesce(pr.razon_social, q.proveedor_codigo), q.detalle, 100, null, q.clave
+      from cc.v_calidad q left join cc.proveedores pr on pr.codigo = q.proveedor_codigo)
+    select origen, tipo, proveedor, detalle, orden, severidad, prov as codigo, ref from p
     where not exists (
         select 1 from cc.comprobantes c join cc.unidades u on u.codigo = c.unidad_codigo
         where c.proveedor_codigo = p.prov and c.numero = p.ref and u.marca <> ${MARCA})
       and not exists (select 1 from cc.v_orden_pago v where v.numero = p.ref and v.marca <> ${MARCA})
     order by orden, tipo`;
-  return filas.map(({ origen, tipo, proveedor, detalle }) => ({ origen, tipo, proveedor, detalle }));
+  return filas.map(({ origen, tipo, proveedor, detalle, severidad, codigo, ref }) => ({ origen, tipo, proveedor, detalle, severidad, codigo, ref }));
 }
