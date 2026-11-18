@@ -52,11 +52,16 @@ Ciclo de la OP armada en la app: **En armado → A aprobar → Autorizada → Pa
 7. **Inicio**: OP en armado, esperando a alguien ("esperando a X hace N días"), observadas o bloqueadas, y autorizadas para pagar.
 8. **Sin doble pago con ClickUp**: una factura que una OP prevista de ClickUp lleva en `cc.op_cc` no se puede poner en otra OP (en production eran 33 facturas, $16,2 millones).
 
+9. **Topes** (`src/lib/op/topes.ts`): al mandar la OP a aprobar, el renglón que cruza (remito firmado que cierra con la factura por menos de $1, PDF, precio sin suba) y queda dentro del tope de su unidad sale aprobado solo, con el motivo guardado (US$, tope y cotización). Dólar blue promedio de dolarapi.com. El tope por compra suma lo del mismo proveedor y unidad de 7 días (no se parte una compra); el del mes, lo aprobado en la unidad. Sin tope cargado o sin cotización, pide firma.
+10. **Factura con ítems de varias unidades**: el renglón es (factura, unidad); `app.v_op_renglones` reparte lo imputado en proporción a los ítems y cada parte la aprueba quien aprueba su unidad (`sql/011`).
+11. **Cruce factura ↔ remito**: tolerancia cero (menos de $1) contra el total o el neto. Solo cuentan remitos firmados (estado ok; "falta" es sin firmar).
+12. **Gastos** (`/gastos`, `sql/012`): cada renglón pagado es un gasto de su unidad y, si la unidad es una propiedad o grupo de la app de alquileres, de esa propiedad (`app.unidades_destino`; Nevado Golf mitad y mitad, Olascoaga 23/77). Lo deriva `app.v_gastos`; no se guarda nada.
+
 Falta (espera respuestas):
-- **Topes**: con topes, el renglón que cruza compra, remito y factura dentro del tope se aprueba solo ("se aprueba una sola vez"). Los define Santiago.
+- **Montos de los topes**: los carga Santiago en Configuración. Hasta entonces todo renglón pide firma.
+- **Destinos a confirmar** en `app.unidades_destino`: West Club (¿también "Casa WEST CLUB"?), West Mall (Local 209 suelto), Olascoaga (Piso 3 y Azotea).
 - **Retenciones calculadas**: falta el doc de Candela.
 - **Aviso por WhatsApp** a quien aprueba: falta número/API.
 - **Comprobante en SharePoint**: mientras no haya permiso de escritura, el archivo queda en `app.comprobantes_pago`.
-- **Factura con ítems de varias unidades**, partida por ítem: caso raro, no entra en esta versión.
 
-**Antes de unir esta rama a main:** aplicar `sql/009` y `sql/010` en production, porque Vercel production ya lee la base real.
+**Antes de unir esta rama a main:** aplicar `sql/011` y `sql/012` en production (`009` y `010` ya están, 18/11).
