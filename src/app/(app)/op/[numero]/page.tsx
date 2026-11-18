@@ -22,7 +22,8 @@ export default async function FichaOPPage({ params }: { params: Promise<{ numero
   const { numero } = await params;
   const session = await auth();
   const usuario = { id: (session?.user as { id: number } | undefined)?.id ?? 0, role: session?.user?.role ?? "consulta" };
-  const op = (await listarOPsApp()).find((o) => o.numero === decodeURIComponent(numero));
+  // Esa sola, esté como esté: pagada o descartada también tiene ficha (el histórico linkea acá).
+  const [op] = await listarOPsApp(undefined, decodeURIComponent(numero));
   if (!op) notFound();
   const [{ deuda, ultimas }, constancias, historial] = await Promise.all([
     contextoProveedores([op.proveedor_codigo]),

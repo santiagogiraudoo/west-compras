@@ -1,4 +1,5 @@
 import { MARCA } from "@/lib/marca";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { faltantesProveedor, type DatosProveedor } from "@/lib/facturas/requisitos";
 import type { EstadoOP, LineaAprobacion } from "./estados";
@@ -28,8 +29,13 @@ export interface OPConLineas extends OPApp {
   faltan: string[];
 }
 
-/** OP de la app que no están pagadas ni descartadas, con sus renglones de factura. */
-export async function listarOPsApp(estados?: EstadoOP[]): Promise<OPConLineas[]> {
+/**
+ * OP de la app que no están pagadas ni descartadas, con sus renglones de factura. Con
+ * `numero`, esa sola, esté como esté (la ficha de una OP pagada o descartada también se ve).
+ */
+export async function listarOPsApp(estados?: EstadoOP[], numero?: string): Promise<OPConLineas[]> {
+  const vivas = numero ? Prisma.sql`a.op_numero = ${numero}` : Prisma.sql`e.estado not in ('Pagada', 'Descartada')`;
+  const vivasLinea = numero ? Prisma.sql`i.op_numero = ${numero}` : Prisma.sql`e.estado not in ('Pagada', 'Descartada')`;
   const [ops, lineas] = await Promise.all([
     prisma.$queryRaw<OPApp[]>`
       select o.numero, o.fecha_op::text, e.estado, o.proveedor_codigo, p.razon_social,
@@ -41,7 +47,7 @@ export async function listarOPsApp(estados?: EstadoOP[]): Promise<OPConLineas[]>
       join cc.ordenes_pago o on o.numero = a.op_numero
       join app.v_op_estado e on e.op_numero = a.op_numero
       join cc.proveedores p on p.codigo = o.proveedor_codigo
-      where e.estado not in ('Pagada', 'Descartada')
+      where ${vivas}
       order by o.numero`,
     prisma.$queryRaw<LineaAprobacion[]>`
       select i.op_numero, c.id::text, c.tipo, c.numero, c.fecha::text, c.vencimiento::text,
@@ -56,7 +62,7 @@ export async function listarOPsApp(estados?: EstadoOP[]): Promise<OPConLineas[]>
         au.id as aprobador_id, au.name as aprobador, it.items
       -- Un renglón por factura y unidad: una factura con ítems de varias unidades se parte.
       from app.v_op_renglones i
-      join app.v_op_estado e on e.op_numero = i.op_numero and e.estado not in ('Pagada', 'Descartada')
+      join app.v_op_estado e on e.op_numero = i.op_numero and ${vivasLinea}
       join cc.comprobantes c on c.id = i.comprobante_id
       left join cc.unidades un on un.codigo = i.unidad_codigo
       left join lateral (
