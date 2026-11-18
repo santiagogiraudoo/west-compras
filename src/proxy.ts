@@ -1,9 +1,17 @@
 import { auth } from "@/lib/auth";
 import type { NextRequest } from "next/server";
+import { FAKE_DATE_COOKIE, setFakeOffset, computeFakeOffset } from "@/lib/dev/fake-date";
 
-// Mismo patrón que la app de alquileres, sin el god mode: todo pide sesión salvo el login.
+// Mismo patrón que la app de alquileres: todo pide sesión salvo el login.
 export async function proxy(request: NextRequest) {
   const session = await auth();
+
+  // Fecha simulada para probar lo que pasa día a día (vencimientos, "esta semana",
+  // "hace N días"). Como el modo dios de alquileres, pero solo en desarrollo y para un
+  // admin: en producción la cookie se ignora siempre.
+  const simula = process.env.NODE_ENV === "development" && session?.user?.role === "admin";
+  setFakeOffset(computeFakeOffset(simula ? request.cookies.get(FAKE_DATE_COOKIE)?.value : undefined));
+
   const pathname = request.nextUrl.pathname;
   const isLoggedIn = !!session?.user;
   const isOnLogin = pathname.startsWith("/login");

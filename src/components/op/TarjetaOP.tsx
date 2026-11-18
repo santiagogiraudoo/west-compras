@@ -7,6 +7,7 @@ import {
   aResolver, chequeosOP, decide, diferenciaRemito, quita, SE_DECIDE, subasDePrecio, type LineaAprobacion,
 } from "@/lib/op/estados";
 import { vencimientoOP } from "@/lib/op/pago";
+import { hoyArgentina } from "@/lib/cuenta/queries";
 import type { CompraAnterior, OPConLineas } from "@/lib/op/queries";
 import { EstadoOPBadge } from "./EstadoOP";
 import { AccionOP } from "./AccionOP";
@@ -38,7 +39,7 @@ export function TarjetaOP({ op, usuario, deuda, ultimas, enFicha }: Props) {
   const subas = subasDePrecio(op.lineas);
   const unidades = [...new Set(op.lineas.map((l) => l.unidad_nombre || l.unidad))].join(", ");
   const vence = vencimientoOP(op.lineas);
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = hoyArgentina(); // respeta la fecha simulada de desarrollo
   const enDecision = SE_DECIDE.includes(op.estado);
   const puede = mias.length > 0 && enDecision;
   const resuelve = resolvibles.length > 0 && enDecision;
