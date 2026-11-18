@@ -11,13 +11,20 @@ import {
 } from "@/components/ui/alert-dialog";
 import { decidirOP, descartarOP, enviarAAprobar, quitarObservacionOP } from "@/app/(app)/op/actions";
 
-type Accion = "aprobar" | "observar" | "bloquear" | "enviar" | "descartar" | "resolver" | "quitar" | "desaprobar";
+export type Accion = "aprobar" | "observar" | "bloquear" | "enviar" | "descartar" | "resolver" | "quitar" | "desaprobar";
 
 // Los mismos tonos que los botones de las fichas de alquileres: verde para lo que
 // avanza, borde rojo para lo que frena, discreto para lo que se usa poco.
 const VERDE = "h-8";
 const FRENA = "h-8 border-[#f3c9c9] text-[#b91c1c] hover:bg-[#fdf5f5] hover:text-[#b91c1c]";
 const DISCRETO = "h-8 text-muted-foreground hover:text-[#b91c1c]";
+
+/** Colores del botón chico (dentro de un renglón): verde lo que avanza, naranja lo que frena. */
+const CHICO: Partial<Record<Accion, string>> = {
+  aprobar: "text-[#1B4332] hover:bg-[#f0f6f2] hover:text-[#1B4332]",
+  observar: "text-[#9a3412] hover:bg-[#fff7ed] hover:text-[#9a3412]",
+  bloquear: "text-[#b91c1c] hover:bg-[#fef2f2] hover:text-[#b91c1c]",
+};
 
 const ACCIONES: Record<Accion, {
   label: string; icon: LucideIcon; variant: "default" | "outline" | "ghost"; clase: string;
@@ -70,16 +77,18 @@ export function AccionOP({ numero, accion, renglon, etiqueta, chico }: {
   const a = ACCIONES[accion];
   const Icon = a.icon;
 
+  const sola = renglon ? { id: renglon.id, unidad: renglon.unidad } : undefined;
+
   function hacer() {
     startTransition(async () => {
       const r =
         accion === "enviar" ? await enviarAAprobar(numero)
         : accion === "descartar" ? await descartarOP(numero, texto)
         : accion === "resolver" ? await decidirOP(numero, "Aprobada", texto, true)
-        : accion === "quitar" ? await quitarObservacionOP(numero, texto)
-        : accion === "desaprobar" ? await quitarObservacionOP(numero, texto, "aprobadas")
+        : accion === "quitar" ? await quitarObservacionOP(numero, texto, "frenadas", sola)
+        : accion === "desaprobar" ? await quitarObservacionOP(numero, texto, "aprobadas", sola)
         : await decidirOP(numero, accion === "aprobar" ? "Aprobada" : accion === "observar" ? "Observada" : "Bloqueada", texto, false,
-          renglon ? { id: renglon.id, unidad: renglon.unidad } : undefined);
+          sola);
       if (!r.ok) { toast.error(r.mensaje); return; }
       toast.success(r.mensaje);
       setAbierto(false);
@@ -89,7 +98,7 @@ export function AccionOP({ numero, accion, renglon, etiqueta, chico }: {
   }
 
   const boton = (
-    <Button size="sm" variant={chico ? "ghost" : a.variant} className={chico ? "h-7 px-2 text-[12px] text-[#9a3412] hover:bg-[#fff7ed] hover:text-[#9a3412]" : a.clase} disabled={pendiente} onClick={a.pide ? () => setAbierto(true) : hacer}>
+    <Button size="sm" variant={chico ? "ghost" : a.variant} className={chico ? `h-7 px-2 text-[12px] ${CHICO[accion] ?? "text-muted-foreground"}` : a.clase} disabled={pendiente} onClick={a.pide ? () => setAbierto(true) : hacer}>
       {pendiente && !a.pide ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />} {etiqueta ?? a.label}
     </Button>
   );
@@ -103,7 +112,7 @@ export function AccionOP({ numero, accion, renglon, etiqueta, chico }: {
           <AlertDialogHeader>
             <AlertDialogTitle>{a.pide.titulo} {renglon ? renglon.factura : `la ${numero}`}</AlertDialogTitle>
             <AlertDialogDescription>
-              {renglon ? `Solo esta factura de la ${numero}. ${a.pide.ayuda} Las otras las podés aprobar igual.` : a.pide.ayuda}
+              {renglon ? `Solo esta factura de la ${numero}. ${a.pide.ayuda}${accion === "observar" || accion === "bloquear" ? " Las otras las podés aprobar igual." : ""}` : a.pide.ayuda}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={3} placeholder={a.pide.placeholder} autoFocus />

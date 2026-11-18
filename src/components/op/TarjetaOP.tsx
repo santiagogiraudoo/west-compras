@@ -10,7 +10,7 @@ import { vencimientoOP } from "@/lib/op/pago";
 import { hoyArgentina } from "@/lib/cuenta/queries";
 import type { CompraAnterior, OPConLineas } from "@/lib/op/queries";
 import { EstadoOPBadge } from "./EstadoOP";
-import { AccionOP } from "./AccionOP";
+import { AccionOP, type Accion } from "./AccionOP";
 import { SacarDeOP } from "./SacarDeOP";
 import { limpiarItem, queCorto } from "./formato";
 
@@ -56,8 +56,18 @@ export function TarjetaOP({ op, usuario, deuda, ultimas, enFicha }: Props) {
   // salta a aprobado: primero se quita la observación y vuelve a "sin decidir".
   const decideAhora = puede && pendientes > 0;
   const yaDecidi = mias.some((l) => l.decision != null);
-  // Observar una sola factura tiene sentido cuando hay más de una para decidir.
-  const porFactura = puede && mias.length > 1;
+  // Cambiar el estado de una factura sola: aprobarla, observarla o quitarle la decisión.
+  // Con una sola factura alcanzan los botones de abajo.
+  const accionesDe = (l: LineaAprobacion): Accion[] => {
+    if (op.lineas.length < 2 || usuario.role === "consulta") return [];
+    const out: Accion[] = [];
+    if (enDecision && decide(l, usuario)) {
+      if (l.decision == null) out.push("aprobar", "observar");
+      else if (l.decision === "Aprobada") out.push("observar");
+    }
+    if (enQuita && quita(l, usuario)) out.push(l.decision === "Aprobada" ? "desaprobar" : "quitar");
+    return out;
+  };
 
   return (
     <FichaCard
@@ -110,7 +120,7 @@ export function TarjetaOP({ op, usuario, deuda, ultimas, enFicha }: Props) {
       {[...mias, ...resolvibles, ...otras].map((l) => (
         <Renglon key={`${l.id}-${l.unidad}`} l={l} mio={!otras.includes(l)} rubro={op.rubro} hoy={hoy}
           numero={op.numero} saca={saca}
-          observa={porFactura && mias.includes(l) && (l.decision == null || l.decision === "Aprobada")} />
+          acciones={accionesDe(l)} />
       ))}
 
       {/* Ver más y botones */}
@@ -149,8 +159,12 @@ export function TarjetaOP({ op, usuario, deuda, ultimas, enFicha }: Props) {
  * Un renglón por factura, en tres líneas: la factura y su importe; qué es (y para qué);
  * quién la pidió y la unidad, con los chequeos y lo que hay que abrir para revisarla.
  */
-function Renglon({ l, mio, rubro, hoy, numero, saca, observa }: {
-  l: LineaAprobacion; mio: boolean; rubro: string | null; hoy: string; numero: string; saca: boolean; observa: boolean;
+const ETIQUETA: Partial<Record<Accion, string>> = {
+  aprobar: "Aprobar esta", observar: "Observar esta", quitar: "Quitar observación", desaprobar: "Quitar aprobación",
+};
+
+function Renglon({ l, mio, rubro, hoy, numero, saca, acciones }: {
+  l: LineaAprobacion; mio: boolean; rubro: string | null; hoy: string; numero: string; saca: boolean; acciones: Accion[];
 }) {
   const remitos = (l.remitos ?? []).filter((r) => r.numero || r.archivo_link);
   const sinArchivo = remitos.filter((r) => !r.archivo_link);
@@ -215,10 +229,11 @@ function Renglon({ l, mio, rubro, hoy, numero, saca, observa }: {
             <span className="text-[#8a8a85]">{mio ? "Sin decidir" : `Esperando a ${l.aprobador ?? "un admin"}`}</span>
           )}
           {l.decision && l.usuario && <span className="text-[11.5px] text-[#8a8a85]">{l.usuario}{l.decidido_en ? ` · ${formatDate(l.decidido_en)}` : ""}</span>}
-          {(observa || saca) && (
+          {(acciones.length > 0 || saca) && (
             <div className="mt-0.5 flex flex-col items-end">
-              {observa && <AccionOP numero={numero} accion="observar" etiqueta="Observar esta"
-                renglon={{ id: l.id, unidad: l.unidad, factura }} chico />}
+              {acciones.map((a) => (
+                <AccionOP key={a} numero={numero} accion={a} etiqueta={ETIQUETA[a]} renglon={{ id: l.id, unidad: l.unidad, factura }} chico />
+              ))}
               {saca && <SacarDeOP numero={numero} comprobanteId={l.id} factura={factura} />}
             </div>
           )}
