@@ -15,6 +15,11 @@ export function hoyArgentina(): string {
  * cc.v_saldo_comprobante. cc.v_deuda_proveedor tiene la misma regla pero no sabe de
  * unidades, así que no se puede filtrar por marca: se suma en `resumirDeuda`.
  * Montos y fechas salen como texto para no mezclar el Decimal de Prisma con decimal.js.
+ *
+ * Una factura está "en OP" si está imputada en una OP Prevista, o si una OP Prevista de
+ * ClickUp la lleva en cc.op_cc ("factura:<id>"): esas OP no tienen imputaciones hasta
+ * que se pagan, y sin esto la app dejaría ponerla en otra OP (doble pago; es la alerta
+ * "Factura en dos OP" de cc.v_alertas). En ese caso nada de su saldo queda libre.
  */
 export async function listarAbiertos(proveedor?: string): Promise<Abierto[]> {
   const filtro = proveedor ? Prisma.sql`and s.proveedor_codigo = ${proveedor}` : Prisma.empty;
@@ -23,14 +28,26 @@ export async function listarAbiertos(proveedor?: string): Promise<Abierto[]> {
       select i.comprobante_id, sum(i.importe) importe, string_agg(o.numero, ', ' order by o.numero) ops
       from cc.imputaciones i join cc.ordenes_pago o on o.numero = i.op_numero
       where o.estado = 'Prevista' and i.comprobante_id is not null
-      group by i.comprobante_id)
+      group by i.comprobante_id),
+    en_clickup as (
+      select split_part(oc.cc_clickup_id, ':', 2)::bigint as comprobante_id,
+        string_agg(distinct o.numero, ', ') ops
+      from cc.op_cc oc join cc.ordenes_pago o on o.numero = oc.op_numero
+      where o.estado = 'Prevista' and oc.cc_clickup_id ~ '^factura:[0-9]+$'
+        and not exists (select 1 from cc.imputaciones i
+                        where i.op_numero = o.numero and i.comprobante_id = split_part(oc.cc_clickup_id, ':', 2)::bigint)
+      group by 1)
     select s.id::text, s.proveedor_codigo, p.razon_social, s.unidad_codigo, s.facturado_a, s.tipo, s.numero,
-      s.fecha::text, s.vencimiento::text, s.total::text, s.saldo::text as libre,
-      coalesce(x.importe, 0)::text as en_op, x.ops, (s.saldo + coalesce(x.importe, 0))::text as deuda
+      s.fecha::text, s.vencimiento::text, s.total::text,
+      (case when k.comprobante_id is null then s.saldo else 0 end)::text as libre,
+      (coalesce(x.importe, 0) + case when k.comprobante_id is null then 0 else s.saldo end)::text as en_op,
+      nullif(concat_ws(', ', x.ops, k.ops), '') as ops,
+      (s.saldo + coalesce(x.importe, 0))::text as deuda
     from cc.v_saldo_comprobante s
     join cc.unidades u on u.codigo = s.unidad_codigo and u.marca = ${MARCA}
     join cc.proveedores p on p.codigo = s.proveedor_codigo
     left join en_op x on x.comprobante_id = s.id
+    left join en_clickup k on k.comprobante_id = s.id
     where s.estado_aprobacion = 'Aprobado' and abs(s.saldo + coalesce(x.importe, 0)) > 0.005 ${filtro}
     order by s.vencimiento nulls last, s.fecha`;
 }
