@@ -9,9 +9,9 @@ export default async function CuentasPage() {
   const hoy = hoyArgentina();
   const t = resumirDeuda(await listarAbiertos(), hoy);
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
+    <div className="px-8 py-6 space-y-6 max-w-[1400px] mx-auto">
       <div>
-        <h1 className="text-xl font-semibold text-primary">Cuentas corrientes</h1>
+        <h1 className="text-2xl font-bold text-primary">Cuentas corrientes</h1>
         <p className="text-sm text-muted-foreground">
           Proveedores con facturas aprobadas sin pagar. La cuenta de cualquier proveedor se abre desde su ficha.
         </p>

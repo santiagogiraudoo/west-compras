@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MoneyCell } from "@/components/shared/MoneyCell";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate } from "@/lib/utils";
 import { auth } from "@/lib/auth";
 import { hoyArgentina, listarOPAbiertas } from "@/lib/cuenta/queries";
@@ -27,59 +28,61 @@ export default async function PagosPage() {
   const observadas = deLaApp.filter((o) => estadoAprobacion(o.facturas) === "Observada").length;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
+    <div className="px-8 py-6 space-y-6 max-w-[1400px] mx-auto">
       <div>
-        <h1 className="text-xl font-semibold text-primary">Pagos</h1>
+        <h1 className="text-2xl font-bold text-primary">Pagos</h1>
         <p className="text-sm text-muted-foreground">
           OP autorizadas, la que vence primero arriba.
           {(esperan > 0 || observadas > 0) && (
-            <> En <Link href="/op" className="underline">Órdenes de pago</Link>: {esperan} esperan aprobación{observadas ? `, ${observadas} observada${observadas > 1 ? "s" : ""}` : ""}.</>
+            <> En <Link href="/op" className="text-primary underline-offset-2 hover:underline">Órdenes de pago</Link>: {esperan} esperan aprobación{observadas ? `, ${observadas} observada${observadas > 1 ? "s" : ""}` : ""}.</>
           )}
         </p>
       </div>
 
       {aPagar.length === 0 ? (
-        <p className="rounded-md border bg-card p-6 text-sm text-muted-foreground">No hay OP autorizadas para pagar.</p>
+        <div className="border border-border/60 rounded-lg bg-white p-12 text-center">
+          <p className="text-sm text-muted-foreground">No hay OP autorizadas para pagar.</p>
+        </div>
       ) : (
-        <section className="overflow-x-auto rounded-md border bg-card">
-          <table className="w-full text-sm [&_td]:whitespace-nowrap">
-            <thead className="text-left text-xs text-muted-foreground">
-              <tr>
-                <th className="px-4 py-2">Vence</th>
-                <th className="px-4 py-2">OP</th>
-                <th className="px-4 py-2">Proveedor</th>
-                <th className="px-4 py-2">Titular</th>
-                <th className="px-4 py-2">Cuenta</th>
-                <th className="px-4 py-2 text-right">Total</th>
-                <th className="px-4 py-2" />
-              </tr>
-            </thead>
-            <tbody>
+        <div className="rounded-md border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Vence</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>OP</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Proveedor</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Titular</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Cuenta</TableHead>
+                <TableHead className="text-right text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Total</TableHead>
+                <TableHead className="w-[50px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {aPagar.map((o) => {
                 const cuenta = armarTextoCuenta({ cbu: o.cbu, alias: o.alias, banco: o.banco, titular: o.cuenta_titular });
                 const vencida = o.vence != null && o.vence < hoy;
                 return (
-                  <tr key={o.numero} className="border-t">
-                    <td className={`px-4 py-2 ${vencida ? "font-medium text-red-700" : ""}`}>{o.vence ? formatDate(o.vence) : "—"}</td>
-                    <td className="px-4 py-2 font-medium text-primary">{o.numero}</td>
-                    <td className="px-4 py-2">
-                      <Link href={`/cuenta/${o.proveedor_codigo}`} className="hover:underline">{o.razon_social}</Link>
-                    </td>
-                    <td className="px-4 py-2">{o.titular ?? "—"}</td>
-                    <td className="px-4 py-2 text-xs text-muted-foreground">{cuenta ?? "sin cuenta"}</td>
-                    <td className="px-4 py-2 text-right"><MoneyCell value={Number(o.total_imputado)} currency="ARS" decimals={2} /></td>
-                    <td className="px-4 py-2 text-right">
+                  <TableRow key={o.numero}>
+                    <TableCell className={vencida ? "font-medium text-red-700" : ""}>{o.vence ? formatDate(o.vence) : "—"}</TableCell>
+                    <TableCell className="font-medium text-primary">{o.numero}</TableCell>
+                    <TableCell>
+                      <Link href={`/cuenta/${o.proveedor_codigo}`} className="underline-offset-2 hover:underline">{o.razon_social}</Link>
+                    </TableCell>
+                    <TableCell>{o.titular ?? "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{cuenta ?? "sin cuenta"}</TableCell>
+                    <TableCell className="text-right"><MoneyCell value={Number(o.total_imputado)} currency="ARS" decimals={2} /></TableCell>
+                    <TableCell className="text-right">
                       {paga && (
                         <PagarOP numero={o.numero} proveedor={o.razon_social} total={o.total_imputado}
                           cuenta={cuenta} medio={medioSugerido(o.medio_pago_habitual)} hoy={hoy} />
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
-        </section>
+            </TableBody>
+          </Table>
+        </div>
       )}
     </div>
   );

@@ -1,8 +1,10 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, FileText } from "lucide-react";
+import { CheckCircle, Clock, FileText } from "lucide-react";
 import Decimal from "decimal.js";
 import { MoneyCell } from "@/components/shared/MoneyCell";
+import { StatusPill } from "@/components/shared/StatusPill";
+import { TituloDePestana } from "@/components/layout/Breadcrumbs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate } from "@/lib/utils";
 import { listasDeCarga, obtenerFactura } from "@/lib/facturas/queries";
 import { FichaForm } from "./FichaForm";
@@ -20,30 +22,28 @@ export default async function FichaFacturaPage({ params }: { params: Promise<{ i
   const { c, proveedor, remitos, pagos, requisitos } = datos;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
-      <Link href="/bandeja" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
-        <ArrowLeft className="h-4 w-4" /> Bandeja
-      </Link>
+    <div className="px-8 py-6 space-y-6 max-w-[1400px] mx-auto">
+      <TituloDePestana label={`${c.tipo} ${c.numero}`} />
 
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-xl font-semibold text-primary">
+        <h1 className="text-2xl font-bold text-primary">
           {proveedor?.razon_social ?? c.proveedor_codigo} · {c.tipo} {c.numero}
         </h1>
-        <MoneyCell value={num(c.total)} currency="ARS" decimals={2} className="text-xl" />
+        <MoneyCell value={num(c.total)} currency="ARS" decimals={2} className="text-xl font-semibold text-primary" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
-        <div className="space-y-4">
-          <section className="rounded-md border bg-card p-4 text-sm">
+        <div className="min-w-0 space-y-4">
+          <section className="rounded-md border bg-white p-4 text-sm">
             <dl className="grid grid-cols-2 gap-x-6 gap-y-2 md:grid-cols-3">
               <Dato k="Fecha" v={formatDate(c.fecha)} />
               <Dato k="Vence" v={formatDate(c.vencimiento)} />
-              <Dato k="Estado" v={c.estado_aprobacion ?? "—"} />
+              <Dato k="Estado" v={<EstadoPill estado={c.estado_aprobacion} />} />
               <Dato k="Neto" v={<MoneyCell value={num(c.neto)} currency="ARS" decimals={2} />} />
               <Dato k="IVA" v={<MoneyCell value={num(c.iva)} currency="ARS" decimals={2} />} />
               <Dato k="Percepciones" v={<MoneyCell value={num(c.percepciones)} currency="ARS" decimals={2} />} />
               <Dato k="Quién recibió" v={c.retiro_por ?? "—"} />
-              <Dato k="Descripción" v={c.descripcion ?? "—"} />
+              <Dato k="Descripción" v={c.descripcion ?? "—"} ancho />
               <Dato
                 k="PDF"
                 v={c.archivo_link ? (
@@ -55,31 +55,36 @@ export default async function FichaFacturaPage({ params }: { params: Promise<{ i
             </dl>
           </section>
 
-          <section className="rounded-md border bg-card text-sm">
-            <h2 className="border-b px-4 py-2 font-medium">Renglones</h2>
+          <section className="rounded-md border overflow-hidden bg-white text-sm">
+            <h2 className="border-b px-4 py-2 font-semibold text-primary">Renglones</h2>
             {c.items.length === 0 ? (
               <p className="px-4 py-3 text-muted-foreground">Sin renglones cargados.</p>
             ) : (
-              <table className="w-full">
-                <thead className="text-left text-xs text-muted-foreground">
-                  <tr><th className="px-4 py-2">Descripción</th><th>Cant.</th><th className="text-right">P. unit.</th><th className="px-4 text-right">Subtotal</th></tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="px-4 text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Descripción</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Cant.</TableHead>
+                    <TableHead className="text-right text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>P. unit.</TableHead>
+                    <TableHead className="px-4 text-right text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Subtotal</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {c.items.map((i) => (
-                    <tr key={String(i.id)} className="border-t">
-                      <td className="px-4 py-2">{i.descripcion}{i.para_que ? <span className="text-muted-foreground"> · {i.para_que}</span> : null}</td>
-                      <td>{i.cantidad?.toString() ?? ""} {i.unidad_medida ?? ""}</td>
-                      <td className="text-right">{i.precio_unitario != null ? <MoneyCell value={num(i.precio_unitario)} currency="ARS" decimals={2} /> : ""}</td>
-                      <td className="px-4 text-right">{i.subtotal != null ? <MoneyCell value={num(i.subtotal)} currency="ARS" decimals={2} /> : ""}</td>
-                    </tr>
+                    <TableRow key={String(i.id)}>
+                      <TableCell className="min-w-[240px] whitespace-normal px-4">{i.descripcion}{i.para_que ? <span className="text-muted-foreground"> · {i.para_que}</span> : null}</TableCell>
+                      <TableCell>{i.cantidad?.toString() ?? ""} {i.unidad_medida ?? ""}</TableCell>
+                      <TableCell className="text-right">{i.precio_unitario != null ? <MoneyCell value={num(i.precio_unitario)} currency="ARS" decimals={2} /> : ""}</TableCell>
+                      <TableCell className="px-4 text-right">{i.subtotal != null ? <MoneyCell value={num(i.subtotal)} currency="ARS" decimals={2} /> : ""}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             )}
           </section>
 
-          <section className="rounded-md border bg-card text-sm">
-            <h2 className="border-b px-4 py-2 font-medium">Remitos</h2>
+          <section className="rounded-md border overflow-hidden bg-white text-sm">
+            <h2 className="border-b px-4 py-2 font-semibold text-primary">Remitos</h2>
             {remitos.length === 0 ? (
               <p className="px-4 py-3 text-muted-foreground">Ninguno ligado.</p>
             ) : (
@@ -94,8 +99,8 @@ export default async function FichaFacturaPage({ params }: { params: Promise<{ i
             )}
           </section>
 
-          <section className="rounded-md border bg-card text-sm">
-            <h2 className="border-b px-4 py-2 font-medium">Órdenes de pago</h2>
+          <section className="rounded-md border overflow-hidden bg-white text-sm">
+            <h2 className="border-b px-4 py-2 font-semibold text-primary">Órdenes de pago</h2>
             {pagos.length === 0 ? (
               <p className="px-4 py-3 text-muted-foreground">No está en ninguna OP.</p>
             ) : (
@@ -127,10 +132,18 @@ export default async function FichaFacturaPage({ params }: { params: Promise<{ i
   );
 }
 
-function Dato({ k, v }: { k: string; v: React.ReactNode }) {
+/** Solo cambia cómo se ve el estado que ya viene de la base. */
+function EstadoPill({ estado }: { estado: string | null }) {
+  if (!estado) return <>—</>;
+  if (estado === "Aprobado") return <StatusPill tone="success" icon={CheckCircle}>{estado}</StatusPill>;
+  if (estado === "Pendiente") return <StatusPill tone="amber" icon={Clock}>{estado}</StatusPill>;
+  return <StatusPill tone="neutral">{estado}</StatusPill>;
+}
+
+function Dato({ k, v, ancho }: { k: string; v: React.ReactNode; ancho?: boolean }) {
   return (
-    <div>
-      <dt className="text-xs text-muted-foreground">{k}</dt>
+    <div className={ancho ? "col-span-full min-w-0 break-words" : "min-w-0 break-words"}>
+      <dt className="text-xs font-medium text-muted-foreground">{k}</dt>
       <dd>{v}</dd>
     </div>
   );

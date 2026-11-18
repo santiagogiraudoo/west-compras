@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { FilePlus } from "lucide-react";
+import { Ban, CheckCircle, Clock, FilePlus, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { Monto } from "@/components/cuenta/DeudaPorProveedor";
 import { MoneyCell } from "@/components/shared/MoneyCell";
+import { StatusPill, type PillTone } from "@/components/shared/StatusPill";
 import { formatDate } from "@/lib/utils";
 import { listarOPAbiertas } from "@/lib/cuenta/queries";
 import { auth } from "@/lib/auth";
@@ -12,10 +14,10 @@ import { DecidirLinea } from "./DecidirLinea";
 
 export const dynamic = "force-dynamic";
 
-const COLOR: Record<EstadoAprobacion, string> = {
-  "A aprobar": "border-amber-200 bg-amber-50 text-amber-900",
-  Observada: "border-red-200 bg-red-50 text-red-800",
-  Autorizada: "border-emerald-200 bg-emerald-50 text-emerald-900",
+const PILL: Record<EstadoAprobacion, { tone: PillTone; icon: LucideIcon }> = {
+  "A aprobar": { tone: "amber", icon: Clock },
+  Observada: { tone: "red", icon: Ban },
+  Autorizada: { tone: "success", icon: CheckCircle },
 };
 
 /**
@@ -26,10 +28,10 @@ export default async function OPPage() {
   const [ops, session] = await Promise.all([listarOPAbiertas(), auth()]);
   const aprueba = session?.user?.role === "admin";
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
+    <div className="px-8 py-6 space-y-6 max-w-[1400px] mx-auto">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-primary">Órdenes de pago abiertas</h1>
+          <h1 className="text-2xl font-bold text-primary">Órdenes de pago abiertas</h1>
           <p className="text-sm text-muted-foreground">Previstas: reservadas con sus facturas, todavía sin pagar. Una línea observada frena toda la OP.</p>
         </div>
         <Button size="sm" asChild>
@@ -38,15 +40,17 @@ export default async function OPPage() {
       </div>
 
       {ops.length === 0 ? (
-        <p className="rounded-md border bg-card p-6 text-sm text-muted-foreground">No hay OP abiertas.</p>
+        <div className="border border-border/60 rounded-lg bg-white p-12 text-center">
+          <p className="text-sm text-muted-foreground">No hay OP abiertas.</p>
+        </div>
       ) : (
         <div className="space-y-3">
           {ops.map((o) => {
             const app = o.origen === "app";
             const estado = estadoAprobacion(o.facturas);
             return (
-            <div key={o.numero} className="rounded-md border bg-card">
-              <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-4 py-3">
+            <div key={o.numero} className="rounded-md border overflow-hidden bg-white">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-4 py-3">
                 <div>
                   <span className="font-semibold text-primary">{o.numero}</span>
                   <span className="ml-2 text-sm">
@@ -56,50 +60,50 @@ export default async function OPPage() {
                     {formatDate(o.fecha_op)}{o.titular ? ` · ${o.titular}` : ""}{o.origen === "app" ? " · armada en la app" : ""}
                   </span>
                 </div>
-                <div className="flex items-baseline gap-3">
+                <div className="flex items-center gap-3">
                   {app ? (
-                    <span className={`rounded-full border px-2 py-0.5 text-xs ${COLOR[estado]}`}>{estado}</span>
+                    <StatusPill tone={PILL[estado].tone} icon={PILL[estado].icon}>{estado}</StatusPill>
                   ) : (
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-900">
+                    <StatusPill tone="amber" icon={Clock}>
                       {o.estado}{o.estado_clickup && o.estado_clickup !== o.estado ? ` · ClickUp: ${o.estado_clickup}` : ""}
-                    </span>
+                    </StatusPill>
                   )}
-                  <MoneyCell value={Number(o.total_imputado)} currency="ARS" decimals={2} className="text-primary" />
+                  <MoneyCell value={Number(o.total_imputado)} currency="ARS" decimals={2} className="font-semibold text-primary" />
                   {o.origen === "app" && <AnularOP numero={o.numero} />}
                 </div>
               </div>
-              <table className="w-full text-sm">
-                <tbody>
+              <Table>
+                <TableBody>
                   {o.facturas.map((f) => (
-                    <tr key={f.id} className="border-t first:border-t-0 align-top">
-                      <td className="px-4 py-1.5">
+                    <TableRow key={f.id} className="align-top">
+                      <TableCell className="px-4">
                         {f.tipo} {f.numero}
                         {app && f.decision && (
-                          <div className={`text-xs ${f.decision === "Observada" ? "text-red-700" : "text-emerald-800"}`}>
+                          <div className={`whitespace-normal text-xs ${f.decision === "Observada" ? "text-red-700" : "text-emerald-800"}`}>
                             {f.decision} por {f.usuario}{f.motivo ? `: ${f.motivo}` : ""}
                           </div>
                         )}
-                      </td>
-                      <td className="px-4 py-1.5">{f.unidad}</td>
-                      <td className="px-4 py-1.5 text-muted-foreground">vence {formatDate(f.vencimiento)}</td>
-                      <td className="px-4 py-1.5 text-right"><Monto v={f.importe} /></td>
+                      </TableCell>
+                      <TableCell className="px-4">{f.unidad}</TableCell>
+                      <TableCell className="px-4 text-muted-foreground">vence {formatDate(f.vencimiento)}</TableCell>
+                      <TableCell className="px-4 text-right"><Monto v={f.importe} /></TableCell>
                       {app && aprueba && (
-                        <td className="px-4 py-1 text-right">
+                        <TableCell className="px-4 py-1 text-right">
                           {Number(f.importe) !== 0 && (
                             <DecidirLinea numero={o.numero} comprobanteId={f.id} factura={`${f.tipo} ${f.numero}`} decision={f.decision} />
                           )}
-                        </td>
+                        </TableCell>
                       )}
-                    </tr>
+                    </TableRow>
                   ))}
                   {Number(o.otras) !== 0 && (
-                    <tr className="border-t text-muted-foreground">
-                      <td className="px-4 py-1.5" colSpan={3}>Otras unidades o a cuenta</td>
-                      <td className="px-4 py-1.5 text-right"><Monto v={o.otras} /></td>
-                    </tr>
+                    <TableRow className="text-muted-foreground">
+                      <TableCell className="px-4" colSpan={3}>Otras unidades o a cuenta</TableCell>
+                      <TableCell className="px-4 text-right"><Monto v={o.otras} /></TableCell>
+                    </TableRow>
                   )}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
             );
           })}

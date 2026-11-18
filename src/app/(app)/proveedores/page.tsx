@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { CheckCircle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { StatusPill } from "@/components/shared/StatusPill";
 import { prisma } from "@/lib/prisma";
 import { faltantesProveedor } from "@/lib/facturas/requisitos";
 
@@ -19,37 +21,48 @@ export default async function ProveedoresPage() {
   const completos = filas.filter((f) => f.faltan.length === 0).length;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
+    <div className="px-8 py-6 space-y-6 max-w-[1400px] mx-auto">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-primary">Proveedores</h1>
+          <h1 className="text-2xl font-bold text-primary">Proveedores</h1>
           <p className="text-sm text-muted-foreground">{completos} de {filas.length} con el alta completa para poder pagarles.</p>
         </div>
         <Button size="sm" asChild>
           <Link href="/proveedores/nuevo"><Plus className="h-4 w-4" /> Nuevo proveedor</Link>
         </Button>
       </div>
-      <table className="w-full rounded-md border bg-card text-sm">
-        <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-          <tr><th className="px-3 py-2">Código</th><th className="px-3 py-2">Proveedor</th><th className="px-3 py-2">CUIT</th><th className="px-3 py-2">Le falta</th></tr>
-        </thead>
-        <tbody>
-          {filas.map((p) => (
-            <tr key={p.codigo} className="border-t">
-              <td className="px-3 py-2 text-muted-foreground">{p.codigo}</td>
-              <td className="px-3 py-2"><Link href={`/proveedores/${p.codigo}`} className="text-primary underline-offset-2 hover:underline">{p.razon_social}</Link></td>
-              <td className="px-3 py-2">{p.cuit ?? "—"}</td>
-              <td className="px-3 py-2">
-                {p.faltan.length === 0 ? <span className="text-xs text-emerald-700">Completo</span> : (
-                  <div className="flex flex-wrap gap-1">
-                    {p.faltan.map((f) => <span key={f} className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-900">{f}</span>)}
-                  </div>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="rounded-md border overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Código</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Proveedor</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>CUIT</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Le falta</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filas.map((p) => (
+              <TableRow key={p.codigo}>
+                <TableCell className="text-muted-foreground">{p.codigo}</TableCell>
+                <TableCell>
+                  <Link href={`/proveedores/${p.codigo}`} className="font-medium text-primary underline-offset-2 hover:underline">{p.razon_social}</Link>
+                </TableCell>
+                <TableCell>{p.cuit ?? "—"}</TableCell>
+                <TableCell className="min-w-[260px] whitespace-normal">
+                  {p.faltan.length === 0 ? (
+                    <StatusPill tone="success" icon={CheckCircle}>Completo</StatusPill>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {p.faltan.map((f) => <StatusPill key={f} tone="amber">{f}</StatusPill>)}
+                    </div>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

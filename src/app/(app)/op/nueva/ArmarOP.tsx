@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { FilePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MoneyCell } from "@/components/shared/MoneyCell";
 import { formatDate } from "@/lib/utils";
 import { validarSeleccionOP, type Abierto } from "@/lib/cuenta/calculos";
@@ -50,40 +51,46 @@ export function ArmarOP({ proveedor, faltan, facturas, hoy }: Props) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
-      <table className="w-full self-start overflow-hidden rounded-md border bg-card text-sm">
-        <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-          <tr>
-            <th className="w-8 px-3 py-2" /><th className="px-3 py-2">Comprobante</th><th className="px-3 py-2">Unidad</th>
-            <th className="px-3 py-2">Titular</th><th className="px-3 py-2">Vence</th><th className="px-3 py-2 text-right">A pagar</th>
-          </tr>
-        </thead>
-        <tbody>
-          {facturas.map((f) => {
-            // Una OP es de un solo titular: las de otro titular se apagan.
-            const otroTitular = titularElegido !== null && f.facturado_a !== titularElegido;
-            return (
-              <tr key={f.id} className={`border-t ${otroTitular ? "opacity-40" : ""}`}>
-                <td className="px-3 py-2">
-                  <Checkbox checked={sel.has(f.id)} disabled={otroTitular || !f.facturado_a}
-                    onCheckedChange={(v) => cambiar(f.id, v === true)} aria-label={`Elegir ${f.numero}`} />
-                </td>
-                <td className="px-3 py-2">{f.tipo} {f.numero}</td>
-                <td className="px-3 py-2">{f.unidad_codigo}</td>
-                <td className="px-3 py-2">{f.facturado_a ?? <span className="text-red-700">Sin titular</span>}</td>
-                <td className={`px-3 py-2 whitespace-nowrap ${f.vencimiento && f.vencimiento < hoy ? "text-red-700" : ""}`}>
-                  {formatDate(f.vencimiento)}
-                </td>
-                <td className="px-3 py-2 text-right"><MoneyCell value={Number(f.libre)} currency="ARS" decimals={2} /></td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="min-w-0 self-start rounded-md border overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-8" />
+              <TableHead className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Comprobante</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Unidad</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Titular</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Vence</TableHead>
+              <TableHead className="text-right text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>A pagar</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {facturas.map((f) => {
+              // Una OP es de un solo titular: las de otro titular se apagan.
+              const otroTitular = titularElegido !== null && f.facturado_a !== titularElegido;
+              return (
+                <TableRow key={f.id} className={otroTitular ? "opacity-40" : ""}>
+                  <TableCell>
+                    <Checkbox checked={sel.has(f.id)} disabled={otroTitular || !f.facturado_a}
+                      onCheckedChange={(v) => cambiar(f.id, v === true)} aria-label={`Elegir ${f.numero}`} />
+                  </TableCell>
+                  <TableCell>{f.tipo} {f.numero}</TableCell>
+                  <TableCell>{f.unidad_codigo}</TableCell>
+                  <TableCell className="whitespace-normal">{f.facturado_a ?? <span className="text-red-700">Sin titular</span>}</TableCell>
+                  <TableCell className={f.vencimiento && f.vencimiento < hoy ? "text-red-700" : ""}>
+                    {formatDate(f.vencimiento)}
+                  </TableCell>
+                  <TableCell className="text-right"><MoneyCell value={Number(f.libre)} currency="ARS" decimals={2} /></TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
 
-      <aside className="space-y-3 self-start rounded-md border bg-card p-4 text-sm">
+      <aside className="space-y-3 self-start rounded-lg border border-border/60 bg-[#FFFEFC] p-4 text-sm">
         <div>
-          <div className="text-xs text-muted-foreground">Total de la OP</div>
-          <MoneyCell value={Number(total)} currency="ARS" decimals={2} className="block text-xl text-primary" />
+          <div className="text-xs font-medium text-muted-foreground">Total de la OP</div>
+          <MoneyCell value={Number(total)} currency="ARS" decimals={2} className="block text-xl font-semibold text-primary" />
           <div className="text-xs text-muted-foreground">{elegidas.length} comprobantes</div>
         </div>
         <Dato label="Paga" v={titular ?? "—"} />

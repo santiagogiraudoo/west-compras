@@ -1,7 +1,8 @@
 import Link from "next/link";
 import Decimal from "decimal.js";
-import { ArrowLeft } from "lucide-react";
 import { MoneyCell } from "@/components/shared/MoneyCell";
+import { TituloDePestana } from "@/components/layout/Breadcrumbs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { prisma } from "@/lib/prisma";
 import { faltantesProveedor } from "@/lib/facturas/requisitos";
 import { hoyArgentina, listarAbiertos } from "@/lib/cuenta/queries";
@@ -19,10 +20,7 @@ export default async function NuevaOPPage({ searchParams }: { searchParams: Prom
   const abiertos = (await listarAbiertos(codigo)).filter((a) => Math.abs(Number(a.libre)) > 0.5);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
-      <Link href="/op" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
-        <ArrowLeft className="h-4 w-4" /> Órdenes de pago
-      </Link>
+    <div className="px-8 py-6 space-y-6 max-w-[1400px] mx-auto">
       {codigo ? <ConProveedor codigo={codigo} facturas={abiertos} hoy={hoy} /> : <ElegirProveedor abiertos={abiertos} />}
     </div>
   );
@@ -33,12 +31,15 @@ async function ConProveedor({ codigo, facturas, hoy }: { codigo: string; factura
   if (!p) return <p className="text-sm">No encontré el proveedor {codigo}.</p>;
   return (
     <>
+      <TituloDePestana label={`Nueva OP · ${p.razon_social}`} />
       <div>
-        <h1 className="text-xl font-semibold text-primary">Nueva OP · {p.razon_social}</h1>
+        <h1 className="text-2xl font-bold text-primary">Nueva OP · {p.razon_social}</h1>
         <p className="text-sm text-muted-foreground">Elegí las facturas aprobadas a pagar. Pueden ser de varias unidades, de un solo titular.</p>
       </div>
       {facturas.length === 0 ? (
-        <p className="rounded-md border bg-card p-6 text-sm text-muted-foreground">No tiene facturas aprobadas libres para una OP.</p>
+        <div className="border border-border/60 rounded-lg bg-white p-12 text-center">
+          <p className="text-sm text-muted-foreground">No tiene facturas aprobadas libres para una OP.</p>
+        </div>
       ) : (
         <ArmarOP proveedor={{ codigo: p.codigo, razon_social: p.razon_social, cuit: p.cuit, cbu: p.cbu, alias: p.alias, banco: p.banco, cuenta_titular: p.cuenta_titular }}
           faltan={faltantesProveedor(p)} facturas={facturas} hoy={hoy} />
@@ -59,25 +60,31 @@ function ElegirProveedor({ abiertos }: { abiertos: Awaited<ReturnType<typeof lis
   return (
     <>
       <div>
-        <h1 className="text-xl font-semibold text-primary">Nueva OP</h1>
+        <h1 className="text-2xl font-bold text-primary">Nueva OP</h1>
         <p className="text-sm text-muted-foreground">Proveedores con facturas aprobadas que todavía no están en ninguna OP.</p>
       </div>
-      <table className="w-full overflow-hidden rounded-md border bg-card text-sm">
-        <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-          <tr><th className="px-3 py-2">Proveedor</th><th className="px-3 py-2">Facturas</th><th className="px-3 py-2 text-right">Libre para OP</th></tr>
-        </thead>
-        <tbody>
-          {filas.map(([codigo, p]) => (
-            <tr key={codigo} className="border-t hover:bg-muted/30">
-              <td className="px-3 py-2">
-                <Link href={`/op/nueva?proveedor=${codigo}`} className="text-primary underline-offset-2 hover:underline">{p.nombre}</Link>
-              </td>
-              <td className="px-3 py-2">{p.n}</td>
-              <td className="px-3 py-2 text-right"><MoneyCell value={p.libre.toNumber()} currency="ARS" decimals={2} /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="rounded-md border overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Proveedor</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Facturas</TableHead>
+              <TableHead className="text-right text-xs font-semibold uppercase tracking-wide" style={{ color: "#B8960C" }}>Libre para OP</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filas.map(([codigo, p]) => (
+              <TableRow key={codigo}>
+                <TableCell>
+                  <Link href={`/op/nueva?proveedor=${codigo}`} className="font-medium text-primary underline-offset-2 hover:underline">{p.nombre}</Link>
+                </TableCell>
+                <TableCell>{p.n}</TableCell>
+                <TableCell className="text-right"><MoneyCell value={p.libre.toNumber()} currency="ARS" decimals={2} /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </>
   );
 }
