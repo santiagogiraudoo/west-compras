@@ -26,6 +26,23 @@ model User {
   @@schema("app")
 }
 
+// Cada decisión sobre una línea de OP (sql/007). Vale la última: app.v_aprobacion_linea.
+// La app la escribe con $executeRaw; el modelo es solo el reflejo de la tabla.
+model AprobacionOp {
+  id             Int      @id @default(autoincrement())
+  op_numero      String
+  comprobante_id BigInt
+  decision       String // Aprobada, Observada (Observada lleva motivo)
+  motivo         String?
+  usuario_id     Int
+  usuario        String
+  creado_en      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([op_numero, comprobante_id, creado_en(sort: Desc)], map: "aprobaciones_op_linea")
+  @@map("aprobaciones_op")
+  @@schema("app")
+}
+
 // ── cc: base de proveedores (la escriben el plomero y las funciones cc.cargar_*) ──
 // Escrito a mano a partir de information_schema (17/11): `prisma db pull` no corre
 // en el entorno de Claude. Solo lo que usa la app; nombres de columnas sin tocar.

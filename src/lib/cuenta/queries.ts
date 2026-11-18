@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { MARCA } from "@/lib/marca";
 import { getFakeOffset } from "@/lib/dev/fake-date";
 import type { Abierto, Movimiento } from "./calculos";
+import type { LineaOP } from "@/lib/op/pago";
 
 /** Hoy en Argentina, YYYY-MM-DD (el mismo "hoy" que usa cc.v_alertas). */
 export function hoyArgentina(): string {
@@ -76,9 +77,16 @@ export interface FilaOP {
   titular: string | null;
   total_imputado: string;
   origen: string;
-  facturas: { tipo: string; numero: string; unidad: string; importe: string; vencimiento: string | null }[];
+  /** Líneas de West Desarrolladora, con la última decisión de aprobación (app.v_aprobacion_linea). */
+  facturas: LineaOP[];
   /** Imputado a cosas que no son de West Desarrolladora (otras unidades, a cuenta). */
   otras: string;
+  /** Cuenta del proveedor, para pagar. */
+  cbu: string | null;
+  alias: string | null;
+  banco: string | null;
+  cuenta_titular: string | null;
+  medio_pago_habitual: string | null;
 }
 
 /** OP abiertas (Previstas) que tienen al menos una factura de West Desarrolladora. */
@@ -86,8 +94,10 @@ export async function listarOPAbiertas(): Promise<FilaOP[]> {
   return prisma.$queryRaw<FilaOP[]>`
     select o.numero, o.fecha_op::text, o.estado, e.estado_actual as estado_clickup, o.proveedor_codigo,
       p.razon_social, o.titular, o.total_imputado::text, o.origen,
-      coalesce(json_agg(json_build_object('tipo', c.tipo, 'numero', c.numero, 'unidad', c.unidad_codigo,
-        'importe', i.importe::text, 'vencimiento', c.vencimiento::text) order by c.fecha)
+      p.cbu, p.alias, p.banco, p.cuenta_titular, p.medio_pago_habitual,
+      coalesce(json_agg(json_build_object('id', c.id::text, 'tipo', c.tipo, 'numero', c.numero, 'unidad', c.unidad_codigo,
+        'importe', i.importe::text, 'vencimiento', c.vencimiento::text, 'decision', a.decision,
+        'motivo', a.motivo, 'usuario', a.usuario) order by c.fecha)
         filter (where u.marca = ${MARCA}), '[]') as facturas,
       coalesce(sum(i.importe) filter (where u.marca is distinct from ${MARCA}), 0)::text as otras
     from cc.ordenes_pago o
@@ -96,8 +106,9 @@ export async function listarOPAbiertas(): Promise<FilaOP[]> {
     left join cc.comprobantes c on c.id = i.comprobante_id
     left join cc.unidades u on u.codigo = c.unidad_codigo
     left join cc.op_estados e on e.op_numero = o.numero
+    left join app.v_aprobacion_linea a on a.op_numero = i.op_numero and a.comprobante_id = i.comprobante_id
     where o.estado = 'Prevista'
-    group by o.numero, p.razon_social, e.estado_actual
+    group by o.numero, p.codigo, e.estado_actual
     having bool_or(u.marca = ${MARCA})
     order by o.numero desc`;
 }
