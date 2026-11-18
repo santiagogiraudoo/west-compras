@@ -16,6 +16,7 @@ import { DIAS_MISMA_COMPRA, evaluarTope, previosEnOP } from "@/lib/op/topes";
 import { dolarBlue } from "@/lib/dolar";
 import { estadoOP, facturasDeOP, listarOPsApp } from "@/lib/op/queries";
 import { problemasOP } from "@/lib/op/controles";
+import { leerImporte } from "@/lib/op/extraordinaria";
 
 export interface ResultadoOP {
   ok: boolean;
@@ -68,7 +69,7 @@ async function usuario() {
  * y cc.cargar_pagos graba la OP y sus imputaciones (y frena doble pago y cruce de
  * titulares). Todo en una transacción: no queda una OP a medias.
  */
-export async function reservarOP(proveedor: string, ids: string[]): Promise<ResultadoOP> {
+export async function reservarOP(proveedor: string, ids: string[], importes: Record<string, string> = {}): Promise<ResultadoOP> {
   const u = await usuario();
   if (!u || u.role === "consulta") return { ok: false, mensaje: "No tenés permiso para armar OP." };
 
@@ -81,9 +82,23 @@ export async function reservarOP(proveedor: string, ids: string[]): Promise<Resu
   const faltan = faltantesProveedor(prov);
   if (faltan.length) return { ok: false, mensaje: `Antes de pagar completá el alta: falta ${faltan.join(", ")}` };
 
-  const elegidas = abiertos.filter((a) => ids.includes(a.id));
-  if (elegidas.length !== ids.length) {
+  const libresDe = abiertos.filter((a) => ids.includes(a.id));
+  if (libresDe.length !== ids.length) {
     return { ok: false, mensaje: "Alguna factura ya no está abierta: recargá la página." };
+  }
+  // Pago parcial: se puede pagar menos que lo libre de una factura (lo que queda sigue
+  // libre para otra OP), nunca más ni cero. Sin importe, va todo lo libre.
+  const elegidas: (typeof libresDe[number] & { libreTotal: string })[] = [];
+  for (const a of libresDe) {
+    let imp = new Decimal(a.libre);
+    if (importes[a.id]) {
+      try { imp = new Decimal(leerImporte(importes[a.id])); } catch { return { ok: false, mensaje: `El importe de ${a.numero} no es un número.` }; }
+      if (imp.lte(0)) return { ok: false, mensaje: `El importe de ${a.numero} tiene que ser mayor a cero.` };
+      if (imp.minus(a.libre).gt(0.005)) {
+        return { ok: false, mensaje: `A ${a.numero} le quedan libres $${new Decimal(a.libre).toDecimalPlaces(0).toNumber().toLocaleString("es-AR")}: no se puede pagar más.` };
+      }
+    }
+    elegidas.push({ ...a, libre: imp.toFixed(2), libreTotal: a.libre });
   }
   const { errores, total, titular } = validarSeleccionOP(elegidas);
   if (errores.length) return { ok: false, mensaje: errores.join(" · ") };
@@ -97,7 +112,7 @@ export async function reservarOP(proveedor: string, ids: string[]): Promise<Resu
       const frescos = await listarAbiertos(proveedor);
       for (const a of elegidas) {
         const f = frescos.find((x) => x.id === a.id);
-        if (!f || new Decimal(f.libre).minus(a.libre).abs().gt(0.5)) throw new Rechazo(`la factura ${a.numero} cambió mientras armabas la OP: recargá`);
+        if (!f || new Decimal(f.libre).minus(a.libreTotal).abs().gt(0.5)) throw new Rechazo(`la factura ${a.numero} cambió mientras armabas la OP: recargá`);
       }
       const motivo = `App de compras · ${u.name}`;
       const [{ numero }] = await tx.$queryRaw<{ numero: string }[]>`select cc.proxima_op(${motivo}) as numero`;
