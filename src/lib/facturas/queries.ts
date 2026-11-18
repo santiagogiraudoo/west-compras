@@ -22,6 +22,21 @@ export interface FilaBandeja {
   total: number;
   estado: string | null;
   requisitos: Requisitos;
+  /** Para cruzar sin abrir la ficha: PDF, neto, quién retiró y los remitos firmados. */
+  proveedor_codigo: string;
+  archivo_link: string | null;
+  neto: number;
+  retiro_por: string | null;
+  remitos: RemitoBandeja[];
+}
+
+export interface RemitoBandeja {
+  numero: string | null;
+  fecha: Date | null;
+  retiro_por: string | null;
+  autorizo: string | null;
+  importe: number | null;
+  archivo_link: string | null;
 }
 
 /**
@@ -46,7 +61,11 @@ export async function listarBandeja(): Promise<FilaBandeja[]> {
   const [proveedores, remitos] = await Promise.all([
     prisma.proveedor.findMany({ select: PROVEEDOR_SELECT }),
     // Solo remitos firmados: "falta" es remito sin firmar y "anulado" no cuenta (igual que la OP).
-    prisma.remito.findMany({ where: { comprobante_id: { in: ids }, estado: "ok" }, select: { comprobante_id: true } }),
+    prisma.remito.findMany({
+      where: { comprobante_id: { in: ids }, estado: "ok" },
+      select: { comprobante_id: true, numero: true, fecha: true, retiro_por: true, autorizo: true, importe: true, archivo_link: true },
+      orderBy: { fecha: "asc" },
+    }),
   ]);
   const prov = new Map(proveedores.map((p) => [p.codigo, p]));
   const conRemito = new Set(remitos.map((r) => String(r.comprobante_id)));
@@ -60,6 +79,15 @@ export async function listarBandeja(): Promise<FilaBandeja[]> {
       fecha: c.fecha,
       total: new Decimal(c.total.toString()).toNumber(),
       estado: c.estado_aprobacion,
+      proveedor_codigo: c.proveedor_codigo,
+      archivo_link: c.archivo_link,
+      neto: new Decimal(c.neto.toString()).toNumber(),
+      retiro_por: c.retiro_por,
+      remitos: remitos.filter((r) => String(r.comprobante_id) === String(c.id)).map((r) => ({
+        numero: r.numero, fecha: r.fecha, retiro_por: r.retiro_por, autorizo: r.autorizo,
+        importe: r.importe != null ? new Decimal(r.importe.toString()).toNumber() : null,
+        archivo_link: r.archivo_link?.startsWith("http") ? r.archivo_link : null,
+      })),
       requisitos: requisitosFactura(
         { ...c, tieneRemito: conRemito.has(String(c.id)) || !!c.retiro_por },
         prov.get(c.proveedor_codigo) ?? null,
