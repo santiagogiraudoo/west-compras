@@ -38,7 +38,7 @@ export function cotejarComprobante(
       const dif = leido.minus(esperado.neto).abs();
       out.push(dif.lt(1)
         ? { ok: true, texto: "El monto coincide con el neto a transferir" }
-        : { ok: false, texto: `El monto del comprobante no coincide con el neto (diferencia $${dif.toDecimalPlaces(2).toNumber().toLocaleString("es-AR", { minimumFractionDigits: 2 })})` });
+        : { ok: false, texto: `El monto del comprobante no coincide con el neto (diferencia $${dif.toDecimalPlaces(0).toNumber().toLocaleString("es-AR", { maximumFractionDigits: 0 })})` });
     }
   }
   if (l.cuenta_destino && (esperado.cbu || esperado.alias)) {

@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 
 const num = (d: Decimal.Value | null | { toString(): string }) => (d == null ? 0 : new Decimal(d.toString()).toNumber());
 const $ = (d: Decimal.Value | null | { toString(): string }, className?: string) =>
-  <MoneyCell value={num(d)} currency="ARS" decimals={2} className={className} />;
+  <MoneyCell value={num(d)} currency="ARS" decimals={0} className={className} />;
 const COLS_RENGLONES = "minmax(0,1fr) 100px 120px 130px";
 
 /**

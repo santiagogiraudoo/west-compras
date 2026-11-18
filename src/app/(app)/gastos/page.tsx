@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 const TH = "text-xs font-semibold uppercase tracking-wide";
 const GOLD = { color: "#B8960C" };
-const $ = (v: string, className?: string) => <MoneyCell value={Number(v)} currency="ARS" decimals={2} className={className} />;
+const $ = (v: string, className?: string) => <MoneyCell value={Number(v)} currency="ARS" decimals={0} className={className} />;
 
 /**
  * Gastos (fase 5 adelantada): cada factura pagada de West Desarrolladora como gasto de su

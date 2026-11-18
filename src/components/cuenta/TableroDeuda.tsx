@@ -26,7 +26,7 @@ export function TableroDeuda({ t, hoy }: { t: Tablero; hoy: string }) {
             </div>
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground font-medium">{c.label}</p>
-              <MoneyCell value={Number(c.v)} currency="ARS" decimals={2}
+              <MoneyCell value={Number(c.v)} currency="ARS" decimals={0}
                 className={`block text-lg font-semibold truncate ${c.rojo && Number(c.v) > 0 ? "text-red-700" : "text-primary"}`} />
               <p className="text-xs text-muted-foreground">{c.nota}</p>
             </div>

@@ -159,7 +159,7 @@ export function PagarOP({ numero, proveedor, total, medio: medioInicial, hoy, cb
                     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#525252]">
                       <Sparkles className="h-3.5 w-3.5 text-[#B8960C]" />
                       <span>Leído:</span>
-                      {lectura.monto && <MoneyCell value={Number(lectura.monto)} currency="ARS" decimals={2} className="font-medium text-foreground" />}
+                      {lectura.monto && <MoneyCell value={Number(lectura.monto)} currency="ARS" decimals={0} className="font-medium text-foreground" />}
                       {lectura.fecha && <span>· {lectura.fecha.split("-").reverse().join("/")}</span>}
                       {lectura.referencia && <span>· ref. {lectura.referencia}</span>}
                       {lectura.titular_destino && <span>· a {lectura.titular_destino}</span>}
@@ -191,8 +191,8 @@ export function PagarOP({ numero, proveedor, total, medio: medioInicial, hoy, cb
               ))}
             </div>
             <div className="grid grid-cols-3 gap-3 rounded-[8px] border border-l-[3px] border-l-[#B8960C] bg-[#B8960C]/5 px-4 py-3">
-              <Dato k="Total OP"><MoneyCell value={Number(total)} currency="ARS" decimals={2} /></Dato>
-              <Dato k="Retenciones"><MoneyCell value={Number(calculo.totalRetenciones)} currency="ARS" decimals={2} /></Dato>
+              <Dato k="Total OP"><MoneyCell value={Number(total)} currency="ARS" decimals={0} /></Dato>
+              <Dato k="Retenciones"><MoneyCell value={Number(calculo.totalRetenciones)} currency="ARS" decimals={0} /></Dato>
               <Dato k="Neto a transferir">
                 <span className="text-base font-semibold"><Copiar etiqueta="Neto" valor={calculo.neto.replace(".", ",")} /></span>
               </Dato>
@@ -230,7 +230,7 @@ export function PagarOP({ numero, proveedor, total, medio: medioInicial, hoy, cb
           </Button>
           <Button size="sm" disabled={pendiente || leyendo || errores.length > 0} onClick={pagar}>
             {pendiente ? <Loader2 className="h-4 w-4 animate-spin" /> : <Banknote className="h-4 w-4" />}
-            Confirmar pago · <MoneyCell value={Number(calculo.neto)} currency="ARS" decimals={2} />
+            Confirmar pago · <MoneyCell value={Number(calculo.neto)} currency="ARS" decimals={0} />
           </Button>
         </DialogFooter>
       </DialogContent>

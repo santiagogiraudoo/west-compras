@@ -90,7 +90,7 @@ export default async function CuentaProveedorPage({ params }: { params: Promise<
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground">{r.label}</p>
-                <MoneyCell value={Number(r.v)} currency="ARS" decimals={2} className="block truncate text-lg font-semibold text-primary" />
+                <MoneyCell value={Number(r.v)} currency="ARS" decimals={0} className="block truncate text-lg font-semibold text-primary" />
               </div>
             </div>
           );
@@ -163,14 +163,14 @@ export default async function CuentaProveedorPage({ params }: { params: Promise<
                   <TableCell>{l.unidad ?? ""}</TableCell>
                   <TableCell className="text-right"><Monto v={l.debe} /></TableCell>
                   <TableCell className="text-right"><Monto v={l.haber} /></TableCell>
-                  <TableCell className="text-right"><MoneyCell value={Number(l.saldo)} currency="ARS" decimals={2} /></TableCell>
+                  <TableCell className="text-right"><MoneyCell value={Number(l.saldo)} currency="ARS" decimals={0} /></TableCell>
                 </TableRow>
               ))}
               <TableRow className="bg-muted/30 font-semibold hover:bg-muted/30">
                 <TableCell colSpan={3}>Totales</TableCell>
                 <TableCell className="text-right"><Monto v={extracto.debe} /></TableCell>
                 <TableCell className="text-right"><Monto v={extracto.haber} /></TableCell>
-                <TableCell className="text-right"><MoneyCell value={Number(extracto.saldo)} currency="ARS" decimals={2} /></TableCell>
+                <TableCell className="text-right"><MoneyCell value={Number(extracto.saldo)} currency="ARS" decimals={0} /></TableCell>
               </TableRow>
             </TableBody>
           </Table>

@@ -65,7 +65,7 @@ export default async function OPPage() {
                 <span className="rounded-full bg-primary/10 px-2 py-px text-[11px] font-semibold text-primary">{filas.length}</span>
               </h2>
               <span className="text-xs text-muted-foreground">{g.nota}</span>
-              <MoneyCell value={total.toNumber()} currency="ARS" decimals={2} className="ml-auto text-sm font-semibold text-primary" />
+              <MoneyCell value={total.toNumber()} currency="ARS" decimals={0} className="ml-auto text-sm font-semibold text-primary" />
             </div>
             <div className="rounded-md border overflow-hidden">
               <Table>
@@ -116,7 +116,7 @@ export default async function OPPage() {
                     <TableCell className="min-w-[180px] whitespace-normal">{o.razon_social}</TableCell>
                     <TableCell>{formatDate(o.fecha_op)}</TableCell>
                     <TableCell><StatusPill tone="neutral">{o.estado_clickup ?? o.estado}</StatusPill></TableCell>
-                    <TableCell className="text-right"><MoneyCell value={Number(o.total_imputado)} currency="ARS" decimals={2} /></TableCell>
+                    <TableCell className="text-right"><MoneyCell value={Number(o.total_imputado)} currency="ARS" decimals={0} /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -154,7 +154,7 @@ function FilaOP({ o, hoy }: { o: OPConLineas; hoy: string }) {
         </span>
       </TableCell>
       <TableCell className={vence && vence < hoy ? "font-medium text-[#b91c1c]" : ""}>{vence ? formatDate(vence) : "—"}</TableCell>
-      <TableCell className="text-right"><MoneyCell value={Number(o.total_imputado)} currency="ARS" decimals={2} className="font-semibold" /></TableCell>
+      <TableCell className="text-right"><MoneyCell value={Number(o.total_imputado)} currency="ARS" decimals={0} className="font-semibold" /></TableCell>
       <TableCell className="text-muted-foreground/50 group-hover:text-primary"><ChevronRight className="h-4 w-4" /></TableCell>
     </TableRow>
   );

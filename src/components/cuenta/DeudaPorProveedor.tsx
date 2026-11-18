@@ -51,5 +51,5 @@ export function DeudaPorProveedor({ filas, hoy }: { filas: DeudaProveedor[]; hoy
 export function Monto({ v, className }: { v: string; className?: string }) {
   const n = Number(v);
   if (n === 0) return <span className="text-muted-foreground">—</span>;
-  return <MoneyCell value={n} currency="ARS" decimals={2} className={className} />;
+  return <MoneyCell value={n} currency="ARS" decimals={0} className={className} />;
 }

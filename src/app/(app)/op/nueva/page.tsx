@@ -79,7 +79,7 @@ function ElegirProveedor({ abiertos }: { abiertos: Awaited<ReturnType<typeof lis
                   <Link href={`/op/nueva?proveedor=${codigo}`} className="font-medium text-primary underline-offset-2 hover:underline">{p.nombre}</Link>
                 </TableCell>
                 <TableCell>{p.n}</TableCell>
-                <TableCell className="text-right"><MoneyCell value={p.libre.toNumber()} currency="ARS" decimals={2} /></TableCell>
+                <TableCell className="text-right"><MoneyCell value={p.libre.toNumber()} currency="ARS" decimals={0} /></TableCell>
               </TableRow>
             ))}
           </TableBody>

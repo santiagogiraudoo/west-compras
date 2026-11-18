@@ -36,10 +36,10 @@ export default async function InicioPage() {
           </p>
           <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1.4fr_1fr]">
             <Celda k="Vencido" sub={`${conVencido} ${conVencido === 1 ? "proveedor" : "proveedores"}`}>
-              <MoneyCell value={Number(tablero.vencido)} currency="ARS" decimals={2} className="text-xl font-semibold text-red-800" />
+              <MoneyCell value={Number(tablero.vencido)} currency="ARS" decimals={0} className="text-xl font-semibold text-red-800" />
             </Celda>
             <Celda k="Vence esta semana" sub="en los próximos 7 días" borde>
-              <MoneyCell value={Number(tablero.semana)} currency="ARS" decimals={2} className="text-xl font-semibold" />
+              <MoneyCell value={Number(tablero.semana)} currency="ARS" decimals={0} className="text-xl font-semibold" />
             </Celda>
             <div className="flex items-center justify-start sm:justify-end sm:border-l sm:pl-4">
               <Link href="/cuenta" className="inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-[#163828]">

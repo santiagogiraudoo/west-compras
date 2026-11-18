@@ -102,7 +102,7 @@ describe("diferenciaRemito", () => {
     expect(diferenciaRemito(f(null))).toBeNull();
   });
   it("tolerancia cero: $1 o más no cruza", () => {
-    expect(diferenciaRemito(f("1209.00"))).toBe("remito $1.209,00 contra factura $1.210,00");
+    expect(diferenciaRemito(f("1209.00"))).toBe("remito $1.209 contra factura $1.210");
   });
 });
 
@@ -110,7 +110,7 @@ describe("chequeos con el remito", () => {
   it("un remito que no coincide es amarillo y no cruza para el tope", () => {
     const l = linea({ remito_importe: "900.00" });
     const c = chequeosOP([l], []).find((x) => x.clave === "remito");
-    expect(c).toMatchObject({ ok: false, texto: "No coincide con el remito: 0001-00000001 (remito $900,00 contra factura $1.210,00)" });
-    expect(noCruzaRenglon(l)).toEqual(["no coincide con el remito (remito $900,00 contra factura $1.210,00)"]);
+    expect(c).toMatchObject({ ok: false, texto: "No coincide con el remito: 0001-00000001 (remito $900 contra factura $1.210)" });
+    expect(noCruzaRenglon(l)).toEqual(["no coincide con el remito (remito $900 contra factura $1.210)"]);
   });
 });

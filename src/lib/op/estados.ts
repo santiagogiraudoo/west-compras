@@ -183,7 +183,7 @@ export function diferenciaRemito(
   const rem = new Decimal(l.remito_importe);
   const cierra = (v: string) => rem.minus(v).abs().lt(1);
   if (cierra(l.factura_total) || cierra(l.factura_neto)) return null;
-  const $ = (v: Decimal.Value) => `$${new Decimal(v).toDecimalPlaces(2).toNumber().toLocaleString("es-AR", { minimumFractionDigits: 2 })}`;
+  const $ = (v: Decimal.Value) => `$${new Decimal(v).toDecimalPlaces(0).toNumber().toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
   return `remito ${$(rem)} contra factura ${$(l.factura_total)}`;
 }
 

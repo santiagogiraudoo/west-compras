@@ -79,7 +79,7 @@ export function ArmarOP({ proveedor, faltan, facturas, hoy }: Props) {
                   <TableCell className={f.vencimiento && f.vencimiento < hoy ? "text-red-700" : ""}>
                     {formatDate(f.vencimiento)}
                   </TableCell>
-                  <TableCell className="text-right"><MoneyCell value={Number(f.libre)} currency="ARS" decimals={2} /></TableCell>
+                  <TableCell className="text-right"><MoneyCell value={Number(f.libre)} currency="ARS" decimals={0} /></TableCell>
                 </TableRow>
               );
             })}
@@ -90,7 +90,7 @@ export function ArmarOP({ proveedor, faltan, facturas, hoy }: Props) {
       <aside className="space-y-3 self-start rounded-lg border border-border/60 bg-[#FFFEFC] p-4 text-sm">
         <div>
           <div className="text-xs font-medium text-muted-foreground">Total de la OP</div>
-          <MoneyCell value={Number(total)} currency="ARS" decimals={2} className="block text-xl font-semibold text-primary" />
+          <MoneyCell value={Number(total)} currency="ARS" decimals={0} className="block text-xl font-semibold text-primary" />
           <div className="text-xs text-muted-foreground">{elegidas.length} comprobantes</div>
         </div>
         <Dato label="Paga" v={titular ?? "—"} />

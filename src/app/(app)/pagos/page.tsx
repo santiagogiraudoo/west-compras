@@ -59,7 +59,7 @@ export default async function PagosPage() {
                   </div>
                   <div className="text-right">
                     <FichaLabel>Total</FichaLabel>
-                    <MoneyCell value={Number(o.total_imputado)} currency="ARS" decimals={2} className="block text-[20px] leading-7 font-semibold text-primary" />
+                    <MoneyCell value={Number(o.total_imputado)} currency="ARS" decimals={0} className="block text-[20px] leading-7 font-semibold text-primary" />
                   </div>
                 </div>
                 <div className="flex flex-wrap items-end justify-between gap-4 px-5 py-4">

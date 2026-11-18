@@ -14,7 +14,7 @@ import { AccionOP } from "./AccionOP";
 import { SacarDeOP } from "./SacarDeOP";
 import { limpiarItem, queCorto } from "./formato";
 
-const $ = (v: string | null, className?: string) => <MoneyCell value={Number(v ?? 0)} currency="ARS" decimals={2} className={className} />;
+const $ = (v: string | null, className?: string) => <MoneyCell value={Number(v ?? 0)} currency="ARS" decimals={0} className={className} />;
 const COLS_ITEMS = "minmax(0,1fr) 80px 120px 150px";
 
 interface Props {
