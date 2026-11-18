@@ -11,7 +11,7 @@ import { faltantesProveedor } from "@/lib/facturas/requisitos";
 import { problemaConstancia } from "@/lib/op/constancias";
 import { leerComprobante, type ResultadoLectura } from "@/lib/pagos/leer-comprobante";
 import { calcularPago, RETENCIONES, type DatosPago } from "@/lib/op/pago";
-import { aDecidir, aQuitar, aResolver, noCruzaRenglon, quita, SE_DECIDE, SE_DESCARTA, SE_QUITA, SE_SACA, type Decision } from "@/lib/op/estados";
+import { aDecidir, aQuitar, aResolver, noCruzaRenglon, SE_DECIDE, SE_DESCARTA, SE_QUITA, SE_SACA, type Decision } from "@/lib/op/estados";
 import { DIAS_MISMA_COMPRA, evaluarTope } from "@/lib/op/topes";
 import { dolarBlue } from "@/lib/dolar";
 import { estadoOP, listarOPsApp } from "@/lib/op/queries";
