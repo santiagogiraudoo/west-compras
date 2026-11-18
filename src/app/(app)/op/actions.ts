@@ -217,7 +217,9 @@ export async function decidirOP(
   );
   revalidar();
   const n = mias.length;
-  return { ok: true, mensaje: `${numero}: ${n} renglón${n > 1 ? "es" : ""} ${decision.toLowerCase()}${n > 1 ? "s" : ""}` };
+  // "Aprobada" es la decisión; el renglón es masculino: "1 renglón aprobado".
+  const dicho = decision.toLowerCase().replace(/a$/, "o");
+  return { ok: true, mensaje: `${numero}: ${n} renglón${n > 1 ? "es" : ""} ${dicho}${n > 1 ? "s" : ""}` };
 }
 
 /**
