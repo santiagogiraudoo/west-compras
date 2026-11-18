@@ -38,3 +38,17 @@ No entra en la fase 1: OP, aprobaciones, WhatsApp, compras, topes.
 3. **OP abiertas** (`/op`): previstas con sus facturas.
 
 Criterio de deuda: lo que falta pagar = saldo de `cc.v_saldo_comprobante` + lo imputado en OP previstas.
+
+## Fase 3 en detalle (18/11)
+
+1. **Aprobación por línea** (`/op`): en las OP armadas en la app, cada factura se aprueba u observa (rol admin: "todos los pagos pasan por Adriano"). Observar pide motivo y frena toda la OP. Cada decisión queda en `app.aprobaciones_op` (vale la última; `sql/007`). Las OP de ClickUp se siguen aprobando allá.
+2. **Pagos** (`/pagos`, Candela): OP autorizadas, la que vence primero arriba, con la cuenta del proveedor. "Registrar pago" carga fecha, medio, referencia, link del comprobante y retenciones; el neto se calcula. Pasa a Pagada con `cc.cargar_pagos` y aparece en el extracto.
+3. **La base frena**: una OP de la app no pasa a Pagada con líneas sin aprobar (trigger de `sql/007`), y `cargar_pagos` rechaza si total − retenciones ≠ neto.
+
+Falta para cerrar la fase 3 (espera respuestas):
+- **Retenciones calculadas**: hoy se cargan a mano. Falta el doc de retenciones de Candela (Ganancias depende de lo pagado en el mes al proveedor; IIBB de su alícuota).
+- **Aprobadores por unidad y topes**: hoy aprueba el admin. Falta quién aprueba qué unidad y hasta cuánto (Santiago). Con topes, la línea que cruza compra, remito y factura dentro del tope se aprueba sola ("se aprueba una sola vez").
+- **Aviso por WhatsApp**: falta el número/API (Santiago).
+- **Comprobante**: se pega el link de SharePoint; subirlo desde la app espera el permiso de escritura en SharePoint.
+
+Para usar fases 2 y 3 de verdad hay que aplicar `sql/002` a `sql/007` en production (con OK de Adriano) y crear los usuarios (Candela como operador).
