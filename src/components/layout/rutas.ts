@@ -46,7 +46,7 @@ export function rutaDe(href: string): Ruta {
   const ficha = (label: string, icon: LucideIcon = seccion.icon): Ruta => ({ href, label, icon, padre: seccion });
   switch (seccion.href) {
     case '/bandeja':
-      return ficha('Factura', Receipt);
+      return resto === 'nueva' ? ficha('Añadir factura', Receipt) : ficha('Factura', Receipt);
     case '/cuenta':
       return ficha(decodeURIComponent(resto));
     case '/op':

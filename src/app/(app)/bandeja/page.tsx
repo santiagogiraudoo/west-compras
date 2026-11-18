@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle, ChevronRight, Sparkles, CircleAlert, Clock, ExternalLink, Hourglass, Inbox, Paperclip, Search, TriangleAlert, XCircle, type LucideIcon } from "lucide-react";
+import { CheckCircle, ChevronRight, FilePlus2, Sparkles, CircleAlert, Clock, ExternalLink, Hourglass, Inbox, Paperclip, Search, TriangleAlert, XCircle, type LucideIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { hoyArgentina } from "@/lib/cuenta/queries";
 import { diasEntre } from "@/lib/op/estados";
@@ -62,11 +62,16 @@ export default async function BandejaPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="px-8 py-6 space-y-6 max-w-[1400px] mx-auto">
-      <div>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
         <h1 className="text-2xl font-bold text-primary">Bandeja de facturas</h1>
         <p className="text-sm text-muted-foreground">
           Las que esperan aprobación o tienen algo que frena. Tocá una para ver sus remitos y si cruzan; lo completo pasa solo.
         </p>
+      </div>
+        <Link href="/bandeja/nueva" className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-[#163828]">
+          <FilePlus2 className="h-4 w-4" /> Añadir factura
+        </Link>
       </div>
 
       {/* Resumen y filtros: cada grupo es un chip que filtra */}
