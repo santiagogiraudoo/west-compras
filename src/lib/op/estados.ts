@@ -56,16 +56,15 @@ export function decide(linea: Pick<LineaAprobacion, "aprobador_id">, usuario: { 
 }
 
 /**
- * Lo que alguien puede decidir en una OP: sus renglones y, si es admin, además los
- * observados o bloqueados por otros ("Observar ... le llega a Adriano": lo resuelve él
- * o quien lo observó).
+ * Renglones de otro aprobador que un admin puede resolver: los observados o bloqueados
+ * ("Observar ... le llega a Adriano"). Se resuelven con una acción aparte, con
+ * comentario, para que aprobar lo propio nunca pise la observación de otro.
  */
-export function puedeDecidir(
+export function aResolver(
   linea: Pick<LineaAprobacion, "aprobador_id" | "decision">, usuario: { id: number; role: string },
 ): boolean {
-  if (usuario.role === "consulta") return false;
-  if (decide(linea, usuario)) return true;
-  return usuario.role === "admin" && (linea.decision === "Observada" || linea.decision === "Bloqueada");
+  return usuario.role === "admin" && !decide(linea, usuario)
+    && (linea.decision === "Observada" || linea.decision === "Bloqueada");
 }
 
 /** Días enteros entre dos fechas YYYY-MM-DD (o timestamps: se toma la fecha). */

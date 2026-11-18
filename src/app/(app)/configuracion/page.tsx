@@ -15,7 +15,8 @@ export default async function ConfiguracionPage() {
     auth(),
     prisma.unidad.findMany({ where: { marca: MARCA, activa: true }, orderBy: { codigo: "asc" } }),
     prisma.aprobador.findMany(),
-    prisma.user.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    // Aprueba un admin u operador activo: uno de consulta no puede decidir nada.
+    prisma.user.findMany({ where: { active: true, role: { in: ["admin", "operador"] } }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
   const edita = session?.user?.role === "admin";
   const por = new Map(aprobadores.map((a) => [a.unidad_codigo, a]));

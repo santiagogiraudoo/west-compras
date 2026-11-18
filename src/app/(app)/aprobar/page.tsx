@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { decide, puedeDecidir, type EstadoOP } from "@/lib/op/estados";
+import { aResolver, decide, type EstadoOP } from "@/lib/op/estados";
 import { contextoProveedores, listarOPsApp, type OPConLineas } from "@/lib/op/queries";
 import { TarjetaOP } from "@/components/op/TarjetaOP";
 
@@ -19,7 +19,8 @@ export default async function AprobarPage() {
   const teToca = ops.filter((o) => o.estado === "A aprobar" && o.lineas.some((l) => decide(l, usuario) && !l.decision));
   // Las frenadas que puede resolver quien entra van primero dentro de su sección.
   const frenadas = ops.filter((o) => o.estado !== "A aprobar")
-    .sort((a, b) => Number(b.lineas.some((l) => puedeDecidir(l, usuario))) - Number(a.lineas.some((l) => puedeDecidir(l, usuario))));
+    .sort((a, b) => Number(b.lineas.some((l) => decide(l, usuario) || aResolver(l, usuario)))
+      - Number(a.lineas.some((l) => decide(l, usuario) || aResolver(l, usuario))));
   const deOtros = ops.filter((o) => !teToca.includes(o) && !frenadas.includes(o));
 
   const seccion = (titulo: string, ayuda: string, lista: OPConLineas[]) => lista.length > 0 && (

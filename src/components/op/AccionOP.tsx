@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Ban, Check, MessageSquareWarning, Send, Trash2, type LucideIcon } from "lucide-react";
+import { Ban, Check, CheckCheck, MessageSquareWarning, Send, Trash2, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { decidirOP, descartarOP, enviarAAprobar } from "@/app/(app)/op/actions";
 
-type Accion = "aprobar" | "observar" | "bloquear" | "enviar" | "descartar";
+type Accion = "aprobar" | "observar" | "bloquear" | "enviar" | "descartar" | "resolver";
 
 const ACCIONES: Record<Accion, {
   label: string; icon: LucideIcon; variant: "default" | "outline" | "ghost";
@@ -20,6 +20,10 @@ const ACCIONES: Record<Accion, {
 }> = {
   aprobar: { label: "Aprobar", icon: Check, variant: "default" },
   enviar: { label: "Mandar a aprobar", icon: Send, variant: "default" },
+  resolver: {
+    label: "Resolver observación", icon: CheckCheck, variant: "default",
+    pide: { titulo: "Resolver la observación de", ayuda: "Aprueba los renglones que otro observó o bloqueó. Queda tu comentario.", placeholder: "Cómo se resolvió (ej.: el proveedor mandó el remito)" },
+  },
   observar: {
     label: "Observar", icon: MessageSquareWarning, variant: "outline",
     pide: { titulo: "Observar", ayuda: "Frena toda la OP hasta que se resuelva. El comentario le llega a Adriano.", placeholder: "Qué hay que revisar (ej.: el remito no coincide con la factura)" },
@@ -48,6 +52,7 @@ export function AccionOP({ numero, accion }: { numero: string; accion: Accion })
       const r =
         accion === "enviar" ? await enviarAAprobar(numero)
         : accion === "descartar" ? await descartarOP(numero, texto)
+        : accion === "resolver" ? await decidirOP(numero, "Aprobada", texto, true)
         : await decidirOP(numero, accion === "aprobar" ? "Aprobada" : accion === "observar" ? "Observada" : "Bloqueada", texto);
       if (!r.ok) { toast.error(r.mensaje); return; }
       toast.success(r.mensaje);

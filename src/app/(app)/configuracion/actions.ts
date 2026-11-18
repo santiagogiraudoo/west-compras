@@ -31,10 +31,10 @@ export async function guardarAprobador(unidad: string, usuarioId: number, topeCo
   if (tc === undefined || tm === undefined) return { ok: false, mensaje: "Los topes tienen que ser números positivos (o vacíos)." };
 
   const [u, un] = await Promise.all([
-    prisma.user.findFirst({ where: { id: usuarioId, active: true } }),
+    prisma.user.findFirst({ where: { id: usuarioId, active: true, role: { in: ["admin", "operador"] } } }),
     prisma.unidad.findFirst({ where: { codigo: unidad, marca: MARCA } }),
   ]);
-  if (!u) return { ok: false, mensaje: "Ese usuario no existe o está inactivo." };
+  if (!u) return { ok: false, mensaje: "Ese usuario no existe, está inactivo o es de consulta (no puede aprobar)." };
   if (!un) return { ok: false, mensaje: "Esa unidad no es de West Desarrolladora." };
 
   await prisma.$executeRaw`

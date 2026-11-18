@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AlertTriangle, CheckCircle2, FileText } from "lucide-react";
 import { MoneyCell } from "@/components/shared/MoneyCell";
 import { formatDate } from "@/lib/utils";
-import { chequeosOP, puedeDecidir, SE_DECIDE, subasDePrecio, type LineaAprobacion } from "@/lib/op/estados";
+import { aResolver, chequeosOP, decide, SE_DECIDE, subasDePrecio, type LineaAprobacion } from "@/lib/op/estados";
 import { vencimientoOP } from "@/lib/op/pago";
 import type { CompraAnterior, OPConLineas } from "@/lib/op/queries";
 import { EstadoOPBadge } from "./EstadoOP";
@@ -23,13 +23,15 @@ interface Props {
  * Quien aprueba ve sus renglones arriba y los de los demás en gris, con su estado.
  */
 export function TarjetaOP({ op, usuario, deuda, ultimas }: Props) {
-  const mias = op.lineas.filter((l) => puedeDecidir(l, usuario));
-  const otras = op.lineas.filter((l) => !puedeDecidir(l, usuario));
+  const mias = usuario.role === "consulta" ? [] : op.lineas.filter((l) => decide(l, usuario));
+  const resolvibles = op.lineas.filter((l) => aResolver(l, usuario));
+  const otras = op.lineas.filter((l) => !mias.includes(l) && !resolvibles.includes(l));
   const chequeos = chequeosOP(op.lineas, op.faltan);
   const subas = subasDePrecio(op.lineas);
   const unidades = [...new Set(op.lineas.map((l) => l.unidad_nombre || l.unidad))].join(", ");
   const vence = vencimientoOP(op.lineas);
   const puede = mias.length > 0 && SE_DECIDE.includes(op.estado);
+  const resuelve = resolvibles.length > 0 && SE_DECIDE.includes(op.estado);
   const pendientes = mias.filter((l) => l.decision !== "Aprobada").length;
 
   return (
@@ -63,7 +65,7 @@ export function TarjetaOP({ op, usuario, deuda, ultimas }: Props) {
             </tr>
           </thead>
           <tbody>
-            {[...mias, ...otras].map((l) => <Renglon key={l.id} l={l} mio={mias.includes(l)} />)}
+            {[...mias, ...resolvibles, ...otras].map((l) => <Renglon key={l.id} l={l} mio={!otras.includes(l)} />)}
           </tbody>
         </table>
       </div>
@@ -73,11 +75,12 @@ export function TarjetaOP({ op, usuario, deuda, ultimas }: Props) {
           <summary className="text-primary underline-offset-2 hover:underline">Ver más</summary>
           <VerMas op={op} subas={subas} deuda={deuda} ultimas={ultimas} />
         </details>
-        {puede ? (
+        {puede || resuelve ? (
           <div className="flex flex-wrap gap-2">
-            {pendientes > 0 && <AccionOP numero={op.numero} accion="aprobar" />}
-            <AccionOP numero={op.numero} accion="observar" />
-            <AccionOP numero={op.numero} accion="bloquear" />
+            {resuelve && <AccionOP numero={op.numero} accion="resolver" />}
+            {puede && pendientes > 0 && <AccionOP numero={op.numero} accion="aprobar" />}
+            {puede && <AccionOP numero={op.numero} accion="observar" />}
+            {puede && <AccionOP numero={op.numero} accion="bloquear" />}
           </div>
         ) : (
           <span className="text-xs text-muted-foreground">{mias.length === 0 ? "Ningún renglón es de una unidad tuya" : ""}</span>
@@ -154,7 +157,7 @@ function VerMas({ op, subas, deuda, ultimas }: {
           </ul>
         </div>
         <p className="text-xs text-muted-foreground">
-          Armada por {op.armada_por}{op.enviada_en ? ` · mandada a aprobar por ${op.enviada_por} el ${formatDate(op.enviada_en.slice(0, 10))}` : ""} · titular {op.titular ?? "—"}
+          Armada por {op.armada_por}{op.enviada_en ? ` · mandada a aprobar por ${op.enviada_por} el ${formatDate(op.enviada_en)}` : ""} · titular {op.titular ?? "—"}
         </p>
       </section>
     </div>

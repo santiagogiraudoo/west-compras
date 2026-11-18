@@ -33,7 +33,8 @@ export async function listarOPsApp(estados?: EstadoOP[]): Promise<OPConLineas[]>
       select o.numero, o.fecha_op::text, e.estado, o.proveedor_codigo, p.razon_social,
         p.cuit, p.cbu, p.alias, p.banco, p.cuenta_titular, p.medio_pago_habitual, p.condicion_iva,
         p.telefono, p.rubro, p.condicion_pago, o.titular, o.total_imputado::text,
-        a.armada_por, a.armada_en::text, a.enviada_por, a.enviada_en::text
+        a.armada_por, (a.armada_en at time zone 'America/Argentina/Mendoza')::date::text as armada_en,
+        a.enviada_por, (a.enviada_en at time zone 'America/Argentina/Mendoza')::date::text as enviada_en
       from app.ops a
       join cc.ordenes_pago o on o.numero = a.op_numero
       join app.v_op_estado e on e.op_numero = a.op_numero
@@ -46,8 +47,8 @@ export async function listarOPsApp(estados?: EstadoOP[]): Promise<OPConLineas[]>
         coalesce(c.retiro_por, r.retiro_por) as quien,
         coalesce(it.para_que, c.descripcion) as para_que,
         (r.n > 0 or c.retiro_por is not null) as tiene_remito,
-        l.decision, l.motivo, l.usuario, l.creado_en::text as decidido_en,
-        ap.usuario_id as aprobador_id, au.name as aprobador, it.items
+        l.decision, l.motivo, l.usuario, (l.creado_en at time zone 'America/Argentina/Mendoza')::date::text as decidido_en,
+        au.id as aprobador_id, au.name as aprobador, it.items
       from cc.imputaciones i
       join app.v_op_estado e on e.op_numero = i.op_numero and e.estado not in ('Pagada', 'Descartada')
       join cc.comprobantes c on c.id = i.comprobante_id
@@ -74,7 +75,8 @@ export async function listarOPsApp(estados?: EstadoOP[]): Promise<OPConLineas[]>
           where ci.comprobante_id = c.id) x) it on true
       left join app.v_aprobacion_linea l on l.op_numero = i.op_numero and l.comprobante_id = i.comprobante_id
       left join app.aprobadores ap on ap.unidad_codigo = c.unidad_codigo
-      left join app.users au on au.id = ap.usuario_id
+      -- Un aprobador inactivo o de consulta no puede decidir: el renglón queda para un admin.
+      left join app.users au on au.id = ap.usuario_id and au.active and au.role in ('admin', 'operador')
       where i.importe <> 0
       order by i.op_numero, c.fecha, c.numero`,
   ]);

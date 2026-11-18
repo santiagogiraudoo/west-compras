@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chequeosOP, decide, pendientesOP, puedeDecidir, subasDePrecio, type ItemLinea } from "./estados";
+import { chequeosOP, decide, aResolver, pendientesOP, subasDePrecio, type ItemLinea } from "./estados";
 
 const item = (precio: string | null, anterior: string | null): ItemLinea =>
   ({ descripcion: "Cemento x 50 kg", cantidad: "10", precio, anterior, anterior_fecha: "2026-10-01" });
@@ -49,16 +49,17 @@ describe("chequeosOP", () => {
   });
 });
 
-describe("puedeDecidir", () => {
+describe("aResolver", () => {
   const admin = { id: 1, role: "admin" };
-  it("el admin resuelve lo observado o bloqueado por otro, no lo pendiente de otro", () => {
-    expect(puedeDecidir({ aprobador_id: 7, decision: "Observada" }, admin)).toBe(true);
-    expect(puedeDecidir({ aprobador_id: 7, decision: "Bloqueada" }, admin)).toBe(true);
-    expect(puedeDecidir({ aprobador_id: 7, decision: null }, admin)).toBe(false);
-    expect(puedeDecidir({ aprobador_id: 7, decision: "Aprobada" }, admin)).toBe(false);
+  it("el admin resuelve lo observado o bloqueado por otro, no lo pendiente de otro ni lo suyo", () => {
+    expect(aResolver({ aprobador_id: 7, decision: "Observada" }, admin)).toBe(true);
+    expect(aResolver({ aprobador_id: 7, decision: "Bloqueada" }, admin)).toBe(true);
+    expect(aResolver({ aprobador_id: 7, decision: null }, admin)).toBe(false);
+    expect(aResolver({ aprobador_id: 7, decision: "Aprobada" }, admin)).toBe(false);
+    expect(aResolver({ aprobador_id: 1, decision: "Observada" }, admin)).toBe(false);
   });
-  it("consulta no decide nada", () => {
-    expect(puedeDecidir({ aprobador_id: 3, decision: null }, { id: 3, role: "consulta" })).toBe(false);
+  it("solo un admin", () => {
+    expect(aResolver({ aprobador_id: 7, decision: "Observada" }, { id: 3, role: "operador" })).toBe(false);
   });
 });
 

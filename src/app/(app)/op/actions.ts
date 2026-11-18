@@ -1,13 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hoyArgentina, listarAbiertos } from "@/lib/cuenta/queries";
 import { validarSeleccionOP } from "@/lib/cuenta/calculos";
 import { faltantesProveedor } from "@/lib/facturas/requisitos";
 import { calcularPago, RETENCIONES, type DatosPago } from "@/lib/op/pago";
-import { puedeDecidir, SE_DECIDE, SE_DESCARTA, type Decision } from "@/lib/op/estados";
+import { aResolver, decide, SE_DECIDE, SE_DESCARTA, type Decision } from "@/lib/op/estados";
 import { estadoOP, listarOPsApp } from "@/lib/op/queries";
 
 export interface ResultadoOP {
@@ -96,7 +97,9 @@ export async function reservarOP(proveedor: string, ids: string[]): Promise<Resu
 export async function enviarAAprobar(numero: string): Promise<ResultadoOP> {
   const u = await usuario();
   if (!u || u.role === "consulta") return { ok: false, mensaje: "No tenés permiso." };
-  if ((await estadoOP(numero)) !== "En armado") return { ok: false, mensaje: "La OP ya no está en armado." };
+  const op = (await listarOPsApp(["En armado"])).find((o) => o.numero === numero);
+  if (!op) return { ok: false, mensaje: "La OP ya no está en armado." };
+  if (op.lineas.length === 0) return { ok: false, mensaje: "La OP no tiene facturas con importe: descartala." };
   await prisma.$executeRaw`
     update app.ops set enviada_por = ${u.name}, enviada_en = now() where op_numero = ${numero} and enviada_en is null`;
   revalidar();
@@ -105,23 +108,27 @@ export async function enviarAAprobar(numero: string): Promise<ResultadoOP> {
 
 /**
  * Aprobar, observar o bloquear: la decisión va a los renglones de la OP que le tocan a
- * quien decide (el aprobador de su unidad; un admin, además, resuelve los observados o
- * bloqueados por otros). Observar y bloquear piden comentario; un
- * renglón observado o bloqueado frena toda la OP. Se agrega una decisión (vale la
+ * quien decide (el aprobador de su unidad). Con "resolver", un admin aprueba los
+ * renglones que otro observó o bloqueó, con comentario: es una acción aparte para que
+ * aprobar lo propio nunca pise una observación ajena. Observar, bloquear y resolver piden
+ * comentario; un renglón observado o bloqueado frena toda la OP. Se agrega una decisión (vale la
  * última): la historia queda en app.aprobaciones_op.
  */
-export async function decidirOP(numero: string, decision: Decision, comentario: string): Promise<ResultadoOP> {
+export async function decidirOP(numero: string, decision: Decision, comentario: string, resolver = false): Promise<ResultadoOP> {
   const u = await usuario();
   if (!u || u.role === "consulta") return { ok: false, mensaje: "No tenés permiso para aprobar." };
   if (!["Aprobada", "Observada", "Bloqueada"].includes(decision)) return { ok: false, mensaje: "Decisión inválida." };
-  if (decision !== "Aprobada" && comentario.trim().length < 5) {
+  if (resolver && decision !== "Aprobada") return { ok: false, mensaje: "Resolver es aprobar lo observado." };
+  if ((decision !== "Aprobada" || resolver) && comentario.trim().length < 5) {
     return { ok: false, mensaje: "Escribí un comentario (al menos 5 letras)." };
   }
 
   const esta = (await listarOPsApp(SE_DECIDE)).find((o) => o.numero === numero);
   if (!esta) return { ok: false, mensaje: "La OP no está para aprobar." };
-  const mias = esta.lineas.filter((l) => puedeDecidir(l, u));
-  if (mias.length === 0) return { ok: false, mensaje: "Ningún renglón de esta OP es de una unidad que apruebes vos." };
+  const mias = esta.lineas.filter((l) => (resolver ? aResolver(l, u) : decide(l, u)));
+  if (mias.length === 0) {
+    return { ok: false, mensaje: resolver ? "No hay renglones observados por otros para resolver." : "Ningún renglón de esta OP es de una unidad que apruebes vos." };
+  }
 
   await prisma.$transaction(
     mias.map((l) => prisma.$executeRaw`
@@ -173,6 +180,23 @@ export async function descartarOP(numero: string, motivo: string): Promise<Resul
 }
 
 const TIPOS_COMPROBANTE = ["application/pdf", "image/jpeg", "image/png"];
+
+/** Los primeros bytes tienen que corresponder al tipo declarado (PDF, JPG o PNG). */
+function esDelTipo(b: Uint8Array, tipo: string): boolean {
+  const empieza = (...x: number[]) => x.every((v, i) => b[i] === v);
+  if (tipo === "application/pdf") return empieza(0x25, 0x50, 0x44, 0x46); // %PDF
+  if (tipo === "image/jpeg") return empieza(0xff, 0xd8, 0xff);
+  if (tipo === "image/png") return empieza(0x89, 0x50, 0x4e, 0x47);
+  return false;
+}
+
+/** La dirección de la app tal como la usa quien paga, para guardar un link que abra desde afuera. */
+async function baseUrl(): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return host ? `${proto}://${host}` : "";
+}
 const MAX_COMPROBANTE = 5 * 1024 * 1024;
 
 /**
@@ -195,6 +219,8 @@ export async function pagarOP(numero: string, form: FormData): Promise<Resultado
   const archivo = form.get("archivo");
   const subido = archivo instanceof File && archivo.size > 0 ? archivo : null;
   if (subido && !TIPOS_COMPROBANTE.includes(subido.type)) return { ok: false, mensaje: "El comprobante tiene que ser PDF, JPG o PNG." };
+  const bytes = subido ? new Uint8Array(await subido.arrayBuffer()) : null;
+  if (bytes && !esDelTipo(bytes, subido!.type)) return { ok: false, mensaje: "El archivo no es un PDF, JPG o PNG válido." };
   if (subido && subido.size > MAX_COMPROBANTE) return { ok: false, mensaje: "El comprobante pesa más de 5 MB." };
   if (!subido && !datos.comprobante.trim()) return { ok: false, mensaje: "Subí el comprobante o pegá su link." };
 
@@ -208,7 +234,7 @@ export async function pagarOP(numero: string, form: FormData): Promise<Resultado
 
   const fila: Record<string, string> = {
     "N° OP": numero, Estado: "Pagada", "Fecha salida de caja": datos.fecha, "Medio de pago": datos.medio, "Neto a transferir": p.neto,
-    "Comprobante (link)": subido ? `/op/${numero}/comprobante` : datos.comprobante.trim(),
+    "Comprobante (link)": subido ? `${await baseUrl()}/op/${numero}/comprobante` : datos.comprobante.trim(),
   };
   for (const r of RETENCIONES) fila[r.campo] = p.retenciones[r.clave];
   if (datos.referencia.trim()) fila["Referencia bancaria"] = datos.referencia.trim();
@@ -219,8 +245,11 @@ export async function pagarOP(numero: string, form: FormData): Promise<Resultado
 
   try {
     await prisma.$transaction(async (tx) => {
-      if (subido) {
-        const bytes = new Uint8Array(await subido.arrayBuffer());
+      // Si dos personas pagan la misma OP a la vez, la segunda espera acá y la encuentra Pagada.
+      await tx.$queryRaw`select numero from cc.ordenes_pago where numero = ${numero} for update`;
+      const [e] = await tx.$queryRaw<{ estado: string }[]>`select estado from app.v_op_estado where op_numero = ${numero}`;
+      if (e?.estado !== "Autorizada") throw new Rechazo(`la OP está ${e?.estado ?? "sin estado"}, no Autorizada`);
+      if (subido && bytes) {
         await tx.$executeRaw`
           insert into app.comprobantes_pago (op_numero, nombre, tipo, archivo, subido_por)
           values (${numero}, ${subido.name}, ${subido.type}, ${bytes}, ${u.name})`;
