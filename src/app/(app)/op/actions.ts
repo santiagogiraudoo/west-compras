@@ -12,7 +12,7 @@ import { problemaConstancia } from "@/lib/op/constancias";
 import { leerComprobante, type ResultadoLectura } from "@/lib/pagos/leer-comprobante";
 import { calcularPago, RETENCIONES, type DatosPago } from "@/lib/op/pago";
 import { aDecidir, aQuitar, aResolver, noCruzaRenglon, SE_DECIDE, SE_DESCARTA, SE_QUITA, SE_SACA, type Decision } from "@/lib/op/estados";
-import { DIAS_MISMA_COMPRA, evaluarTope } from "@/lib/op/topes";
+import { DIAS_MISMA_COMPRA, evaluarTope, previosEnOP } from "@/lib/op/topes";
 import { dolarBlue } from "@/lib/dolar";
 import { estadoOP, facturasDeOP, listarOPsApp } from "@/lib/op/queries";
 import { problemasOP } from "@/lib/op/controles";
@@ -134,10 +134,15 @@ export async function enviarAAprobar(numero: string): Promise<ResultadoOP> {
   if (frena.length) return { ok: false, mensaje: frena.join(" · ") };
 
   const [blue, contexto] = await Promise.all([dolarBlue(), contextoTopes(numero)]);
-  const evaluados = op.lineas.map((l) => {
+  // Lo que ya suman los renglones anteriores de esta misma OP en la unidad: partir una
+  // compra en varias facturas de la misma OP no la deja por debajo del tope.
+  const previos = previosEnOP(op.lineas);
+  const evaluados = op.lineas.map((l, i) => {
     const c = contexto.find((x) => x.comprobante_id === l.id && x.unidad === l.unidad);
     const r = evaluarTope({
-      importe: l.importe, acumuladoCompra: c?.acumulado_compra ?? "0", acumuladoMes: c?.acumulado_mes ?? "0",
+      importe: l.importe,
+      acumuladoCompra: new Decimal(c?.acumulado_compra ?? "0").plus(previos[i]).toFixed(2),
+      acumuladoMes: new Decimal(c?.acumulado_mes ?? "0").plus(previos[i]).toFixed(2),
       topeCompraUsd: c?.tope_compra_usd ?? null, topeMesUsd: c?.tope_mes_usd ?? null,
       blue: blue?.promedio ?? null, noCruza: noCruzaRenglon(l),
     });
@@ -233,11 +238,20 @@ export async function decidirOP(
       : "No te quedan renglones sin decidir en esta OP." };
   }
 
-  await prisma.$transaction(
-    mias.map((l) => prisma.$executeRaw`
-      insert into app.aprobaciones_op (op_numero, comprobante_id, unidad_codigo, decision, motivo, usuario_id, usuario)
-      values (${numero}, ${BigInt(l.id)}, ${l.unidad}, ${decision}, ${comentario.trim() || null}, ${u.id}, ${u.name})`),
-  );
+  // Con la OP bloqueada y su estado mirado de nuevo: mientras tanto pudo pagarse o descartarse.
+  try {
+    await prisma.$transaction(async (tx) => {
+      await bloquearOP(tx, numero, SE_DECIDE);
+      for (const l of mias) {
+        await tx.$executeRaw`
+          insert into app.aprobaciones_op (op_numero, comprobante_id, unidad_codigo, decision, motivo, usuario_id, usuario)
+          values (${numero}, ${BigInt(l.id)}, ${l.unidad}, ${decision}, ${comentario.trim() || null}, ${u.id}, ${u.name})`;
+      }
+    });
+  } catch (e) {
+    if (e instanceof Rechazo) return { ok: false, mensaje: `No se pudo: ${e.message}` };
+    throw e;
+  }
   revalidar();
   const n = mias.length;
   // "Aprobada" es la decisión; el renglón es masculino: "1 renglón aprobado".
@@ -267,11 +281,17 @@ export async function quitarObservacionOP(
     return { ok: false, mensaje: cual === "aprobadas" ? "No hay renglones aprobados que puedas quitar." : "No hay renglones observados o bloqueados que puedas quitar." };
   }
 
-  await prisma.$transaction(
-    frenadas.map((l) => prisma.$executeRaw`
+  try {
+  await prisma.$transaction(async (tx) => {
+    await bloquearOP(tx, numero, SE_QUITA);
+    for (const l of frenadas) await tx.$executeRaw`
       insert into app.aprobaciones_op (op_numero, comprobante_id, unidad_codigo, decision, motivo, usuario_id, usuario)
-      values (${numero}, ${BigInt(l.id)}, ${l.unidad}, 'Quitada', ${comentario.trim()}, ${u.id}, ${u.name})`),
-  );
+      values (${numero}, ${BigInt(l.id)}, ${l.unidad}, 'Quitada', ${comentario.trim()}, ${u.id}, ${u.name})`;
+  });
+  } catch (e) {
+    if (e instanceof Rechazo) return { ok: false, mensaje: `No se pudo: ${e.message}` };
+    throw e;
+  }
   revalidar();
   const n = frenadas.length;
   const que = renglon ? "se quitó la decisión de la factura" : cual === "aprobadas" ? (n === 1 ? "se quitó la aprobación" : `se quitaron ${n} aprobaciones`) : (n === 1 ? "se quitó la observación" : `se quitaron ${n} observaciones`);
@@ -394,6 +414,12 @@ export async function pagarOP(numero: string, form: FormData): Promise<Resultado
       // Lo que pudo cambiar desde que se aprobó: factura anulada, la misma en ClickUp, imputada de más.
       const frena = problemasOP(await facturasDeOP(tx, numero));
       if (frena.length) throw new Rechazo(frena.join(" · "));
+      // El pago se armó con lo leído antes del bloqueo: si mientras tanto sacaron una
+      // factura, el total ya no es el mismo y el neto no cuadraría.
+      const [ahora] = await tx.$queryRaw<{ total: string }[]>`select total_imputado::text as total from cc.ordenes_pago where numero = ${numero}`;
+      if (!ahora || new Decimal(ahora.total).minus(op.total_imputado).abs().gt(0.005)) {
+        throw new Rechazo("la OP cambió mientras la pagabas (otro sacó o agregó una factura): recargá y volvé a registrar el pago");
+      }
       if (subido && bytes) {
         await tx.$executeRaw`
           insert into app.comprobantes_pago (op_numero, nombre, tipo, archivo, subido_por)
