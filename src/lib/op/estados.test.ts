@@ -1,0 +1,50 @@
+import { describe, expect, it } from "vitest";
+import { chequeosOP, decide, subasDePrecio, type ItemLinea } from "./estados";
+
+const item = (precio: string | null, anterior: string | null): ItemLinea =>
+  ({ descripcion: "Cemento x 50 kg", cantidad: "10", precio, anterior, anterior_fecha: "2026-10-01" });
+const linea = (over: Partial<{ tipo: string; tiene_remito: boolean; archivo_link: string | null; items: ItemLinea[] | null }> = {}) => ({
+  tipo: "Factura A", numero: "0001-00000001", tiene_remito: true, archivo_link: "https://x/f.pdf", items: null, ...over,
+});
+
+describe("decide", () => {
+  it("decide el aprobador de la unidad; sin aprobador, un admin", () => {
+    expect(decide({ aprobador_id: 7 }, { id: 7, role: "operador" })).toBe(true);
+    expect(decide({ aprobador_id: 7 }, { id: 1, role: "admin" })).toBe(false);
+    expect(decide({ aprobador_id: null }, { id: 1, role: "admin" })).toBe(true);
+    expect(decide({ aprobador_id: null }, { id: 2, role: "operador" })).toBe(false);
+  });
+});
+
+describe("subasDePrecio", () => {
+  it("marca lo que subió más del 5 % contra la última compra", () => {
+    const s = subasDePrecio([linea({ items: [item("1100", "1000"), item("1040", "1000"), item("900", "1000"), item("50", null)] })]);
+    expect(s).toHaveLength(1);
+    expect(s[0].pct).toBe("10.0");
+    expect(s[0].factura).toBe("Factura A 0001-00000001");
+  });
+});
+
+describe("chequeosOP", () => {
+  it("todo en verde", () => {
+    const c = chequeosOP([linea({ items: [item("1000", "1000")] })], []);
+    expect(c.every((x) => x.ok)).toBe(true);
+    expect(c.find((x) => x.clave === "precio")?.texto).toBe("Precio igual o menor que la última compra");
+  });
+  it("amarillo lo que hay que mirar", () => {
+    const c = chequeosOP(
+      [linea({ tiene_remito: false, archivo_link: null, items: [item("2000", "1000")] }), linea({ tipo: "Nota de Credito A", tiene_remito: false })],
+      ["CBU", "WhatsApp"],
+    );
+    const por = Object.fromEntries(c.map((x) => [x.clave, x]));
+    expect(por.remito.ok).toBe(false);
+    expect(por.remito.texto).toBe("Sin remito: 0001-00000001");
+    expect(por.pdf.ok).toBe(false);
+    expect(por.alta.texto).toBe("Al proveedor le falta: CBU, WhatsApp");
+    expect(por.precio.texto).toBe("1 ítem más caro que la última compra");
+  });
+  it("sin historia de precios no es amarillo", () => {
+    const c = chequeosOP([linea({ items: [item("1000", null)] })], []);
+    expect(c.find((x) => x.clave === "precio")).toMatchObject({ ok: true, texto: "Precio: sin compras anteriores para comparar" });
+  });
+});
