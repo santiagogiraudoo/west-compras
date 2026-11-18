@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useHydrated } from "@/stores/tab.store";
 import { useSession } from "next-auth/react";
 import { ChevronLeft, ChevronRight, Crown, Zap } from "lucide-react";
 import { DateInput } from "@/components/ui/date-input";
@@ -22,20 +23,16 @@ function deleteCookie(name: string) {
   document.cookie = `${name}=; path=/; max-age=0`;
 }
 
+// Solo se lee en el navegador; en el server la barra no se dibuja (ver `hydrated`).
+const enNavegador = typeof document !== "undefined";
+const cookieInicial = () => (enNavegador ? readCookie(FAKE_DATE_COOKIE) ?? "" : "");
+
 export function DevToolbar() {
   const { data: session } = useSession();
-  const [pendingDate, setPendingDate] = useState<string>("");
-  const [activeDate, setActiveDate] = useState<string>("");
-  const [collapsed, setCollapsed] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    const current = readCookie(FAKE_DATE_COOKIE) ?? "";
-    setPendingDate(current);
-    setActiveDate(current);
-    setCollapsed(localStorage.getItem(COLLAPSED_KEY) === "1");
-    setHydrated(true);
-  }, []);
+  const hydrated = useHydrated();
+  const [pendingDate, setPendingDate] = useState<string>(cookieInicial);
+  const [activeDate] = useState<string>(cookieInicial);
+  const [collapsed, setCollapsed] = useState(() => enNavegador && localStorage.getItem(COLLAPSED_KEY) === "1");
 
   // En alquileres la ve el usuario "dios"; acá, un admin y solo en desarrollo (npm run dev).
   if (process.env.NODE_ENV !== "development" || session?.user?.role !== "admin" || !hydrated) return null;
