@@ -1,3 +1,4 @@
+import { avisosIA } from "./avisos-ia";
 import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
 import { MARCA, unidadesDeLaMarca } from "@/lib/marca";
@@ -28,6 +29,8 @@ export interface FilaBandeja {
   neto: number;
   retiro_por: string | null;
   remitos: RemitoBandeja[];
+  /** Lo que la IA del plomero no pudo leer seguro ("⚠️ …" en la descripción). */
+  avisos_ia: string[];
 }
 
 export interface RemitoBandeja {
@@ -83,6 +86,7 @@ export async function listarBandeja(): Promise<FilaBandeja[]> {
       archivo_link: c.archivo_link,
       neto: new Decimal(c.neto.toString()).toNumber(),
       retiro_por: c.retiro_por,
+      avisos_ia: avisosIA(c.descripcion),
       remitos: remitos.filter((r) => String(r.comprobante_id) === String(c.id)).map((r) => ({
         numero: r.numero, fecha: r.fecha, retiro_por: r.retiro_por, autorizo: r.autorizo,
         importe: r.importe != null ? new Decimal(r.importe.toString()).toNumber() : null,
