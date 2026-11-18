@@ -8,8 +8,9 @@ import { hoyArgentina, listarAbiertos } from "@/lib/cuenta/queries";
 import { resumirDeuda } from "@/lib/cuenta/calculos";
 import { listarBandeja } from "@/lib/facturas/queries";
 import { listarOPsApp } from "@/lib/op/queries";
-import { antiguedad, ranking, serieMensual, ultimosMeses } from "@/lib/dashboard/calculos";
-import { compradoPorMes, pagadoDesde, sinCondicionDePago, tiempos } from "@/lib/dashboard/queries";
+import { agendaCaja, antiguedad, ranking, serieMensual, ultimosMeses } from "@/lib/dashboard/calculos";
+import { comprometidos, compradoPorMes, pagadoDesde, sinCondicionDePago, tiempos } from "@/lib/dashboard/queries";
+import { Caja } from "@/components/dashboard/Caja";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +26,8 @@ export default async function DashboardPage() {
   const hoy = hoyArgentina();
   const meses = ultimosMeses(hoy, MESES);
   const desde = `${meses[0]}-01`;
-  const [comprado, pagado, t, abiertos, bandeja, ops, sinCondicion] = await Promise.all([
-    compradoPorMes(desde), pagadoDesde(desde), tiempos(hoy), listarAbiertos(), listarBandeja(), listarOPsApp(), sinCondicionDePago(hoy),
+  const [comprado, pagado, t, abiertos, bandeja, ops, sinCondicion, entregados] = await Promise.all([
+    compradoPorMes(desde), pagadoDesde(desde), tiempos(hoy), listarAbiertos(), listarBandeja(), listarOPsApp(), sinCondicionDePago(hoy), comprometidos(hoy),
   ]);
 
   const serie = serieMensual(meses, comprado, pagado);
@@ -87,6 +88,8 @@ export default async function DashboardPage() {
       <Panel icon={ChartColumn} titulo="Comprado contra pagado" extra={<>pagado en el período {<MoneyCell value={totalPagado.toNumber()} currency="ARS" decimals={0} />}</>}>
         <CompradoPagado serie={serie} hoy={hoy} />
       </Panel>
+
+      <Caja semanas={agendaCaja(abiertos, entregados, hoy, 8)} hoy={hoy} />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Panel icon={Filter} titulo="Dónde está la plata" extra="hoy">
