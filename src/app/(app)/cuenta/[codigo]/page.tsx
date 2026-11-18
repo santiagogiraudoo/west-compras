@@ -14,7 +14,9 @@ import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import { armarExtracto } from "@/lib/cuenta/calculos";
 import { armarTextoCuenta } from "@/lib/proveedores/cuenta";
-import { hoyArgentina, listarAbiertos, listarMovimientos } from "@/lib/cuenta/queries";
+import { detallesFacturas, hoyArgentina, listarAbiertos, listarMovimientos } from "@/lib/cuenta/queries";
+import { FilaExpandible } from "@/components/cuenta/FilaExpandible";
+import { DetalleFactura } from "@/components/cuenta/DetalleFactura";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +64,10 @@ export default async function CuentaProveedorPage({ params, searchParams }: {
   const corta = !todo && extracto.lineas.length > ULTIMOS;
   const lineas = corta ? extracto.lineas.slice(-ULTIMOS) : extracto.lineas;
   const saldoAnterior = corta ? extracto.lineas[extracto.lineas.length - ULTIMOS - 1].saldo : null;
+  // El detalle de lo que se ve: facturas abiertas y las del tramo de extracto mostrado.
+  const detalles = await detallesFacturas([...new Set([
+    ...abiertos.map((a) => a.id), ...lineas.filter((l) => l.clase === "comprobante" && l.ref).map((l) => l.ref!),
+  ])]);
 
   const resumen = [
     { label: "Saldo", v: extracto.saldo },
@@ -127,7 +133,7 @@ export default async function CuentaProveedorPage({ params, searchParams }: {
             <p className="text-sm text-muted-foreground">No tiene facturas abiertas.</p>
           </div>
         ) : (
-          <div className="rounded-md border overflow-hidden">
+          <div className="overflow-x-auto rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -143,22 +149,19 @@ export default async function CuentaProveedorPage({ params, searchParams }: {
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {/* Tocar una factura la abre: ítems, remitos, OP y PDF, sin salir de la cuenta */}
                 {abiertos.map((a) => (
-                  <TableRow key={a.id}>
-                    <TableCell>
-                      <Link href={`/bandeja/${a.id}`} className="font-medium text-primary underline-offset-2 hover:underline">{a.tipo} {a.numero}</Link>
-                    </TableCell>
-                    <TableCell>{a.unidad_codigo}</TableCell>
-                    <TableCell className="min-w-[160px] whitespace-normal">{a.facturado_a ?? "—"}</TableCell>
-                    <TableCell>{formatDate(a.fecha)}</TableCell>
-                    <TableCell className={a.vencimiento && a.vencimiento < hoy && Number(a.deuda) > 0 ? "text-red-700" : ""}>
-                      {formatDate(a.vencimiento)}
-                    </TableCell>
-                    <TableCell><EstadoFactura a={a} hoy={hoy} /></TableCell>
-                    <TableCell className="text-right"><Monto v={a.total} /></TableCell>
-                    <TableCell className="text-right"><Monto v={a.deuda} /></TableCell>
-                    <TableCell className="text-xs">{a.ops ?? ""}</TableCell>
-                  </TableRow>
+                  <FilaExpandible key={a.id} columnas={9} detalle={<DetalleFactura d={detalles[a.id]} id={a.id} />} celdas={[
+                    <span key="c" className="whitespace-nowrap font-medium text-primary">{a.tipo} {a.numero}</span>,
+                    a.unidad_codigo,
+                    <span key="t" className="block min-w-[160px] whitespace-normal">{a.facturado_a ?? "—"}</span>,
+                    formatDate(a.fecha),
+                    <span key="v" className={"whitespace-nowrap " + (a.vencimiento && a.vencimiento < hoy && Number(a.deuda) > 0 ? "text-red-700" : "")}>{formatDate(a.vencimiento)}</span>,
+                    <EstadoFactura key="e" a={a} hoy={hoy} />,
+                    <span key="to" className="block text-right"><Monto v={a.total} /></span>,
+                    <span key="d" className="block text-right"><Monto v={a.deuda} /></span>,
+                    <span key="o" className="text-xs">{a.ops ?? ""}</span>,
+                  ]} />
                 ))}
               </TableBody>
             </Table>
@@ -168,7 +171,7 @@ export default async function CuentaProveedorPage({ params, searchParams }: {
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-primary">Extracto</h2>
-        <div className="rounded-md border overflow-hidden">
+        <div className="overflow-x-auto rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -190,10 +193,24 @@ export default async function CuentaProveedorPage({ params, searchParams }: {
                   <TableCell className="text-right"><MoneyCell value={Number(saldoAnterior)} currency="ARS" decimals={0} /></TableCell>
                 </TableRow>
               )}
-              {lineas.map((l, i) => (
+              {lineas.map((l, i) => l.clase === "comprobante" && l.ref ? (
+                // Una factura del extracto se abre igual que en Facturas abiertas.
+                <FilaExpandible key={i} columnas={6} detalle={<DetalleFactura d={detalles[l.ref]} id={l.ref} />} celdas={[
+                  formatDate(l.fecha),
+                  <span key="c" className="font-medium text-primary">{l.concepto}</span>,
+                  l.unidad ?? "",
+                  <span key="d" className="block text-right"><Monto v={l.debe} className="text-[#1B4332]" /></span>,
+                  <span key="h" className="block text-right"><Monto v={l.haber} /></span>,
+                  <span key="s" className="block text-right"><MoneyCell value={Number(l.saldo)} currency="ARS" decimals={0} /></span>,
+                ]} />
+              ) : (
                 <TableRow key={i}>
                   <TableCell>{formatDate(l.fecha)}</TableCell>
-                  <TableCell>{l.concepto}</TableCell>
+                  <TableCell>
+                    {l.de_app && l.ref
+                      ? <Link href={`/op/${l.ref}`} className="font-medium text-[#1B4332] underline-offset-2 hover:underline">{l.concepto}</Link>
+                      : l.concepto}
+                  </TableCell>
                   <TableCell>{l.unidad ?? ""}</TableCell>
                   <TableCell className="text-right"><Monto v={l.debe} className="text-[#1B4332]" /></TableCell>
                   <TableCell className="text-right"><Monto v={l.haber} /></TableCell>
@@ -216,12 +233,12 @@ export default async function CuentaProveedorPage({ params, searchParams }: {
 
 /** En qué anda cada factura abierta: lo más urgente manda. */
 function EstadoFactura({ a, hoy }: { a: { vencimiento: string | null; fecha: string; libre: string; en_op: string; deuda: string }; hoy: string }) {
-  if (Number(a.deuda) <= 0) return <StatusPill tone="neutral">A favor</StatusPill>;
+  if (Number(a.deuda) <= 0) return <StatusPill tone="neutral" className="whitespace-nowrap">A favor</StatusPill>;
   const enOp = Number(a.en_op) > 0.5 && Number(a.libre) <= 0.5;
   const dias = a.vencimiento ? diasEntre(hoy, a.vencimiento) : null;
-  if (enOp) return <StatusPill tone="success" icon={CheckCircle}>{dias != null && dias < 0 ? `En OP · venció hace ${-dias} d` : "En OP"}</StatusPill>;
-  if (dias == null) return <StatusPill tone="neutral">Sin vencimiento</StatusPill>;
-  if (dias < 0) return <StatusPill tone="red" icon={TriangleAlert}>{a.vencimiento! <= a.fecha ? "Contado, sin OP" : `Venció hace ${-dias} ${dias === -1 ? "día" : "días"}`}</StatusPill>;
-  if (dias <= 7) return <StatusPill tone="amber" icon={CalendarClock}>{dias === 0 ? "Vence hoy" : `Vence en ${dias} ${dias === 1 ? "día" : "días"}`}</StatusPill>;
-  return <StatusPill tone="neutral">Vence en {dias} días</StatusPill>;
+  if (enOp) return <StatusPill tone="success" icon={CheckCircle} className="whitespace-nowrap">{dias != null && dias < 0 ? `En OP · venció hace ${-dias} d` : "En OP"}</StatusPill>;
+  if (dias == null) return <StatusPill tone="neutral" className="whitespace-nowrap">Sin vencimiento</StatusPill>;
+  if (dias < 0) return <StatusPill tone="red" icon={TriangleAlert} className="whitespace-nowrap">{a.vencimiento! <= a.fecha ? "Contado, sin OP" : `Venció hace ${-dias} ${dias === -1 ? "día" : "días"}`}</StatusPill>;
+  if (dias <= 7) return <StatusPill tone="amber" icon={CalendarClock} className="whitespace-nowrap">{dias === 0 ? "Vence hoy" : `Vence en ${dias} ${dias === 1 ? "día" : "días"}`}</StatusPill>;
+  return <StatusPill tone="neutral" className="whitespace-nowrap">Vence en {dias} días</StatusPill>;
 }
