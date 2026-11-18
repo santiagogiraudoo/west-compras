@@ -107,7 +107,7 @@ export async function listarOPAbiertas(): Promise<FilaOP[]> {
     select o.numero, o.fecha_op::text, o.estado, e.estado_actual as estado_clickup, o.proveedor_codigo,
       p.razon_social, o.titular, o.total_imputado::text, o.origen,
       coalesce(json_agg(json_build_object('tipo', c.tipo, 'numero', c.numero, 'unidad', c.unidad_codigo,
-        'importe', o.importe::text, 'vencimiento', c.vencimiento::text) order by c.fecha)
+        'importe', i.importe::text, 'vencimiento', c.vencimiento::text) order by c.fecha)
         filter (where u.marca = ${MARCA}), '[]') as facturas,
       coalesce(sum(i.importe) filter (where u.marca is distinct from ${MARCA}), 0)::text as otras
     from cc.ordenes_pago o
