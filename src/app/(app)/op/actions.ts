@@ -92,7 +92,8 @@ export async function reservarOP(proveedor: string, ids: string[]): Promise<Resu
     const numero = await prisma.$transaction(async (tx) => {
       // Dos personas armando OP del mismo proveedor a la vez: la segunda espera acá y
       // vuelve a leer lo libre, así no se imputa dos veces la misma factura.
-      await tx.$queryRaw`select pg_advisory_xact_lock(hashtext(${`armar-op:${proveedor}`}))`;
+      // $executeRaw: la función devuelve void y $queryRaw no sabe leer ese tipo.
+      await tx.$executeRaw`select pg_advisory_xact_lock(hashtext(${`armar-op:${proveedor}`}))`;
       const frescos = await listarAbiertos(proveedor);
       for (const a of elegidas) {
         const f = frescos.find((x) => x.id === a.id);
