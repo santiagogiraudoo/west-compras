@@ -45,6 +45,10 @@ export function TarjetaOP({ op, usuario, deuda, ultimas, enFicha }: Props) {
   const quitaAlgo = enDecision && usuario.role !== "consulta" && op.lineas.some((l) => quita(l, usuario));
   const pendientes = mias.filter((l) => l.decision !== "Aprobada").length;
   const aprobadas = op.lineas.filter((l) => l.decision === "Aprobada").length;
+  // Con renglones propios observados o bloqueados no se salta a otro estado: primero se
+  // quita la observación (vuelven a "sin decidir") y después se decide de nuevo.
+  const misFrenados = mias.some((l) => l.decision === "Observada" || l.decision === "Bloqueada");
+  const decideAhora = puede && !misFrenados;
 
   return (
     <FichaCard
@@ -112,10 +116,10 @@ export function TarjetaOP({ op, usuario, deuda, ultimas, enFicha }: Props) {
           {puede || resuelve || quitaAlgo ? (
             <>
               {quitaAlgo && <AccionOP numero={op.numero} accion="quitar" />}
-              {puede && <AccionOP numero={op.numero} accion="bloquear" />}
-              {puede && <AccionOP numero={op.numero} accion="observar" />}
+              {decideAhora && <AccionOP numero={op.numero} accion="bloquear" />}
+              {decideAhora && <AccionOP numero={op.numero} accion="observar" />}
               {resuelve && <AccionOP numero={op.numero} accion="resolver" />}
-              {puede && pendientes > 0 && <AccionOP numero={op.numero} accion="aprobar" />}
+              {decideAhora && pendientes > 0 && <AccionOP numero={op.numero} accion="aprobar" />}
             </>
           ) : (
             <span className="text-xs text-muted-foreground">
