@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Decimal from "decimal.js";
-import { FilePlus } from "lucide-react";
+import { FilePlus, FileText, PiggyBank, Receipt, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MoneyCell } from "@/components/shared/MoneyCell";
@@ -17,6 +17,13 @@ import { hoyArgentina, listarAbiertos, listarMovimientos } from "@/lib/cuenta/qu
 export const dynamic = "force-dynamic";
 
 const TH = "text-xs font-semibold uppercase tracking-wide";
+/** Ícono de cada tarjeta, en el orden de `resumen`: saldo, facturas abiertas, a favor, en OP. */
+const TARJETAS = [
+  { icon: Wallet, bg: "bg-[#B8960C]/10", color: "text-[#B8960C]" },
+  { icon: Receipt, bg: "bg-amber-50", color: "text-amber-600" },
+  { icon: PiggyBank, bg: "bg-emerald-50", color: "text-emerald-600" },
+  { icon: FileText, bg: "bg-[#1B4332]/10", color: "text-[#1B4332]" },
+];
 const GOLD = { color: "#B8960C" };
 
 /**
@@ -54,10 +61,13 @@ export default async function CuentaProveedorPage({ params }: { params: Promise<
     <div className="px-8 py-6 space-y-6 max-w-[1400px] mx-auto">
       <TituloDePestana label={proveedor.razon_social} />
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-primary">{proveedor.razon_social}</h1>
-          <p className="text-sm text-muted-foreground">
-            {proveedor.codigo}{proveedor.cuit ? ` · CUIT ${proveedor.cuit}` : ""}{cuentaTexto ? ` · ${cuentaTexto}` : ""}
+        <div className="min-w-0">
+          <h1 className="text-2xl leading-[30px] font-semibold tracking-[-0.015em] text-primary">{proveedor.razon_social}</h1>
+          <p className="mt-1 text-[13.5px] text-[#525252]">
+            <Link href={`/proveedores/${proveedor.codigo}`} className="font-medium text-foreground underline-offset-2 hover:text-primary hover:underline">
+              {proveedor.codigo}
+            </Link>
+            {proveedor.cuit ? ` · CUIT ${proveedor.cuit}` : ""}{cuentaTexto ? ` · ${cuentaTexto}` : ""}
           </p>
         </div>
         <div className="flex gap-2">
@@ -70,13 +80,21 @@ export default async function CuentaProveedorPage({ params }: { params: Promise<
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {resumen.map((r) => (
-          <div key={r.label} className="border border-border/60 bg-[#FFFEFC] rounded-lg p-4">
-            <p className="text-xs text-muted-foreground font-medium">{r.label}</p>
-            <MoneyCell value={Number(r.v)} currency="ARS" decimals={2} className="block text-lg font-semibold text-primary truncate" />
-          </div>
-        ))}
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        {resumen.map((r, i) => {
+          const t = TARJETAS[i];
+          return (
+            <div key={r.label} className="flex items-start gap-3 rounded-lg border border-border/60 bg-[#FFFEFC] p-4">
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${t.bg}`}>
+                <t.icon className={`h-5 w-5 ${t.color}`} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground">{r.label}</p>
+                <MoneyCell value={Number(r.v)} currency="ARS" decimals={2} className="block truncate text-lg font-semibold text-primary" />
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <section className="space-y-3">
