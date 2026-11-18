@@ -81,6 +81,10 @@ máximo, derivar en vez de guardar, una regla pareja antes que una excepción.
   verificado, WhatsApp, rubro y condiciones de pago.
 - "Chilín" se registra como "Ramos Eduardo".
 
+## Trabajo de a varios
+- Se trabaja en ramas (`adriano/<tema>` lógica, `ui/<tema>` diseño), nunca directo en `main`. Detalle y quién toca qué en `docs/COMO-TRABAJAR.md`.
+- **En una rama `ui/`** solo se cambia cómo se ve: no se tocan `src/lib/**`, `**/actions.ts`, `sql/` ni `prisma/`.
+
 ## Commits
 - `type(scope): descripción corta en minúsculas`, atómicos, mensaje con el porqué.
 - Nunca `--amend`, `--no-verify` ni `git add -A` sin revisar.
