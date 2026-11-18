@@ -1,3 +1,4 @@
+import { MARCA } from "@/lib/marca";
 import { prisma } from "@/lib/prisma";
 import { faltantesProveedor, type DatosProveedor } from "@/lib/facturas/requisitos";
 import type { EstadoOP, LineaAprobacion } from "./estados";
@@ -228,4 +229,42 @@ export async function facturasDeOP(
     from cc.imputaciones i join cc.comprobantes c on c.id = i.comprobante_id
     where i.op_numero = ${numero} and i.importe <> 0
     group by c.id`;
+}
+
+/** Un pago registrado (OP Pagada), de la app o de ClickUp. */
+export interface Pagado {
+  numero: string;
+  fecha: string;
+  proveedor_codigo: string;
+  razon_social: string;
+  medio_pago: string | null;
+  total_imputado: string;
+  total_retenciones: string;
+  neto_transferir: string | null;
+  referencia_bancaria: string | null;
+  comprobante_link: string | null;
+  orden_pago_link: string | null;
+  origen: string | null;
+  facturas: number;
+}
+
+/**
+ * El histórico de pagos de West Desarrolladora en un mes (YYYY-MM): toda OP Pagada, de
+ * la app o de ClickUp, que cancela al menos una factura de una unidad de la marca. La
+ * fecha es la de salida de caja (si falta, la de la OP). Las compensaciones van aparte:
+ * no sale plata.
+ */
+export async function listarPagados(mes: string): Promise<Pagado[]> {
+  return prisma.$queryRaw<Pagado[]>`
+    select o.numero, coalesce(o.fecha_salida_caja, o.fecha_op)::text as fecha, o.proveedor_codigo, p.razon_social,
+      o.medio_pago, o.total_imputado::text, coalesce(o.total_retenciones, 0)::text as total_retenciones,
+      o.neto_transferir::text, o.referencia_bancaria, o.comprobante_link, o.orden_pago_link, o.origen,
+      (select count(*) from cc.imputaciones i where i.op_numero = o.numero and i.importe <> 0)::int as facturas
+    from cc.ordenes_pago o
+    join cc.proveedores p on p.codigo = o.proveedor_codigo
+    where o.estado = 'Pagada' and to_char(coalesce(o.fecha_salida_caja, o.fecha_op), 'YYYY-MM') = ${mes}
+      and exists (select 1 from cc.imputaciones i join cc.comprobantes c on c.id = i.comprobante_id
+                  join cc.unidades u on u.codigo = c.unidad_codigo
+                  where i.op_numero = o.numero and u.marca = ${MARCA})
+    order by 2 desc, o.numero desc`;
 }
