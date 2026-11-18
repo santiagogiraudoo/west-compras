@@ -69,5 +69,5 @@ Abajo, libre: materiales, entrega, contratista, lo que haga falta.
 ## Lo que falta
 
 - **Que se use el estándar**: pasarlo a quien carga compras (Santi Demattia) y a las skills que crean tareas de Compras.
-- **El plomero**: hecho en la rama `compras-a-neon` de west-plomero (falta unirla). Carga cada tarea desde "pedido confirmado" en cada corrida de `completar` (las actualizadas en los últimos 30 días), con llave propia `MODO_COMPRAS`; sin unidad escrita usa la del nombre de la tarea, y liga los remitos que la compra nombra. Los tests de Python no se corrieron (no hay Python en la compu).
+- **El plomero**: hecho en la rama `compras-a-neon` de west-plomero (falta unirla). Carga cada tarea desde "pedido confirmado" en cada corrida de `completar` (las actualizadas en los últimos 30 días), con llave propia `MODO_COMPRAS`; sin unidad escrita usa la del nombre de la tarea, y liga los remitos que la compra nombra. Tests: 150 pasan; el único que falla (`test_destino_pago`, pide `NEON_URL`) falla igual en main.
 - **La app**: el tope se evalúa contra la compra (`evaluarTope` recibe la compra en vez de la factura) y la tarjeta de aprobación muestra la compra y su saldo. Se hace cuando haya compras cargadas.
