@@ -52,8 +52,17 @@ const ACCIONES: Record<Accion, {
   },
 };
 
-/** Un botón de acción sobre una OP de la app. Las que frenan, descartan o resuelven piden comentario. */
-export function AccionOP({ numero, accion }: { numero: string; accion: Accion }) {
+/**
+ * Un botón de acción sobre una OP de la app. Las que frenan, descartan o resuelven piden
+ * comentario. Con `renglon` decide una factura sola (observar esa y aprobar el resto);
+ * `etiqueta` cambia el texto del botón (ej.: "Aprobar el resto").
+ */
+export function AccionOP({ numero, accion, renglon, etiqueta, chico }: {
+  numero: string; accion: Accion; etiqueta?: string;
+  /** Botón de texto chico, para dentro de un renglón. */
+  chico?: boolean;
+  renglon?: { id: string; unidad: string; factura: string };
+}) {
   const router = useRouter();
   const [pendiente, startTransition] = useTransition();
   const [abierto, setAbierto] = useState(false);
@@ -69,7 +78,8 @@ export function AccionOP({ numero, accion }: { numero: string; accion: Accion })
         : accion === "resolver" ? await decidirOP(numero, "Aprobada", texto, true)
         : accion === "quitar" ? await quitarObservacionOP(numero, texto)
         : accion === "desaprobar" ? await quitarObservacionOP(numero, texto, "aprobadas")
-        : await decidirOP(numero, accion === "aprobar" ? "Aprobada" : accion === "observar" ? "Observada" : "Bloqueada", texto);
+        : await decidirOP(numero, accion === "aprobar" ? "Aprobada" : accion === "observar" ? "Observada" : "Bloqueada", texto, false,
+          renglon ? { id: renglon.id, unidad: renglon.unidad } : undefined);
       if (!r.ok) { toast.error(r.mensaje); return; }
       toast.success(r.mensaje);
       setAbierto(false);
@@ -79,8 +89,8 @@ export function AccionOP({ numero, accion }: { numero: string; accion: Accion })
   }
 
   const boton = (
-    <Button size="sm" variant={a.variant} className={a.clase} disabled={pendiente} onClick={a.pide ? () => setAbierto(true) : hacer}>
-      {pendiente && !a.pide ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />} {a.label}
+    <Button size="sm" variant={chico ? "ghost" : a.variant} className={chico ? "h-7 px-2 text-[12px] text-[#9a3412] hover:bg-[#fff7ed] hover:text-[#9a3412]" : a.clase} disabled={pendiente} onClick={a.pide ? () => setAbierto(true) : hacer}>
+      {pendiente && !a.pide ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />} {etiqueta ?? a.label}
     </Button>
   );
   if (!a.pide) return boton;
@@ -91,8 +101,10 @@ export function AccionOP({ numero, accion }: { numero: string; accion: Accion })
       <AlertDialog open={abierto} onOpenChange={setAbierto}>
         <AlertDialogContent className="sm:max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>{a.pide.titulo} la {numero}</AlertDialogTitle>
-            <AlertDialogDescription>{a.pide.ayuda}</AlertDialogDescription>
+            <AlertDialogTitle>{a.pide.titulo} {renglon ? renglon.factura : `la ${numero}`}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {renglon ? `Solo esta factura de la ${numero}. ${a.pide.ayuda} Las otras las podés aprobar igual.` : a.pide.ayuda}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <Textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={3} placeholder={a.pide.placeholder} autoFocus />
           <AlertDialogFooter>
