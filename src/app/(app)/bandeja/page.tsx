@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle, ChevronRight, CircleAlert, Clock, ExternalLink, Hourglass, Inbox, Paperclip, Search, TriangleAlert, XCircle, type LucideIcon } from "lucide-react";
+import { CheckCircle, ChevronRight, Sparkles, CircleAlert, Clock, ExternalLink, Hourglass, Inbox, Paperclip, Search, TriangleAlert, XCircle, type LucideIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { hoyArgentina } from "@/lib/cuenta/queries";
 import { diasEntre } from "@/lib/op/estados";
@@ -57,6 +57,7 @@ export default async function BandejaPage({ searchParams }: { searchParams: Prom
   const edad = (f: FilaBandeja) => diasEntre(f.fecha.toISOString().slice(0, 10), hoy);
   const masVieja = todas.length ? Math.max(...todas.map(edad)) : 0;
   const sinRemito = todas.filter((f) => f.remitos.length === 0 && !f.retiro_por).length;
+  const conDudas = todas.filter((f) => f.avisos_ia.length > 0).length;
   const link = (g?: string) => { const sp = new URLSearchParams(); if (g) sp.set("grupo", g); if (q) sp.set("q", q); const t = sp.toString(); return t ? `/bandeja?${t}` : "/bandeja"; };
 
   return (
@@ -95,6 +96,7 @@ export default async function BandejaPage({ searchParams }: { searchParams: Prom
         </form>
         <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><Hourglass className="h-3.5 w-3.5" /> la más vieja tiene {masVieja} {masVieja === 1 ? "día" : "días"}</span>
         {sinRemito > 0 && <span className="text-xs text-[#92400e]">· {sinRemito} sin remito ni quién recibió</span>}
+        {conDudas > 0 && <span className="text-xs text-[#3730a3]">· en {conDudas} la IA dudó algo</span>}
         {(grupo || q) && <Link href="/bandeja" className="text-xs font-medium text-primary underline-offset-2 hover:underline">Ver todas</Link>}
       </div>
 
@@ -147,6 +149,7 @@ function Fila({ f, borde, lista, dias }: { f: FilaBandeja; borde: string; lista:
           {f.requisitos.faltan.map((m) => <StatusPill key={m} tone="red" icon={TriangleAlert}>{m}</StatusPill>)}
           {f.requisitos.excepciones.map((m) => <StatusPill key={m} tone="amber" icon={CircleAlert}>{m}</StatusPill>)}
           {lista && f.estado === "Pendiente" && <StatusPill tone="amber" icon={Clock}>Sin aprobar</StatusPill>}
+          {f.avisos_ia.length > 0 && <span title={f.avisos_ia.join(" · ")}><StatusPill tone="indigo" icon={Sparkles}>La IA dudó</StatusPill></span>}
         </span>
         <ChevronRight className="h-4 w-4 text-muted-foreground/60 transition-transform group-open:rotate-90" />
       </summary>
@@ -177,6 +180,12 @@ function Fila({ f, borde, lista, dias }: { f: FilaBandeja; borde: string; lista:
                   </span>
                 </div>
               ))}
+            </div>
+          )}
+          {f.avisos_ia.length > 0 && (
+            <div className="rounded-md border-l-[3px] border-l-[#6366f1] bg-[#eef2ff] px-3 py-2 text-[12.5px] text-[#3730a3]">
+              <p className="flex items-center gap-1.5 font-semibold"><Sparkles className="h-3.5 w-3.5" /> Lo que la IA no pudo leer seguro (revisalo contra el PDF)</p>
+              <ul className="mt-1 list-disc pl-5">{f.avisos_ia.map((a) => <li key={a}>{a}</li>)}</ul>
             </div>
           )}
           <p className="text-[12px] text-[#8a8a85]">Factura: total {$(f.total)} · neto {$(f.neto)}</p>
