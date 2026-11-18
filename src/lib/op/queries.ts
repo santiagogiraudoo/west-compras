@@ -211,3 +211,21 @@ export async function listarCerradas(hoy: string, dias = 60): Promise<OPCerrada[
     where coalesce(o.fecha_salida_caja, o.fecha_op, (a.descartada_en)::date) >= ${hoy}::date - ${dias}::int
     order by 7 desc nulls last, o.numero desc`;
 }
+
+/**
+ * Las facturas de una OP con lo que hace falta para controlarla antes de aprobar o pagar
+ * (src/lib/op/controles.ts). Recibe el cliente para correr dentro de la transacción.
+ */
+export async function facturasDeOP(
+  db: Pick<typeof prisma, "$queryRaw">, numero: string,
+): Promise<import("./controles").FacturaEnOP[]> {
+  return db.$queryRaw`
+    select c.numero as factura, c.estado_aprobacion, c.total::text,
+      (select coalesce(sum(i2.importe), 0) from cc.imputaciones i2 join cc.ordenes_pago o2 on o2.numero = i2.op_numero
+        where i2.comprobante_id = c.id and o2.estado <> 'Anulada')::text as imputado,
+      (select string_agg(distinct o3.numero, ', ') from cc.op_cc oc join cc.ordenes_pago o3 on o3.numero = oc.op_numero
+        where oc.cc_clickup_id = 'factura:' || c.id and o3.numero <> ${numero} and o3.estado = 'Prevista') as en_clickup
+    from cc.imputaciones i join cc.comprobantes c on c.id = i.comprobante_id
+    where i.op_numero = ${numero} and i.importe <> 0
+    group by c.id`;
+}

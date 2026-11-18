@@ -14,7 +14,8 @@ import { calcularPago, RETENCIONES, type DatosPago } from "@/lib/op/pago";
 import { aDecidir, aQuitar, aResolver, noCruzaRenglon, SE_DECIDE, SE_DESCARTA, SE_QUITA, SE_SACA, type Decision } from "@/lib/op/estados";
 import { DIAS_MISMA_COMPRA, evaluarTope } from "@/lib/op/topes";
 import { dolarBlue } from "@/lib/dolar";
-import { estadoOP, listarOPsApp } from "@/lib/op/queries";
+import { estadoOP, facturasDeOP, listarOPsApp } from "@/lib/op/queries";
+import { problemasOP } from "@/lib/op/controles";
 
 export interface ResultadoOP {
   ok: boolean;
@@ -38,6 +39,17 @@ async function cargarPagos(tx: Pick<typeof prisma, "$queryRaw">, carga: object):
     select cc.cargar_pagos(${JSON.stringify(carga)}::jsonb, 'app') as r`;
   if (r.errores?.length) throw new Rechazo(r.errores.map((e) => e.error).join(" · "));
   return r;
+}
+
+/**
+ * Dentro de la transacción: bloquea la fila de la OP (quien llegue segundo espera) y
+ * vuelve a leer su estado. Lo que se miró antes de la transacción pudo cambiar: otro
+ * pudo pagarla o descartarla mientras tanto.
+ */
+async function bloquearOP(tx: Pick<typeof prisma, "$queryRaw">, numero: string, permitidos: string[]): Promise<void> {
+  await tx.$queryRaw`select numero from cc.ordenes_pago where numero = ${numero} for update`;
+  const [e] = await tx.$queryRaw<{ estado: string }[]>`select estado from app.v_op_estado where op_numero = ${numero}`;
+  if (!e || !permitidos.includes(e.estado)) throw new Rechazo(`la OP ya está ${e?.estado ?? "sin estado"}`);
 }
 
 function revalidar() {
@@ -78,6 +90,14 @@ export async function reservarOP(proveedor: string, ids: string[]): Promise<Resu
 
   try {
     const numero = await prisma.$transaction(async (tx) => {
+      // Dos personas armando OP del mismo proveedor a la vez: la segunda espera acá y
+      // vuelve a leer lo libre, así no se imputa dos veces la misma factura.
+      await tx.$queryRaw`select pg_advisory_xact_lock(hashtext(${`armar-op:${proveedor}`}))`;
+      const frescos = await listarAbiertos(proveedor);
+      for (const a of elegidas) {
+        const f = frescos.find((x) => x.id === a.id);
+        if (!f || new Decimal(f.libre).minus(a.libre).abs().gt(0.5)) throw new Rechazo(`la factura ${a.numero} cambió mientras armabas la OP: recargá`);
+      }
       const motivo = `App de compras · ${u.name}`;
       const [{ numero }] = await tx.$queryRaw<{ numero: string }[]>`select cc.proxima_op(${motivo}) as numero`;
       const r = await cargarPagos(tx, {
@@ -109,6 +129,8 @@ export async function enviarAAprobar(numero: string): Promise<ResultadoOP> {
   const op = (await listarOPsApp(["En armado"])).find((o) => o.numero === numero);
   if (!op) return { ok: false, mensaje: "La OP ya no está en armado." };
   if (op.lineas.length === 0) return { ok: false, mensaje: "La OP no tiene facturas con importe: descartala." };
+  const frena = problemasOP(await facturasDeOP(prisma, numero));
+  if (frena.length) return { ok: false, mensaje: frena.join(" · ") };
 
   const [blue, contexto] = await Promise.all([dolarBlue(), contextoTopes(numero)]);
   const evaluados = op.lineas.map((l) => {
@@ -275,6 +297,7 @@ export async function descartarOP(numero: string, motivo: string): Promise<Resul
 
   try {
     await prisma.$transaction(async (tx) => {
+      await bloquearOP(tx, numero, SE_DESCARTA);
       const r = await cargarPagos(tx, {
         ordenes: [{ "N° OP": numero, Estado: "Anulada", "Total imputado": "0" }],
         imputaciones: imps.map((i) => ({
@@ -367,6 +390,9 @@ export async function pagarOP(numero: string, form: FormData): Promise<Resultado
       await tx.$queryRaw`select numero from cc.ordenes_pago where numero = ${numero} for update`;
       const [e] = await tx.$queryRaw<{ estado: string }[]>`select estado from app.v_op_estado where op_numero = ${numero}`;
       if (e?.estado !== "Autorizada") throw new Rechazo(`la OP está ${e?.estado ?? "sin estado"}, no Autorizada`);
+      // Lo que pudo cambiar desde que se aprobó: factura anulada, la misma en ClickUp, imputada de más.
+      const frena = problemasOP(await facturasDeOP(tx, numero));
+      if (frena.length) throw new Rechazo(frena.join(" · "));
       if (subido && bytes) {
         await tx.$executeRaw`
           insert into app.comprobantes_pago (op_numero, nombre, tipo, archivo, subido_por)
@@ -447,6 +473,7 @@ export async function sacarDeOP(numero: string, comprobanteId: string, motivo: s
 
   try {
     await prisma.$transaction(async (tx) => {
+      await bloquearOP(tx, numero, SE_SACA);
       const r = await cargarPagos(tx, {
         ordenes: [{ "N° OP": numero, "Total imputado": total.toFixed(2) }],
         imputaciones: [{ "N° OP": numero, "Comprobante (clave)": `${sale.proveedor}|${sale.numero}`, "Importe imputado": "0", Corregir: "SI" }],
