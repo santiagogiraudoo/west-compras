@@ -51,6 +51,19 @@ export async function guardarProveedor(codigo: string | null, datos: AltaProveed
   const cambioCuenta = !antes || antes.cbu !== cuenta.cbu || antes.alias !== cuenta.alias
     || antes.banco !== cuenta.banco || antes.cuenta_titular !== cuenta.titular;
 
+  // Cambiar la cuenta de un proveedor con OP ya mandadas a aprobar o autorizadas es
+  // cambiar a dónde va una plata que ya se firmó: solo un admin. Si no, un operador podría
+  // cambiar el CBU y registrar él mismo el pago sin que nadie lo vuelva a ver.
+  if (codigo && antes && cambioCuenta && session.user.role !== "admin") {
+    const [{ vivas }] = await prisma.$queryRaw<{ vivas: string | null }[]>`
+      select string_agg(e.op_numero, ', ') as vivas
+      from app.v_op_estado e join cc.ordenes_pago o on o.numero = e.op_numero
+      where o.proveedor_codigo = ${codigo} and e.estado in ('A aprobar', 'Observada', 'Bloqueada', 'Autorizada')`;
+    if (vivas) {
+      return { ok: false, mensaje: `Tiene OP en curso (${vivas}): solo un admin puede cambiarle la cuenta bancaria.`, errores: { cbu: "Cuenta con OP en curso" } };
+    }
+  }
+
   const fila = {
     Codigo: cod,
     "Razon social": limpio.razonSocial,
