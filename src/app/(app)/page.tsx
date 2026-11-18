@@ -1,4 +1,7 @@
-import { listarPendientes } from "@/lib/pendientes";
+import Link from "next/link";
+import { listarPendientes, type Pendiente } from "@/lib/pendientes";
+import { listarOPsApp } from "@/lib/op/queries";
+import { pendientesOP } from "@/lib/op/estados";
 import { hoyArgentina, listarAbiertos } from "@/lib/cuenta/queries";
 import { resumirDeuda } from "@/lib/cuenta/calculos";
 import { TableroDeuda } from "@/components/cuenta/TableroDeuda";
@@ -10,7 +13,9 @@ export const dynamic = "force-dynamic";
 // Inicio de Adriano (decisión 17/11): arriba lo que hay que hacer, abajo el tablero de deuda.
 export default async function InicioPage() {
   const hoy = hoyArgentina();
-  const [pendientes, abiertos] = await Promise.all([listarPendientes(), listarAbiertos()]);
+  const [alertas, abiertos, ops] = await Promise.all([listarPendientes(), listarAbiertos(), listarOPsApp()]);
+  // Primero lo de las OP de la app (se resuelve en la app), después las alertas de la base.
+  const pendientes: Pendiente[] = [...pendientesOP(ops, hoy).map((p) => ({ ...p, origen: "op" as const })), ...alertas];
   const porTipo = new Map<string, number>();
   for (const p of pendientes) porTipo.set(p.tipo, (porTipo.get(p.tipo) ?? 0) + 1);
 
@@ -41,7 +46,9 @@ export default async function InicioPage() {
                 <TableBody>
                   {pendientes.map((p, i) => (
                     <TableRow key={i}>
-                      <TableCell className="whitespace-normal">{p.tipo}</TableCell>
+                      <TableCell className="whitespace-normal">
+                        {p.href ? <Link href={p.href} className="font-medium text-primary underline-offset-2 hover:underline">{p.tipo}</Link> : p.tipo}
+                      </TableCell>
                       <TableCell className="whitespace-normal">{p.proveedor ?? "—"}</TableCell>
                       <TableCell className="min-w-[280px] whitespace-normal text-muted-foreground">{p.detalle ?? ""}</TableCell>
                     </TableRow>

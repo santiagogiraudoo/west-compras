@@ -45,7 +45,8 @@ export async function listarBandeja(): Promise<FilaBandeja[]> {
   const ids = comprobantes.map((c) => c.id);
   const [proveedores, remitos] = await Promise.all([
     prisma.proveedor.findMany({ select: PROVEEDOR_SELECT }),
-    prisma.remito.findMany({ where: { comprobante_id: { in: ids } }, select: { comprobante_id: true } }),
+    // Solo remitos firmados: "falta" es remito sin firmar y "anulado" no cuenta (igual que la OP).
+    prisma.remito.findMany({ where: { comprobante_id: { in: ids }, estado: "ok" }, select: { comprobante_id: true } }),
   ]);
   const prov = new Map(proveedores.map((p) => [p.codigo, p]));
   const conRemito = new Set(remitos.map((r) => String(r.comprobante_id)));
@@ -82,7 +83,8 @@ export async function obtenerFactura(id: bigint) {
       from cc.imputaciones i join cc.ordenes_pago o on o.numero = i.op_numero
       where i.comprobante_id = ${c.id} order by o.numero`,
   ]);
-  const requisitos = requisitosFactura({ ...c, tieneRemito: remitos.length > 0 || !!c.retiro_por }, proveedor);
+  const firmados = remitos.filter((r) => r.estado === "ok");
+  const requisitos = requisitosFactura({ ...c, tieneRemito: firmados.length > 0 || !!c.retiro_por }, proveedor);
   return { c, proveedor, remitos, pagos, requisitos };
 }
 

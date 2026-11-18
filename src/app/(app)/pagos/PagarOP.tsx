@@ -14,6 +14,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { MoneyCell } from "@/components/shared/MoneyCell";
+import { Copiar } from "@/components/shared/Copiar";
 import { calcularPago, MEDIOS_PAGO, RETENCIONES, type ClaveRetencion } from "@/lib/op/pago";
 import { pagarOP } from "../op/actions";
 
@@ -21,7 +22,6 @@ interface Props {
   numero: string;
   proveedor: string;
   total: string;
-  cuenta: string | null;
   medio: string;
   hoy: string;
 }
@@ -29,30 +29,48 @@ interface Props {
 const SIN_RET: Record<ClaveRetencion, number | null> = { ganancias: null, iva: null, iibb: null, suss: null, otras: null };
 
 /**
- * Registrar el pago de una OP autorizada. Las retenciones se cargan a mano hasta tener
- * el doc de retenciones de Candela; el neto se calcula con la misma función que el server.
+ * Registrar el pago de una OP autorizada: retenciones (a mano hasta tener el doc de
+ * Candela), neto calculado con la misma función que el server, y comprobante subido o
+ * su link. Al confirmar queda Pagada con cc.cargar_pagos.
  */
-export function PagarOP({ numero, proveedor, total, cuenta, medio: medioInicial, hoy }: Props) {
+export function PagarOP({ numero, proveedor, total, medio: medioInicial, hoy }: Props) {
   const router = useRouter();
   const [pendiente, startTransition] = useTransition();
   const [abierto, setAbierto] = useState(false);
   const [fecha, setFecha] = useState(hoy);
   const [medio, setMedio] = useState(medioInicial);
   const [referencia, setReferencia] = useState("");
-  const [comprobante, setComprobante] = useState("");
+  const [link, setLink] = useState("");
+  const [archivo, setArchivo] = useState<File | null>(null);
   const [ret, setRet] = useState(SIN_RET);
 
-  const datos = {
-    fecha, medio, referencia, comprobante,
-    retenciones: Object.fromEntries(
-      RETENCIONES.map((r) => [r.clave, ret[r.clave] == null ? "" : String(ret[r.clave])]),
-    ) as Record<ClaveRetencion, string>,
-  };
-  const calculo = calcularPago(total, datos, hoy);
+  const retenciones = Object.fromEntries(
+    RETENCIONES.map((r) => [r.clave, ret[r.clave] == null ? "" : String(ret[r.clave])]),
+  ) as Record<ClaveRetencion, string>;
+  const calculo = calcularPago(total, { fecha, medio, referencia, comprobante: link, retenciones }, hoy);
+  const errores = [
+    ...calculo.errores,
+    ...(!archivo && !link.trim() ? ["Subí el comprobante o pegá su link"] : []),
+    ...(archivo && !["application/pdf", "image/jpeg", "image/png"].includes(archivo.type) ? ["El comprobante tiene que ser PDF, JPG o PNG"] : []),
+    ...(archivo && archivo.size > 5 * 1024 * 1024 ? ["El comprobante pesa más de 5 MB"] : []),
+  ];
 
   function pagar() {
+    const form = new FormData();
+    form.set("fecha", fecha);
+    form.set("medio", medio);
+    form.set("referencia", referencia);
+    form.set("link", link);
+    for (const r of RETENCIONES) form.set(`ret_${r.clave}`, retenciones[r.clave]);
+    if (archivo) form.set("archivo", archivo);
     startTransition(async () => {
-      const r = await pagarOP(numero, datos);
+      let r;
+      try {
+        r = await pagarOP(numero, form);
+      } catch {
+        toast.error("No se pudo registrar el pago. Probá de nuevo; si sigue, avisá.");
+        return;
+      }
       if (!r.ok) { toast.error(r.mensaje); return; }
       toast.success(r.mensaje);
       setAbierto(false);
@@ -68,28 +86,8 @@ export function PagarOP({ numero, proveedor, total, cuenta, medio: medioInicial,
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Pago de la {numero}</DialogTitle>
-          <DialogDescription>{proveedor}{cuenta ? ` · ${cuenta}` : ""}</DialogDescription>
+          <DialogDescription>{proveedor}</DialogDescription>
         </DialogHeader>
-
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <Campo label="Fecha de pago">
-            <DateInput value={fecha} onChange={(e) => setFecha(e.target.value)} />
-          </Campo>
-          <Campo label="Medio de pago">
-            <Select value={medio} onValueChange={setMedio}>
-              <SelectTrigger className="w-full"><SelectValue placeholder="Elegí el medio" /></SelectTrigger>
-              <SelectContent>
-                {MEDIOS_PAGO.map((m) => <SelectItem key={m} value={m}>{m === "Compensacion" ? "Compensación" : m}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </Campo>
-          <Campo label="Referencia bancaria">
-            <Input value={referencia} onChange={(e) => setReferencia(e.target.value)} placeholder="N° de transferencia o echeq" />
-          </Campo>
-          <Campo label="Comprobante (link)">
-            <Input value={comprobante} onChange={(e) => setComprobante(e.target.value)} placeholder="https://… (SharePoint)" />
-          </Campo>
-        </div>
 
         <div className="space-y-2 text-sm">
           <p className="text-xs text-muted-foreground">Retenciones (a mano hasta tener el doc de retenciones)</p>
@@ -106,18 +104,47 @@ export function PagarOP({ numero, proveedor, total, cuenta, medio: medioInicial,
         <dl className="grid grid-cols-3 gap-2 rounded-md bg-muted/50 p-3 text-sm">
           <div><dt className="text-xs text-muted-foreground">Total OP</dt><dd><MoneyCell value={Number(total)} currency="ARS" decimals={2} /></dd></div>
           <div><dt className="text-xs text-muted-foreground">Retenciones</dt><dd><MoneyCell value={Number(calculo.totalRetenciones)} currency="ARS" decimals={2} /></dd></div>
-          <div><dt className="text-xs text-muted-foreground">Neto a transferir</dt><dd className="font-semibold"><MoneyCell value={Number(calculo.neto)} currency="ARS" decimals={2} /></dd></div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Neto a transferir</dt>
+            <dd className="font-semibold"><Copiar etiqueta="Neto" valor={calculo.neto.replace(".", ",")} /></dd>
+          </div>
         </dl>
 
-        {calculo.errores.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <Campo label="Fecha de pago">
+            <DateInput value={fecha} onChange={(e) => setFecha(e.target.value)} />
+          </Campo>
+          <Campo label="Medio de pago">
+            <Select value={medio} onValueChange={setMedio}>
+              <SelectTrigger className="w-full"><SelectValue placeholder="Elegí el medio" /></SelectTrigger>
+              <SelectContent>
+                {MEDIOS_PAGO.map((m) => <SelectItem key={m} value={m}>{m === "Compensacion" ? "Compensación" : m}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Campo>
+          <Campo label="Referencia bancaria">
+            <Input value={referencia} onChange={(e) => setReferencia(e.target.value)} placeholder="N° de transferencia o echeq" />
+          </Campo>
+          <Campo label="Comprobante (PDF o foto, hasta 5 MB)">
+            <Input type="file" accept="application/pdf,image/jpeg,image/png"
+              onChange={(e) => setArchivo(e.target.files?.[0] ?? null)} />
+          </Campo>
+          <div className="col-span-2">
+            <Campo label="…o el link del comprobante">
+              <Input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://… (SharePoint)" disabled={!!archivo} />
+            </Campo>
+          </div>
+        </div>
+
+        {errores.length > 0 && (
           <ul className="rounded-md bg-red-50 p-3 text-sm text-red-800">
-            {calculo.errores.map((e) => <li key={e}>• {e}</li>)}
+            {errores.map((e) => <li key={e}>• {e}</li>)}
           </ul>
         )}
 
         <DialogFooter>
-          <Button size="sm" disabled={pendiente || calculo.errores.length > 0} onClick={pagar}>
-            <Banknote className="h-4 w-4" /> Marcar pagada
+          <Button size="sm" disabled={pendiente || errores.length > 0} onClick={pagar}>
+            <Banknote className="h-4 w-4" /> Confirmar pago
           </Button>
         </DialogFooter>
       </DialogContent>

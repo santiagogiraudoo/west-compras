@@ -3,10 +3,12 @@ import { MARCA } from "@/lib/marca";
 
 /** Una cosa para hacer: sale de cc.v_alertas o de cc.v_calidad, sin copiarla. */
 export interface Pendiente {
-  origen: "alerta" | "calidad";
+  origen: "alerta" | "calidad" | "op";
   tipo: string;
   proveedor: string | null;
   detalle: string | null;
+  /** Dónde se resuelve, si es algo de la app. */
+  href?: string;
 }
 
 /**
