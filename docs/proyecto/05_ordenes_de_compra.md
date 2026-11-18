@@ -40,8 +40,34 @@ Punto de partida (Adriano, 17/11): **la orden de compra sigue en ClickUp** (pres
 - `cc.remitos.compra_id`: la compra se cuelga del remito.
 - `app.v_compras`: facturado (facturas de sus remitos firmados), saldo y qué le falta cargar.
 
+## Estándar de la compra en ClickUp (Adriano 18/11)
+
+La suscripción de ClickUp no deja hacer obligatorios los campos, así que la compra se escribe en un **bloque fijo al principio de la descripción**. Lo lee la base (`cc._leer_compra`, sql/018), así el plomero, la app y quien sea lo leen igual.
+
+```
+Unidad: UN-03 · Iselín 90
+Proveedor: Defer
+Total con IVA: $1.234.567,89
+Para qué: hierros y cemento para la losa
+Pidió: Santi Demattia
+Autorizó: Santiago López Demattia
+```
+
+Abajo, libre: materiales, entrega, contratista, lo que haga falta.
+
+**Reglas**
+1. **Nombre de la tarea**: `Obra - Qué - dd/mm/aa` (como ya se hace).
+2. **Antes de pasar a "pedido confirmado"** tienen que estar Unidad, Proveedor, Total con IVA y Autorizó. Si falta alguno, la compra entra igual pero no cruza: la factura va a pedir firma (`app.v_compras.falta` dice qué falta).
+3. **Unidad**: el código (`UN-03`) o el nombre exacto de la unidad. Como en el desplegable de ClickUp: `UN-03 · ISELIN 90`.
+4. **Proveedor**: el nombre como está dado de alta (es el mismo del campo Proveedor de ClickUp; si el campo está puesto, gana). Un proveedor sin alta frena la compra: primero el alta.
+5. **Total con IVA**: lo que se va a pagar, a la argentina (`$36.900`, `$1.234,50`). Si el precio final cambia, se corrige esta línea: factura y compra se cruzan con tolerancia cero.
+6. **Una compra, una unidad y un proveedor.** Si una parte es de otra unidad o se le descuenta a un contratista (ej.: herramientas que se llevó Lucas Freire), va en otra tarea.
+7. **Pidió**: si no está, se toma el creador de la tarea. **Autorizó**: quien la pidió o el encargado de la unidad.
+8. **Compra en negro**: igual, y la factura se carga como "Sin factura".
+9. Las negritas, viñetas y mayúsculas no molestan (`**Total con IVA:** $1.000` sirve). Líneas como "Total parcial" no se confunden con el total.
+
 ## Lo que falta
 
-- **ClickUp no tiene los datos cargados**: en las tareas "hecho" que miré, Precio estimado y Unidad están vacíos y el importe está escrito en la descripción. Para cruzar sin que nadie toque nada, al pasar a "pedido confirmado" tienen que estar Proveedor, Unidad, importe total con IVA y quién autorizó. Opciones: hacer obligatorios esos campos en la lista (y renombrar "Precio estimado" a "Importe confirmado (con IVA)"), o que el plomero los complete leyendo la descripción.
-- **El plomero** (repo west-plomero) tiene que leer la lista Compras y llamar a `cc.cargar_compras`, y al cargar un remito, decir de qué compra es.
+- **Que se use el estándar**: pasarlo a quien carga compras (Santi Demattia) y a las skills que crean tareas de Compras.
+- **El plomero** (repo west-plomero) tiene que leer la lista Compras desde "pedido confirmado" y llamar a `cc.cargar_compras` con ClickUp id, Nombre, Estado, Descripción, Creador y el nombre del campo Proveedor como "Proveedor (elegir)"; y al cargar un remito, decir de qué compra es ("Remitos").
 - **La app**: el tope se evalúa contra la compra (`evaluarTope` recibe la compra en vez de la factura) y la tarjeta de aprobación muestra la compra y su saldo. Se hace cuando haya compras cargadas.
