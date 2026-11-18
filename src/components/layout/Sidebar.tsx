@@ -8,6 +8,7 @@ import { useHydrated } from '@/stores/tab.store';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { SidebarNavItem } from './SidebarNavItem';
 import { SidebarUserMenu } from './SidebarUserMenu';
+import { Buscador } from './Buscador';
 import { SECCIONES, rutaDe } from './rutas';
 import { cn } from '@/lib/utils';
 
@@ -59,6 +60,9 @@ export function Sidebar() {
             />
           )}
         </div>
+
+        {/* El buscador de toda la app (Ctrl+K): solo en el navegador, como el menú de la cuenta */}
+        <div className="min-h-[36px] px-2">{hydrated && <Buscador collapsed={collapsed} />}</div>
 
         {/* Navigation items */}
         <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-3">
