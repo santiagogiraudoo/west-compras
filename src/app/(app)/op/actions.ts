@@ -11,7 +11,7 @@ import { faltantesProveedor } from "@/lib/facturas/requisitos";
 import { problemaConstancia } from "@/lib/op/constancias";
 import { leerComprobante, type ResultadoLectura } from "@/lib/pagos/leer-comprobante";
 import { calcularPago, RETENCIONES, type DatosPago } from "@/lib/op/pago";
-import { aResolver, decide, noCruzaRenglon, quita, SE_DECIDE, SE_DESCARTA, SE_QUITA, SE_SACA, type Decision } from "@/lib/op/estados";
+import { aDecidir, aResolver, noCruzaRenglon, quita, SE_DECIDE, SE_DESCARTA, SE_QUITA, SE_SACA, type Decision } from "@/lib/op/estados";
 import { DIAS_MISMA_COMPRA, evaluarTope } from "@/lib/op/topes";
 import { dolarBlue } from "@/lib/dolar";
 import { estadoOP, listarOPsApp } from "@/lib/op/queries";
@@ -189,7 +189,9 @@ async function contextoTopes(numero: string) {
  * comentario; un renglón observado o bloqueado frena toda la OP. Se agrega una decisión (vale la
  * última): la historia queda en app.aprobaciones_op.
  */
-export async function decidirOP(numero: string, decision: Decision, comentario: string, resolver = false): Promise<ResultadoOP> {
+export async function decidirOP(
+  numero: string, decision: Decision, comentario: string, resolver = false, renglon?: { id: string; unidad: string },
+): Promise<ResultadoOP> {
   const u = await usuario();
   if (!u || u.role === "consulta") return { ok: false, mensaje: "No tenés permiso para aprobar." };
   if (!["Aprobada", "Observada", "Bloqueada"].includes(decision)) return { ok: false, mensaje: "Decisión inválida." };
@@ -200,9 +202,12 @@ export async function decidirOP(numero: string, decision: Decision, comentario: 
 
   const esta = (await listarOPsApp(SE_DECIDE)).find((o) => o.numero === numero);
   if (!esta) return { ok: false, mensaje: "La OP no está para aprobar." };
-  const mias = esta.lineas.filter((l) => (resolver ? aResolver(l, u) : decide(l, u)));
+  // Sin renglón: los propios sin decidir. Con renglón: esa factura sola.
+  const mias = resolver ? esta.lineas.filter((l) => aResolver(l, u)) : aDecidir(esta.lineas, u, renglon);
   if (mias.length === 0) {
-    return { ok: false, mensaje: resolver ? "No hay renglones observados por otros para resolver." : "Ningún renglón de esta OP es de una unidad que apruebes vos." };
+    return { ok: false, mensaje: resolver ? "No hay renglones observados por otros para resolver."
+      : renglon ? "Esa factura no es tuya o está frenada: primero quitá la observación."
+      : "No te quedan renglones sin decidir en esta OP." };
   }
 
   await prisma.$transaction(

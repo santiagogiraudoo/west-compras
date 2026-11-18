@@ -80,6 +80,21 @@ export function aResolver(
 }
 
 /**
+ * Qué renglones toca una decisión de quien entra.
+ * - Sin renglón: los suyos que siguen sin decidir. Así "Aprobar" aprueba el resto y
+ *   nunca pisa una observación o una aprobación que ya puso.
+ * - Con renglón (decidir una factura sola): ese, si es suyo y no está frenado. Lo frenado
+ *   primero se quita y vuelve a "sin decidir"; no salta de observado a aprobado.
+ */
+export function aDecidir<L extends Pick<LineaAprobacion, "id" | "unidad" | "aprobador_id" | "decision">>(
+  lineas: L[], usuario: { id: number; role: string }, renglon?: { id: string; unidad: string },
+): L[] {
+  if (!renglon) return lineas.filter((l) => decide(l, usuario) && l.decision == null);
+  return lineas.filter((l) => l.id === renglon.id && l.unidad === renglon.unidad && decide(l, usuario)
+    && l.decision !== "Observada" && l.decision !== "Bloqueada");
+}
+
+/**
  * Quién puede quitar una decisión (observación, bloqueo o aprobación): el renglón vuelve
  * a "sin decidir", sin pasar por otro estado (sql/013). Quien decide ese renglón o un admin.
  */

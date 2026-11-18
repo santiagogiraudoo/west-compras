@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aResolver, chequeosOP, decide, diferenciaRemito, noCruzaRenglon, pendientesOP, quita, subasDePrecio, type ItemLinea } from "./estados";
+import { aDecidir, aResolver, chequeosOP, decide, diferenciaRemito, noCruzaRenglon, pendientesOP, quita, subasDePrecio, type ItemLinea } from "./estados";
 
 const item = (precio: string | null, anterior: string | null): ItemLinea =>
   ({ descripcion: "Cemento x 50 kg", cantidad: "10", precio, anterior, anterior_fecha: "2026-10-01" });
@@ -24,6 +24,25 @@ describe("quita", () => {
     expect(quita({ aprobador_id: 7, decision: "Aprobada" }, { id: 7, role: "operador" })).toBe(true);
     expect(quita({ aprobador_id: 7, decision: "Observada" }, { id: 8, role: "operador" })).toBe(false);
     expect(quita({ aprobador_id: null, decision: null }, { id: 1, role: "admin" })).toBe(false);
+  });
+});
+
+describe("aDecidir", () => {
+  const yo = { id: 7, role: "operador" };
+  const ls = [
+    { id: "1", unidad: "UN-01", aprobador_id: 7, decision: null },
+    { id: "2", unidad: "UN-01", aprobador_id: 7, decision: "Aprobada" },
+    { id: "3", unidad: "UN-01", aprobador_id: 7, decision: "Observada" },
+    { id: "4", unidad: "UN-02", aprobador_id: 9, decision: null },
+  ] as const;
+  it("sin renglón: solo los míos sin decidir (aprobar el resto no pisa lo decidido)", () => {
+    expect(aDecidir([...ls], yo).map((l) => l.id)).toEqual(["1"]);
+  });
+  it("una factura sola: la mía sin decidir o aprobada; la frenada primero se quita", () => {
+    expect(aDecidir([...ls], yo, { id: "1", unidad: "UN-01" })).toHaveLength(1);
+    expect(aDecidir([...ls], yo, { id: "2", unidad: "UN-01" })).toHaveLength(1);
+    expect(aDecidir([...ls], yo, { id: "3", unidad: "UN-01" })).toHaveLength(0);
+    expect(aDecidir([...ls], yo, { id: "4", unidad: "UN-02" })).toHaveLength(0);
   });
 });
 
