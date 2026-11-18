@@ -64,3 +64,58 @@ export function ranking(filas: { clave: string | null; total: string }[], max: n
   const resto = orden.slice(max).reduce((t, [, v]) => t.plus(v), new Decimal(0));
   return resto.isZero() ? top : [...top, { clave: "Otros", total: resto.toFixed(2) }];
 }
+
+export interface SemanaCaja {
+  /** "vencido" para lo que ya pasó; si no, el lunes de la semana (YYYY-MM-DD). */
+  desde: string;
+  hasta: string | null;
+  en_op: string;
+  sin_op: string;
+  /** Echeqs y cheques ya entregados (OP pagada) que salen de la cuenta esa semana. */
+  comprometido: string;
+  facturas: number;
+}
+
+/** El lunes de la semana de `fecha` (YYYY-MM-DD). */
+export function lunesDe(fecha: string): string {
+  const d = new Date(`${fecha}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * La caja de las próximas `semanas`: lo que vence cada semana (lunes a domingo) partido
+ * en lo que ya tiene OP y lo que falta armar, más lo ya comprometido en echeqs o cheques
+ * que todavía no salieron. Primero va lo ya vencido. Sin vencimiento no entra.
+ */
+export function agendaCaja(
+  abiertos: Pick<Abierto, "vencimiento" | "libre" | "en_op" | "deuda">[],
+  comprometidos: { fecha: string; neto: string }[],
+  hoy: string, semanas = 8,
+): SemanaCaja[] {
+  const lunes = lunesDe(hoy);
+  const filas: { desde: string; hasta: string | null; en_op: Decimal; sin_op: Decimal; comprometido: Decimal; facturas: number }[] = [
+    { desde: "vencido", hasta: null, en_op: new Decimal(0), sin_op: new Decimal(0), comprometido: new Decimal(0), facturas: 0 },
+  ];
+  for (let i = 0; i < semanas; i++) {
+    const d = new Date(`${lunes}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + i * 7);
+    const desde = d.toISOString().slice(0, 10);
+    d.setUTCDate(d.getUTCDate() + 6);
+    filas.push({ desde, hasta: d.toISOString().slice(0, 10), en_op: new Decimal(0), sin_op: new Decimal(0), comprometido: new Decimal(0), facturas: 0 });
+  }
+  const fila = (f: string) => (f < hoy ? filas[0] : filas.find((x) => x.hasta && x.desde <= f && f <= x.hasta));
+  for (const a of abiertos) {
+    if (!a.vencimiento || new Decimal(a.deuda).lte(0.5)) continue;
+    const x = fila(a.vencimiento);
+    if (!x) continue;
+    x.en_op = x.en_op.plus(a.en_op);
+    x.sin_op = x.sin_op.plus(a.libre);
+    x.facturas += 1;
+  }
+  for (const c of comprometidos) {
+    const x = c.fecha >= hoy ? fila(c.fecha) : undefined;
+    if (x) x.comprometido = x.comprometido.plus(c.neto);
+  }
+  return filas.map((x) => ({ desde: x.desde, hasta: x.hasta, en_op: x.en_op.toFixed(2), sin_op: x.sin_op.toFixed(2), comprometido: x.comprometido.toFixed(2), facturas: x.facturas }));
+}

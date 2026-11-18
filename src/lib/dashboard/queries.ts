@@ -84,3 +84,19 @@ export async function sinCondicionDePago(hoy: string): Promise<{ codigo: string;
     where c.estado_aprobacion <> 'Anulado' and c.fecha >= ${hoy}::date - 90 and coalesce(trim(p.condicion_pago), '') = ''
     group by 1, 2 order by 3 desc`;
 }
+
+/**
+ * Lo ya comprometido: OP pagadas con echeq o cheque cuya salida de caja todavía no llegó
+ * (la plata sale ese día). Solo West Desarrolladora, sin compensaciones.
+ */
+export async function comprometidos(hoy: string): Promise<{ numero: string; fecha: string; neto: string; medio: string | null; proveedor: string }[]> {
+  return prisma.$queryRaw`
+    select o.numero, o.fecha_salida_caja::text as fecha, coalesce(nullif(o.neto_transferir, 0), o.total_imputado)::text as neto,
+      o.medio_pago as medio, p.razon_social as proveedor
+    from cc.ordenes_pago o join cc.proveedores p on p.codigo = o.proveedor_codigo
+    where o.estado = 'Pagada' and o.fecha_salida_caja >= ${hoy}::date and coalesce(o.medio_pago, '') <> 'Compensacion'
+      and exists (select 1 from cc.imputaciones i join cc.comprobantes c on c.id = i.comprobante_id
+                  join cc.unidades u on u.codigo = c.unidad_codigo
+                  where i.op_numero = o.numero and u.marca = ${MARCA})
+    order by o.fecha_salida_caja`;
+}
