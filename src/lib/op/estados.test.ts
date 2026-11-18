@@ -18,11 +18,11 @@ describe("decide", () => {
 });
 
 describe("quita", () => {
-  it("solo un renglón observado o bloqueado, por quien lo decide o un admin", () => {
+  it("cualquier decisión (también una aprobación), por quien lo decide o un admin", () => {
     expect(quita({ aprobador_id: 7, decision: "Observada" }, { id: 7, role: "operador" })).toBe(true);
     expect(quita({ aprobador_id: 7, decision: "Bloqueada" }, { id: 1, role: "admin" })).toBe(true);
+    expect(quita({ aprobador_id: 7, decision: "Aprobada" }, { id: 7, role: "operador" })).toBe(true);
     expect(quita({ aprobador_id: 7, decision: "Observada" }, { id: 8, role: "operador" })).toBe(false);
-    expect(quita({ aprobador_id: 7, decision: "Aprobada" }, { id: 7, role: "operador" })).toBe(false);
     expect(quita({ aprobador_id: null, decision: null }, { id: 1, role: "admin" })).toBe(false);
   });
 });

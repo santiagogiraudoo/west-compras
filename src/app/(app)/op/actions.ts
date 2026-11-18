@@ -11,7 +11,7 @@ import { faltantesProveedor } from "@/lib/facturas/requisitos";
 import { problemaConstancia } from "@/lib/op/constancias";
 import { leerComprobante, type ResultadoLectura } from "@/lib/pagos/leer-comprobante";
 import { calcularPago, RETENCIONES, type DatosPago } from "@/lib/op/pago";
-import { aResolver, decide, noCruzaRenglon, quita, SE_DECIDE, SE_DESCARTA, type Decision } from "@/lib/op/estados";
+import { aResolver, decide, noCruzaRenglon, quita, SE_DECIDE, SE_DESCARTA, SE_QUITA, SE_SACA, type Decision } from "@/lib/op/estados";
 import { DIAS_MISMA_COMPRA, evaluarTope } from "@/lib/op/topes";
 import { dolarBlue } from "@/lib/dolar";
 import { estadoOP, listarOPsApp } from "@/lib/op/queries";
@@ -216,19 +216,23 @@ export async function decidirOP(numero: string, decision: Decision, comentario: 
 }
 
 /**
- * Quitar una observación o un bloqueo: los renglones frenados que le tocan a quien entra
- * (o todos, si es admin) vuelven a "sin decidir", sin pasar por aprobado. Se agrega una
- * decisión 'Quitada' con su comentario; app.v_aprobacion_linea la saltea (sql/013).
+ * Quitar una decisión (observación, bloqueo o aprobación): los renglones decididos que le
+ * tocan a quien entra (o todos, si es admin) vuelven a "sin decidir", sin pasar por otro
+ * estado. Vale también con la OP Autorizada, mientras no se pagó: así sale de Para pagar.
+ * Se agrega una decisión 'Quitada' con su comentario; app.v_aprobacion_linea la saltea (sql/013).
  */
-export async function quitarObservacionOP(numero: string, comentario: string): Promise<ResultadoOP> {
+export async function quitarObservacionOP(numero: string, comentario: string, cual: "frenadas" | "aprobadas" = "frenadas"): Promise<ResultadoOP> {
   const u = await usuario();
   if (!u || u.role === "consulta") return { ok: false, mensaje: "No tenés permiso para cambiar la aprobación." };
   if (comentario.trim().length < 5) return { ok: false, mensaje: "Escribí por qué se quita (al menos 5 letras)." };
 
-  const esta = (await listarOPsApp(SE_DECIDE)).find((o) => o.numero === numero);
-  if (!esta) return { ok: false, mensaje: "La OP no está para aprobar." };
-  const frenadas = esta.lineas.filter((l) => quita(l, u));
-  if (frenadas.length === 0) return { ok: false, mensaje: "No hay renglones observados o bloqueados que puedas quitar." };
+  const esta = (await listarOPsApp(SE_QUITA)).find((o) => o.numero === numero);
+  if (!esta) return { ok: false, mensaje: "La OP ya no se puede cambiar (pagada o descartada)." };
+  const frenadas = esta.lineas.filter((l) => quita(l, u)
+    && (cual === "aprobadas" ? l.decision === "Aprobada" : l.decision === "Observada" || l.decision === "Bloqueada"));
+  if (frenadas.length === 0) {
+    return { ok: false, mensaje: cual === "aprobadas" ? "No hay renglones aprobados que puedas quitar." : "No hay renglones observados o bloqueados que puedas quitar." };
+  }
 
   await prisma.$transaction(
     frenadas.map((l) => prisma.$executeRaw`
@@ -237,7 +241,8 @@ export async function quitarObservacionOP(numero: string, comentario: string): P
   );
   revalidar();
   const n = frenadas.length;
-  return { ok: true, mensaje: `${numero}: ${n === 1 ? "se quitó la observación" : `se quitaron ${n} observaciones`}; vuelve a esperar decisión` };
+  const que = cual === "aprobadas" ? (n === 1 ? "se quitó la aprobación" : `se quitaron ${n} aprobaciones`) : (n === 1 ? "se quitó la observación" : `se quitaron ${n} observaciones`);
+  return { ok: true, mensaje: `${numero}: ${que}; vuelve a esperar decisión` };
 }
 
 /**
@@ -405,4 +410,46 @@ export async function leerComprobantePago(form: FormData): Promise<ResultadoLect
   if (!TIPOS_COMPROBANTE.includes(archivo.type)) return { ok: false, mensaje: "El comprobante tiene que ser PDF, JPG o PNG." };
   if (archivo.size > MAX_COMPROBANTE) return { ok: false, mensaje: "El comprobante pesa más de 5 MB." };
   return leerComprobante(Buffer.from(await archivo.arrayBuffer()), archivo.type);
+}
+
+/**
+ * Sacar una factura de la OP sin descartarla: su imputación pasa a 0 (cc.cargar_pagos,
+ * "Corregir") y el total de la OP se recalcula con las que quedan. La factura vuelve a
+ * estar libre para otra OP. Queda en la historia como decisión 'Quitada' con el motivo.
+ * Si es la única factura, se descarta la OP (descartarOP).
+ */
+export async function sacarDeOP(numero: string, comprobanteId: string, motivo: string): Promise<ResultadoOP> {
+  const u = await usuario();
+  if (!u || u.role === "consulta") return { ok: false, mensaje: "No tenés permiso para cambiar la OP." };
+  if (motivo.trim().length < 5) return { ok: false, mensaje: "Escribí por qué se saca (al menos 5 letras)." };
+  const estado = await estadoOP(numero);
+  if (!estado) return { ok: false, mensaje: "Esta OP no es de la app: se cambia en ClickUp." };
+  if (!SE_SACA.includes(estado)) return { ok: false, mensaje: `La OP está ${estado}: ya no se le pueden sacar facturas.` };
+
+  const imps = await prisma.$queryRaw<{ id: string; proveedor: string; numero: string; unidad: string | null; importe: string }[]>`
+    select c.id::text, c.proveedor_codigo as proveedor, c.numero, c.unidad_codigo as unidad, i.importe::text
+    from cc.imputaciones i join cc.comprobantes c on c.id = i.comprobante_id
+    where i.op_numero = ${numero} and i.importe <> 0`;
+  const sale = imps.find((i) => i.id === comprobanteId);
+  if (!sale) return { ok: false, mensaje: "Esa factura no está en la OP." };
+  if (imps.length === 1) return { ok: false, mensaje: "Es la única factura de la OP: descartá la OP." };
+  const total = imps.filter((i) => i !== sale).reduce((t, i) => t.plus(i.importe), new Decimal(0));
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const r = await cargarPagos(tx, {
+        ordenes: [{ "N° OP": numero, "Total imputado": total.toFixed(2) }],
+        imputaciones: [{ "N° OP": numero, "Comprobante (clave)": `${sale.proveedor}|${sale.numero}`, "Importe imputado": "0", Corregir: "SI" }],
+      });
+      if (r.corregidas !== 1) throw new Rechazo("La base no sacó la factura.");
+      await tx.$executeRaw`
+        insert into app.aprobaciones_op (op_numero, comprobante_id, unidad_codigo, decision, motivo, usuario_id, usuario)
+        values (${numero}, ${BigInt(sale.id)}, ${sale.unidad}, 'Quitada', ${`Sacada de la OP: ${motivo.trim()}`}, ${u.id}, ${u.name})`;
+    });
+  } catch (e) {
+    if (e instanceof Rechazo) return { ok: false, mensaje: `La base lo rechazó: ${e.message}` };
+    throw e;
+  }
+  revalidar();
+  return { ok: true, mensaje: `${numero}: se sacó la ${sale.numero}; quedó libre para otra OP` };
 }

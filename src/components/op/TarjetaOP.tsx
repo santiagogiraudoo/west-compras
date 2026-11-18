@@ -4,13 +4,14 @@ import { MoneyCell } from "@/components/shared/MoneyCell";
 import { FichaCard, FichaLabel, FichaTabla, FichaTablaCabecera, FichaTablaFila } from "@/components/properties/FichaCard";
 import { formatDate } from "@/lib/utils";
 import {
-  aResolver, chequeosOP, decide, diferenciaRemito, quita, SE_DECIDE, subasDePrecio, type LineaAprobacion,
+  aResolver, chequeosOP, decide, diferenciaRemito, quita, SE_DECIDE, SE_QUITA, SE_SACA, subasDePrecio, type LineaAprobacion,
 } from "@/lib/op/estados";
 import { vencimientoOP } from "@/lib/op/pago";
 import { hoyArgentina } from "@/lib/cuenta/queries";
 import type { CompraAnterior, OPConLineas } from "@/lib/op/queries";
 import { EstadoOPBadge } from "./EstadoOP";
 import { AccionOP } from "./AccionOP";
+import { SacarDeOP } from "./SacarDeOP";
 import { limpiarItem, queCorto } from "./formato";
 
 const $ = (v: string | null, className?: string) => <MoneyCell value={Number(v ?? 0)} currency="ARS" decimals={2} className={className} />;
@@ -43,7 +44,11 @@ export function TarjetaOP({ op, usuario, deuda, ultimas, enFicha }: Props) {
   const enDecision = SE_DECIDE.includes(op.estado);
   const puede = mias.length > 0 && enDecision;
   const resuelve = resolvibles.length > 0 && enDecision;
-  const quitaAlgo = enDecision && usuario.role !== "consulta" && op.lineas.some((l) => quita(l, usuario));
+  // Quitar se puede también con la OP Autorizada (mientras no se pagó): así sale de Para pagar.
+  const enQuita = SE_QUITA.includes(op.estado) && usuario.role !== "consulta";
+  const quitaAlgo = enQuita && op.lineas.some((l) => quita(l, usuario) && (l.decision === "Observada" || l.decision === "Bloqueada"));
+  const quitaAprob = enQuita && op.lineas.some((l) => quita(l, usuario) && l.decision === "Aprobada");
+  const saca = SE_SACA.includes(op.estado) && usuario.role !== "consulta" && op.lineas.length > 1;
   const pendientes = mias.filter((l) => l.decision !== "Aprobada").length;
   const aprobadas = op.lineas.filter((l) => l.decision === "Aprobada").length;
   // Con renglones propios observados o bloqueados no se salta a otro estado: primero se
@@ -100,7 +105,8 @@ export function TarjetaOP({ op, usuario, deuda, ultimas, enFicha }: Props) {
 
       {/* Un renglón por factura (y unidad) */}
       {[...mias, ...resolvibles, ...otras].map((l) => (
-        <Renglon key={`${l.id}-${l.unidad}`} l={l} mio={!otras.includes(l)} rubro={op.rubro} hoy={hoy} />
+        <Renglon key={`${l.id}-${l.unidad}`} l={l} mio={!otras.includes(l)} rubro={op.rubro} hoy={hoy}
+          numero={op.numero} proveedor={op.proveedor_codigo} saca={saca} />
       ))}
 
       {/* Ver más y botones */}
@@ -114,8 +120,9 @@ export function TarjetaOP({ op, usuario, deuda, ultimas, enFicha }: Props) {
           <VerMas op={op} subas={subas} deuda={deuda} ultimas={ultimas} />
         </details>
         <div className="flex w-full flex-wrap items-center justify-end gap-2">
-          {puede || resuelve || quitaAlgo ? (
+          {puede || resuelve || quitaAlgo || quitaAprob ? (
             <>
+              {quitaAprob && <AccionOP numero={op.numero} accion="desaprobar" />}
               {quitaAlgo && <AccionOP numero={op.numero} accion="quitar" />}
               {decideAhora && <AccionOP numero={op.numero} accion="bloquear" />}
               {decideAhora && <AccionOP numero={op.numero} accion="observar" />}
@@ -133,7 +140,10 @@ export function TarjetaOP({ op, usuario, deuda, ultimas, enFicha }: Props) {
   );
 }
 
-function Renglon({ l, mio, rubro, hoy }: { l: LineaAprobacion; mio: boolean; rubro: string | null; hoy: string }) {
+function Renglon({ l, mio, rubro, hoy, numero, proveedor, saca }: {
+  l: LineaAprobacion; mio: boolean; rubro: string | null; hoy: string; numero: string; proveedor: string; saca: boolean;
+}) {
+  const remitos = (l.remitos ?? []).filter((r) => r.numero || r.archivo_link);
   const que = queCorto(l.items, rubro);
   const dif = diferenciaRemito(l);
   const subas = subasDePrecio([l]);
@@ -166,14 +176,22 @@ function Renglon({ l, mio, rubro, hoy }: { l: LineaAprobacion; mio: boolean; rub
               !l.tipo.startsWith("Nota de") && l.tipo !== "Remito" && <Chequeo ok={false}>Sin remito</Chequeo>
             )}
             {subas.length > 0 && <Chequeo ok={false}>{subas.length === 1 ? "1 artículo más caro" : `${subas.length} artículos más caros`}</Chequeo>}
-            {l.archivo_link ? (
-              <a href={l.archivo_link} target="_blank" rel="noreferrer"
-                className="inline-flex items-center gap-1 rounded-[4px] border border-[#e8e8e3] bg-white px-2 py-[2px] text-[11.5px] font-medium text-primary hover:bg-[#f0f6f2]">
-                <Paperclip className="h-3 w-3" /> PDF <ExternalLink className="h-3 w-3 opacity-60" />
-              </a>
-            ) : (
-              l.tipo !== "Sin factura" && <Chequeo ok={false}>Sin PDF</Chequeo>
+            {!l.archivo_link && l.tipo !== "Sin factura" && <Chequeo ok={false}>Sin PDF</Chequeo>}
+          </div>
+          {/* Accesos: lo que hay que abrir para revisar, a un clic */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px]">
+            {l.archivo_link && <Acceso href={l.archivo_link} externo>PDF de la factura</Acceso>}
+            {remitos.filter((r) => r.archivo_link).map((r, i) => (
+              <Acceso key={i} href={r.archivo_link!} externo>Remito {r.numero ?? "S/N"}</Acceso>
+            ))}
+            {remitos.some((r) => !r.archivo_link) && (
+              <span className="text-[#a3a3a3]" title={remitos.filter((r) => !r.archivo_link).map((r) => r.numero ?? "S/N").join(", ")}>
+                {remitos.filter((r) => !r.archivo_link).length === 1 ? "1 remito sin archivo" : `${remitos.filter((r) => !r.archivo_link).length} remitos sin archivo`}
+              </span>
             )}
+            <Acceso href={`/bandeja/${l.id}`}>Ficha de la factura</Acceso>
+            <Acceso href={`/cuenta/${proveedor}`}>Cuenta del proveedor</Acceso>
+            {saca && <span className="ml-auto"><SacarDeOP numero={numero} comprobanteId={l.id} factura={`${l.tipo} ${l.numero}`} /></span>}
           </div>
         </div>
 
@@ -253,6 +271,16 @@ function VerMas({ op, subas, deuda, ultimas }: {
         </p>
       </section>
     </div>
+  );
+}
+
+/** Un acceso directo: a otra pantalla de la app, o a un archivo (PDF, remito) en otra pestaña. */
+function Acceso({ href, externo, children }: { href: string; externo?: boolean; children: React.ReactNode }) {
+  const clase = "inline-flex items-center gap-1 font-medium text-primary underline-offset-2 hover:underline";
+  return externo ? (
+    <a href={href} target="_blank" rel="noreferrer" className={clase}><Paperclip className="h-3 w-3" /> {children} <ExternalLink className="h-3 w-3 opacity-60" /></a>
+  ) : (
+    <Link href={href} className={clase}>{children} <ChevronRight className="h-3 w-3" /></Link>
   );
 }
 

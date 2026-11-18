@@ -13,6 +13,10 @@ export type Decision = "Aprobada" | "Observada" | "Bloqueada";
 export const SE_DECIDE: EstadoOP[] = ["A aprobar", "Observada", "Bloqueada"];
 /** Se descarta mientras no esté pagada. */
 export const SE_DESCARTA: EstadoOP[] = ["En armado", "A aprobar", "Observada", "Bloqueada", "Autorizada"];
+/** Se puede quitar una decisión (también una aprobación) mientras la OP no se pagó. */
+export const SE_QUITA: EstadoOP[] = ["A aprobar", "Observada", "Bloqueada", "Autorizada"];
+/** Se puede sacar una factura mientras la OP no se pagó ni se descartó. */
+export const SE_SACA: EstadoOP[] = ["En armado", "A aprobar", "Observada", "Bloqueada", "Autorizada"];
 
 export interface ItemLinea {
   descripcion: string;
@@ -50,6 +54,8 @@ export interface LineaAprobacion {
   aprobador_id: number | null;
   aprobador: string | null;
   items: ItemLinea[] | null;
+  /** Los remitos firmados de la factura, para abrirlos desde la tarjeta. */
+  remitos: { numero: string | null; fecha: string | null; autorizo: string | null; archivo_link: string | null }[] | null;
 }
 
 /**
@@ -74,13 +80,13 @@ export function aResolver(
 }
 
 /**
- * Quién puede quitar una observación o un bloqueo (el renglón vuelve a "sin decidir",
- * sin pasar por aprobado; sql/013): quien decide ese renglón o un admin.
+ * Quién puede quitar una decisión (observación, bloqueo o aprobación): el renglón vuelve
+ * a "sin decidir", sin pasar por otro estado (sql/013). Quien decide ese renglón o un admin.
  */
 export function quita(
   linea: Pick<LineaAprobacion, "aprobador_id" | "decision">, usuario: { id: number; role: string },
 ): boolean {
-  return (linea.decision === "Observada" || linea.decision === "Bloqueada")
+  return linea.decision != null
     && (usuario.role === "admin" || decide(linea, usuario));
 }
 

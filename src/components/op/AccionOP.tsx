@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { decidirOP, descartarOP, enviarAAprobar, quitarObservacionOP } from "@/app/(app)/op/actions";
 
-type Accion = "aprobar" | "observar" | "bloquear" | "enviar" | "descartar" | "resolver" | "quitar";
+type Accion = "aprobar" | "observar" | "bloquear" | "enviar" | "descartar" | "resolver" | "quitar" | "desaprobar";
 
 // Los mismos tonos que los botones de las fichas de alquileres: verde para lo que
 // avanza, borde rojo para lo que frena, discreto para lo que se usa poco.
@@ -33,6 +33,10 @@ const ACCIONES: Record<Accion, {
   quitar: {
     label: "Quitar observación", icon: RotateCcw, variant: "outline", clase: "h-8",
     pide: { titulo: "Quitar la observación de", ayuda: "Los renglones observados o bloqueados vuelven a esperar decisión. No quedan aprobados.", placeholder: "Por qué se quita (ej.: era un error, ya se aclaró)" },
+  },
+  desaprobar: {
+    label: "Quitar aprobación", icon: RotateCcw, variant: "ghost", clase: DISCRETO,
+    pide: { titulo: "Quitar la aprobación de", ayuda: "Los renglones aprobados vuelven a esperar decisión. Si la OP estaba Autorizada, sale de Para pagar.", placeholder: "Por qué se quita (ej.: hay que revisar el precio)" },
   },
   observar: {
     label: "Observar", icon: MessageSquareWarning, variant: "outline", clase: FRENA,
@@ -64,6 +68,7 @@ export function AccionOP({ numero, accion }: { numero: string; accion: Accion })
         : accion === "descartar" ? await descartarOP(numero, texto)
         : accion === "resolver" ? await decidirOP(numero, "Aprobada", texto, true)
         : accion === "quitar" ? await quitarObservacionOP(numero, texto)
+        : accion === "desaprobar" ? await quitarObservacionOP(numero, texto, "aprobadas")
         : await decidirOP(numero, accion === "aprobar" ? "Aprobada" : accion === "observar" ? "Observada" : "Bloqueada", texto);
       if (!r.ok) { toast.error(r.mensaje); return; }
       toast.success(r.mensaje);

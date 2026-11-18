@@ -45,7 +45,7 @@ export async function listarOPsApp(estados?: EstadoOP[]): Promise<OPConLineas[]>
     prisma.$queryRaw<LineaAprobacion[]>`
       select i.op_numero, c.id::text, c.tipo, c.numero, c.fecha::text, c.vencimiento::text,
         i.unidad_codigo as unidad, un.nombre as unidad_nombre, i.importe::text, i.partida, c.archivo_link,
-        coalesce(c.retiro_por, r.retiro_por) as quien, r.importe::text as remito_importe,
+        coalesce(c.retiro_por, r.retiro_por) as quien, r.importe::text as remito_importe, r.remitos,
         c.total::text as factura_total, c.neto::text as factura_neto,
         -- Para qué: solo lo cargado en los renglones. La nota de la factura (descripcion)
         -- es de cuando se procesa la factura ("revisada OK", CAE, remitos) y no va acá.
@@ -60,7 +60,9 @@ export async function listarOPsApp(estados?: EstadoOP[]): Promise<OPConLineas[]>
       left join cc.unidades un on un.codigo = i.unidad_codigo
       left join lateral (
         -- Solo remitos firmados: "falta" es remito sin firmar y "anulado" no cuenta.
-        select count(*) as n, string_agg(distinct rm.retiro_por, ', ') as retiro_por, sum(rm.importe) as importe
+        select count(*) as n, string_agg(distinct rm.retiro_por, ', ') as retiro_por, sum(rm.importe) as importe,
+          json_agg(json_build_object('numero', rm.numero, 'fecha', rm.fecha::text, 'autorizo', rm.autorizo,
+            'archivo_link', case when rm.archivo_link like 'http%' then rm.archivo_link end) order by rm.fecha) as remitos
         from cc.remitos rm where rm.comprobante_id = c.id and rm.estado = 'ok') r on true
       left join lateral (
         select string_agg(distinct x.para_que, ', ') as para_que,
@@ -140,4 +142,43 @@ export async function listarConstancias(numero: string): Promise<Constancia[]> {
       octet_length(archivo)::int as tamano
     from app.constancias_op where op_numero = ${numero}
     order by subido_en, id`;
+}
+
+/** Un paso en la historia de una OP: quién hizo qué y cuándo. */
+export interface EventoOP {
+  cuando: string;
+  quien: string | null;
+  que: string;
+  /** Las facturas a las que se aplicó (una decisión por OP cae en varias). */
+  facturas: string[];
+  detalle: string | null;
+}
+
+/**
+ * La historia de una OP de la app, la más nueva arriba: armada, mandada a aprobar, cada
+ * decisión por renglón (también las quitadas y las facturas sacadas) y el descarte.
+ * Sale de app.ops y app.aprobaciones_op, que se agregan y no se pisan.
+ */
+export async function historialOP(numero: string): Promise<EventoOP[]> {
+  return prisma.$queryRaw<EventoOP[]>`
+    -- Una decisión por OP se graba una vez por renglón: se junta en un paso con sus facturas.
+    select to_char(h.cuando at time zone 'America/Argentina/Mendoza', 'DD/MM/YYYY HH24:MI') as cuando, h.quien, h.que,
+      coalesce(array_agg(h.factura order by h.factura) filter (where h.factura is not null), '{}') as facturas, h.detalle
+    from (
+      select date_trunc('minute', armada_en) as cuando, armada_por as quien, 'Armada' as que, null::text as factura, null::text as detalle
+      from app.ops where op_numero = ${numero}
+      union all
+      select date_trunc('minute', enviada_en), enviada_por, 'Mandada a aprobar', null, null from app.ops where op_numero = ${numero} and enviada_en is not null
+      union all
+      select date_trunc('minute', a.creado_en), a.usuario,
+        case a.decision when 'Quitada' then case when a.motivo like 'Sacada de la OP%' then 'Factura sacada' else 'Decisión quitada' end
+          else a.decision end,
+        c.numero, nullif(regexp_replace(a.motivo, '^Sacada de la OP: ', ''), '')
+      from app.aprobaciones_op a join cc.comprobantes c on c.id = a.comprobante_id
+      where a.op_numero = ${numero}
+      union all
+      select date_trunc('minute', descartada_en), descartada_por, 'Descartada', null, motivo_descarte from app.ops where op_numero = ${numero} and descartada_en is not null
+    ) h
+    group by h.cuando, h.quien, h.que, h.detalle
+    order by h.cuando desc, h.que`;
 }
