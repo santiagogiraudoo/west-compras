@@ -2,7 +2,7 @@
 -- aprobar o pagar (la mercadería entregada, el remito firmado, una charla con el
 -- proveedor). Mientras la app no tenga permiso de escritura en SharePoint, quedan acá,
 -- igual que el comprobante del pago (sql/010). Se agregan, no se borran: el rol de la
--- app no borra. Se aplica con el dueño de la base.
+-- app no borra. Se aplica con el dueño de la base. Aplicado en dev-app-compras el 18/11.
 
 create table if not exists app.constancias_op (
   id         serial primary key,
