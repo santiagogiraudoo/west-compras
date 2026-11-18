@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { faltantesProveedor, type DatosProveedor } from "@/lib/facturas/requisitos";
 import type { EstadoOP, LineaAprobacion } from "./estados";
+import type { Constancia } from "./constancias";
 
 /**
  * OP armadas en la app (app.ops), con su estado de app.v_op_estado. Montos y fechas
@@ -129,4 +130,14 @@ export async function estadoOP(numero: string): Promise<EstadoOP | null> {
   const r = await prisma.$queryRaw<{ estado: EstadoOP }[]>`
     select estado from app.v_op_estado where op_numero = ${numero}`;
   return r[0]?.estado ?? null;
+}
+
+/** Las constancias de una OP (app.constancias_op, sql/014), sin el archivo: se ven por su link. */
+export async function listarConstancias(numero: string): Promise<Constancia[]> {
+  return prisma.$queryRaw<Constancia[]>`
+    select id, nombre, tipo, nota, subido_por,
+      to_char(subido_en at time zone 'America/Argentina/Mendoza', 'DD/MM/YYYY HH24:MI') as subido_en,
+      octet_length(archivo)::int as tamano
+    from app.constancias_op where op_numero = ${numero}
+    order by subido_en, id`;
 }
