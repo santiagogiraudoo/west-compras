@@ -39,16 +39,21 @@ No entra en la fase 1: OP, aprobaciones, WhatsApp, compras, topes.
 
 Criterio de deuda: lo que falta pagar = saldo de `cc.v_saldo_comprobante` + lo imputado en OP previstas.
 
-## Fase 3 en detalle (18/11)
+## Fase 3 en detalle (18/11, primera versión para mirar y ajustar)
 
-1. **Aprobación por línea** (`/op`): en las OP armadas en la app, cada factura se aprueba u observa (rol admin: "todos los pagos pasan por Adriano"). Observar pide motivo y frena toda la OP. Cada decisión queda en `app.aprobaciones_op` (vale la última; `sql/007`). Las OP de ClickUp se siguen aprobando allá.
-2. **Pagos** (`/pagos`, Candela): OP autorizadas, la que vence primero arriba, con la cuenta del proveedor. "Registrar pago" carga fecha, medio, referencia, link del comprobante y retenciones; el neto se calcula. Pasa a Pagada con `cc.cargar_pagos` y aparece en el extracto.
-3. **La base frena**: una OP de la app no pasa a Pagada con líneas sin aprobar (trigger de `sql/007`), y `cargar_pagos` rechaza si total − retenciones ≠ neto.
+Ciclo de la OP armada en la app: **En armado → A aprobar → Autorizada → Pagada**, más **Observada**, **Bloqueada** y **Descartada**. El estado no se guarda: lo deriva la base en `app.v_op_estado` (`sql/009`).
 
-Falta para cerrar la fase 3 (espera respuestas):
-- **Retenciones calculadas**: hoy se cargan a mano. Falta el doc de retenciones de Candela (Ganancias depende de lo pagado en el mes al proveedor; IIBB de su alícuota).
-- **Aprobadores por unidad y topes**: hoy aprueba el admin. Falta quién aprueba qué unidad y hasta cuánto (Santiago). Con topes, la línea que cruza compra, remito y factura dentro del tope se aprueba sola ("se aprueba una sola vez").
-- **Aviso por WhatsApp**: falta el número/API (Santiago).
-- **Comprobante**: se pega el link de SharePoint; subirlo desde la app espera el permiso de escritura en SharePoint.
+1. **Armar** (`/op/nueva`): facturas aprobadas libres de un proveedor; queda En armado. En `/op`: Mandar a aprobar o Descartar (con motivo; las facturas vuelven a quedar libres).
+2. **Aprobadores** (`/configuracion`, `app.aprobadores`): unidad → usuario. Por defecto Adriano; West Club (UN-02) para Santiago Giraudo mientras dure la obra (hay que crearle el usuario y elegirlo ahí). Columnas de tope (USD blue) vacías y sin usar.
+3. **Para aprobar** (`/aprobar`): una tarjeta por OP con proveedor, total, unidad y vencimiento; chequeos en verde/amarillo (cruza con remito, tiene PDF, alta del proveedor, precio contra la última compra con margen de 5 %); tabla Factura · Fecha → Vto. · Quién · Para qué · Unidad · Monto con link al PDF; Aprobar / Observar / Bloquear (con comentario) sobre los renglones de las unidades de quien aprueba, y los de otros en gris con su estado. Un renglón observado o bloqueado frena toda la OP. Cada decisión queda en `app.aprobaciones_op` con quién, cuándo y el comentario. Ver más: ítems con el precio anterior, deuda con el proveedor, últimas compras.
+4. **Para pagar** (`/pagos`, Candela): autorizadas por vencimiento, con CBU, alias, titular y CUIT para copiar; retenciones a mano, neto calculado y comprobante (archivo o link). Queda Pagada con `cc.cargar_pagos` y sus imputaciones.
+5. **La base frena**: no se paga una OP de la app que no esté Autorizada (trigger), y `cargar_pagos` rechaza si total − retenciones ≠ neto.
 
-Para usar fases 2 y 3 de verdad hay que aplicar `sql/002` a `sql/007` en production (con OK de Adriano) y crear los usuarios (Candela como operador).
+Falta (espera respuestas):
+- **Topes**: con topes, el renglón que cruza compra, remito y factura dentro del tope se aprueba solo ("se aprueba una sola vez"). Los define Santiago.
+- **Retenciones calculadas**: falta el doc de Candela.
+- **Aviso por WhatsApp** a quien aprueba: falta número/API.
+- **Comprobante en SharePoint**: mientras no haya permiso de escritura, el archivo queda en `app.comprobantes_pago`.
+- **Factura con ítems de varias unidades**, partida por ítem: caso raro, no entra en esta versión.
+
+**Antes de unir esta rama a main:** aplicar `sql/009` y `sql/010` en production, porque Vercel production ya lee la base real.
