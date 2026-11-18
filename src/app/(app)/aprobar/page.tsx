@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { decide, type EstadoOP } from "@/lib/op/estados";
+import { decide, puedeDecidir, type EstadoOP } from "@/lib/op/estados";
 import { contextoProveedores, listarOPsApp, type OPConLineas } from "@/lib/op/queries";
 import { TarjetaOP } from "@/components/op/TarjetaOP";
 
@@ -17,7 +17,9 @@ export default async function AprobarPage() {
   const { deuda, ultimas } = await contextoProveedores([...new Set(ops.map((o) => o.proveedor_codigo))]);
 
   const teToca = ops.filter((o) => o.estado === "A aprobar" && o.lineas.some((l) => decide(l, usuario) && !l.decision));
-  const frenadas = ops.filter((o) => o.estado !== "A aprobar");
+  // Las frenadas que puede resolver quien entra van primero dentro de su sección.
+  const frenadas = ops.filter((o) => o.estado !== "A aprobar")
+    .sort((a, b) => Number(b.lineas.some((l) => puedeDecidir(l, usuario))) - Number(a.lineas.some((l) => puedeDecidir(l, usuario))));
   const deOtros = ops.filter((o) => !teToca.includes(o) && !frenadas.includes(o));
 
   const seccion = (titulo: string, ayuda: string, lista: OPConLineas[]) => lista.length > 0 && (
@@ -42,7 +44,7 @@ export default async function AprobarPage() {
       </div>
       {ops.length === 0 && <p className="rounded-md border bg-card p-6 text-sm text-muted-foreground">No hay OP para aprobar.</p>}
       {seccion("Te toca", "Renglones de tus unidades sin decidir. Si todo está en verde, se aprueba de un toque.", teToca)}
-      {seccion("Observadas y bloqueadas", "Frenadas hasta que quien las observó las apruebe o se descarten.", frenadas)}
+      {seccion("Observadas y bloqueadas", "Frenadas hasta que las resuelva quien las observó o Adriano, o se descarten.", frenadas)}
       {seccion("Esperando a otros", "Tus renglones ya están decididos o son de otras unidades.", deOtros)}
     </div>
   );

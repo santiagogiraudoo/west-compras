@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AlertTriangle, CheckCircle2, FileText } from "lucide-react";
 import { MoneyCell } from "@/components/shared/MoneyCell";
 import { formatDate } from "@/lib/utils";
-import { chequeosOP, decide, SE_DECIDE, subasDePrecio, type LineaAprobacion } from "@/lib/op/estados";
+import { chequeosOP, puedeDecidir, SE_DECIDE, subasDePrecio, type LineaAprobacion } from "@/lib/op/estados";
 import { vencimientoOP } from "@/lib/op/pago";
 import type { CompraAnterior, OPConLineas } from "@/lib/op/queries";
 import { EstadoOPBadge } from "./EstadoOP";
@@ -23,13 +23,13 @@ interface Props {
  * Quien aprueba ve sus renglones arriba y los de los demás en gris, con su estado.
  */
 export function TarjetaOP({ op, usuario, deuda, ultimas }: Props) {
-  const mias = op.lineas.filter((l) => decide(l, usuario));
-  const otras = op.lineas.filter((l) => !decide(l, usuario));
+  const mias = op.lineas.filter((l) => puedeDecidir(l, usuario));
+  const otras = op.lineas.filter((l) => !puedeDecidir(l, usuario));
   const chequeos = chequeosOP(op.lineas, op.faltan);
   const subas = subasDePrecio(op.lineas);
   const unidades = [...new Set(op.lineas.map((l) => l.unidad_nombre || l.unidad))].join(", ");
   const vence = vencimientoOP(op.lineas);
-  const puede = usuario.role !== "consulta" && mias.length > 0 && SE_DECIDE.includes(op.estado);
+  const puede = mias.length > 0 && SE_DECIDE.includes(op.estado);
   const pendientes = mias.filter((l) => l.decision !== "Aprobada").length;
 
   return (

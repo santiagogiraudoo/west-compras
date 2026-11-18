@@ -16,6 +16,7 @@ export interface OPApp extends DatosProveedor {
   titular: string | null;
   total_imputado: string;
   armada_por: string;
+  armada_en: string;
   enviada_por: string | null;
   enviada_en: string | null;
 }
@@ -32,7 +33,7 @@ export async function listarOPsApp(estados?: EstadoOP[]): Promise<OPConLineas[]>
       select o.numero, o.fecha_op::text, e.estado, o.proveedor_codigo, p.razon_social,
         p.cuit, p.cbu, p.alias, p.banco, p.cuenta_titular, p.medio_pago_habitual, p.condicion_iva,
         p.telefono, p.rubro, p.condicion_pago, o.titular, o.total_imputado::text,
-        a.armada_por, a.enviada_por, a.enviada_en::text
+        a.armada_por, a.armada_en::text, a.enviada_por, a.enviada_en::text
       from app.ops a
       join cc.ordenes_pago o on o.numero = a.op_numero
       join app.v_op_estado e on e.op_numero = a.op_numero

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chequeosOP, decide, subasDePrecio, type ItemLinea } from "./estados";
+import { chequeosOP, decide, pendientesOP, puedeDecidir, subasDePrecio, type ItemLinea } from "./estados";
 
 const item = (precio: string | null, anterior: string | null): ItemLinea =>
   ({ descripcion: "Cemento x 50 kg", cantidad: "10", precio, anterior, anterior_fecha: "2026-10-01" });
@@ -46,5 +46,38 @@ describe("chequeosOP", () => {
   it("sin historia de precios no es amarillo", () => {
     const c = chequeosOP([linea({ items: [item("1000", null)] })], []);
     expect(c.find((x) => x.clave === "precio")).toMatchObject({ ok: true, texto: "Precio: sin compras anteriores para comparar" });
+  });
+});
+
+describe("puedeDecidir", () => {
+  const admin = { id: 1, role: "admin" };
+  it("el admin resuelve lo observado o bloqueado por otro, no lo pendiente de otro", () => {
+    expect(puedeDecidir({ aprobador_id: 7, decision: "Observada" }, admin)).toBe(true);
+    expect(puedeDecidir({ aprobador_id: 7, decision: "Bloqueada" }, admin)).toBe(true);
+    expect(puedeDecidir({ aprobador_id: 7, decision: null }, admin)).toBe(false);
+    expect(puedeDecidir({ aprobador_id: 7, decision: "Aprobada" }, admin)).toBe(false);
+  });
+  it("consulta no decide nada", () => {
+    expect(puedeDecidir({ aprobador_id: 3, decision: null }, { id: 3, role: "consulta" })).toBe(false);
+  });
+});
+
+describe("pendientesOP", () => {
+  const l = (decision: "Aprobada" | "Observada" | null, aprobador = "Santiago Giraudo") =>
+    ({ decision, aprobador, usuario: decision ? "Santiago Giraudo" : null, motivo: decision === "Observada" ? "falta remito" : null, importe: "100", vencimiento: "2026-11-20" });
+  it("arma una línea por OP según su estado", () => {
+    const p = pendientesOP([
+      { numero: "OP-1", estado: "En armado", razon_social: "Defer", armada_en: "2026-11-17T10:00:00Z", enviada_en: null, lineas: [l(null)] },
+      { numero: "OP-2", estado: "A aprobar", razon_social: "Sierra", enviada_en: "2026-11-15 09:00:00+00", lineas: [l("Aprobada", "Adriano"), l(null), l(null, "Adriano")] },
+      { numero: "OP-3", estado: "Observada", razon_social: "Hierrosan", enviada_en: "2026-11-18", lineas: [l("Observada")] },
+      { numero: "OP-4", estado: "Autorizada", razon_social: "Ferreyra", enviada_en: "2026-11-18", lineas: [l("Aprobada")] },
+    ], "2026-11-18");
+    expect(p.map((x) => x.detalle)).toEqual([
+      "OP-1 armada hace 1 día: mandala a aprobar o descartala",
+      "OP-2 esperando a Santiago Giraudo y Adriano hace 3 días",
+      "OP-3: Santiago Giraudo — falta remito",
+      "OP-4 vence 20/11/2026",
+    ]);
+    expect(p.map((x) => x.href)).toEqual(["/op", "/aprobar", "/aprobar", "/pagos"]);
   });
 });

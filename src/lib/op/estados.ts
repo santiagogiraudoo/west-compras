@@ -55,6 +55,66 @@ export function decide(linea: Pick<LineaAprobacion, "aprobador_id">, usuario: { 
   return linea.aprobador_id === usuario.id;
 }
 
+/**
+ * Lo que alguien puede decidir en una OP: sus renglones y, si es admin, además los
+ * observados o bloqueados por otros ("Observar ... le llega a Adriano": lo resuelve él
+ * o quien lo observó).
+ */
+export function puedeDecidir(
+  linea: Pick<LineaAprobacion, "aprobador_id" | "decision">, usuario: { id: number; role: string },
+): boolean {
+  if (usuario.role === "consulta") return false;
+  if (decide(linea, usuario)) return true;
+  return usuario.role === "admin" && (linea.decision === "Observada" || linea.decision === "Bloqueada");
+}
+
+/** Días enteros entre dos fechas YYYY-MM-DD (o timestamps: se toma la fecha). */
+export function diasEntre(desde: string, hasta: string): number {
+  const d = (s: string) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+  return Math.round((d(hasta) - d(desde)) / 86_400_000);
+}
+
+export interface PendienteOP {
+  tipo: string;
+  proveedor: string;
+  detalle: string;
+  href: string;
+}
+
+type OPPendiente = {
+  numero: string; estado: EstadoOP; razon_social: string; armada_en?: string | null; enviada_en: string | null;
+  lineas: Pick<LineaAprobacion, "decision" | "aprobador" | "usuario" | "motivo" | "importe" | "vencimiento">[];
+};
+
+const hace = (n: number, hoy = "desde hoy") => (n <= 0 ? hoy : n === 1 ? "hace 1 día" : `hace ${n} días`);
+
+/**
+ * Lo que hay que hacer con las OP de la app, para el Inicio: en armado, esperando a
+ * alguien ("esperando a X hace N días": sin recordatorios automáticos, Adriano decide si
+ * insiste), observadas o bloqueadas, y autorizadas para pagar.
+ */
+export function pendientesOP(ops: OPPendiente[], hoy: string): PendienteOP[] {
+  const out: PendienteOP[] = [];
+  for (const o of ops) {
+    const base = { proveedor: o.razon_social };
+    if (o.estado === "En armado") {
+      const n = o.armada_en ? diasEntre(o.armada_en, hoy) : 0;
+      out.push({ ...base, tipo: "OP en armado", detalle: `${o.numero} armada ${hace(n, "hoy")}: mandala a aprobar o descartala`, href: "/op" });
+    } else if (o.estado === "A aprobar") {
+      const n = o.enviada_en ? diasEntre(o.enviada_en, hoy) : 0;
+      const quienes = [...new Set(o.lineas.filter((l) => !l.decision).map((l) => l.aprobador ?? "un admin"))];
+      out.push({ ...base, tipo: "OP esperando aprobación", detalle: `${o.numero} esperando a ${quienes.join(" y ")} ${hace(n)}`, href: "/aprobar" });
+    } else if (o.estado === "Observada" || o.estado === "Bloqueada") {
+      const l = o.lineas.find((x) => x.decision === (o.estado === "Observada" ? "Observada" : "Bloqueada"));
+      out.push({ ...base, tipo: `OP ${o.estado.toLowerCase()}`, detalle: `${o.numero}: ${l?.usuario ?? ""}${l?.motivo ? ` — ${l.motivo}` : ""}`, href: "/aprobar" });
+    } else if (o.estado === "Autorizada") {
+      const vence = o.lineas.map((l) => l.vencimiento).filter((v): v is string => !!v).sort()[0];
+      out.push({ ...base, tipo: "OP autorizada para pagar", detalle: `${o.numero}${vence ? ` vence ${vence.split("-").reverse().join("/")}` : ""}`, href: "/pagos" });
+    }
+  }
+  return out;
+}
+
 /** Suba de precio que se marca en amarillo. Se ajusta viéndolo andar. */
 export const MARGEN_PRECIO = 0.05;
 

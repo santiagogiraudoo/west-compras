@@ -7,7 +7,7 @@ import { hoyArgentina, listarAbiertos } from "@/lib/cuenta/queries";
 import { validarSeleccionOP } from "@/lib/cuenta/calculos";
 import { faltantesProveedor } from "@/lib/facturas/requisitos";
 import { calcularPago, RETENCIONES, type DatosPago } from "@/lib/op/pago";
-import { decide, SE_DECIDE, SE_DESCARTA, type Decision } from "@/lib/op/estados";
+import { puedeDecidir, SE_DECIDE, SE_DESCARTA, type Decision } from "@/lib/op/estados";
 import { estadoOP, listarOPsApp } from "@/lib/op/queries";
 
 export interface ResultadoOP {
@@ -105,7 +105,8 @@ export async function enviarAAprobar(numero: string): Promise<ResultadoOP> {
 
 /**
  * Aprobar, observar o bloquear: la decisión va a los renglones de la OP que le tocan a
- * quien decide (el aprobador de su unidad). Observar y bloquear piden comentario; un
+ * quien decide (el aprobador de su unidad; un admin, además, resuelve los observados o
+ * bloqueados por otros). Observar y bloquear piden comentario; un
  * renglón observado o bloqueado frena toda la OP. Se agrega una decisión (vale la
  * última): la historia queda en app.aprobaciones_op.
  */
@@ -119,7 +120,7 @@ export async function decidirOP(numero: string, decision: Decision, comentario: 
 
   const esta = (await listarOPsApp(SE_DECIDE)).find((o) => o.numero === numero);
   if (!esta) return { ok: false, mensaje: "La OP no está para aprobar." };
-  const mias = esta.lineas.filter((l) => decide(l, u));
+  const mias = esta.lineas.filter((l) => puedeDecidir(l, u));
   if (mias.length === 0) return { ok: false, mensaje: "Ningún renglón de esta OP es de una unidad que apruebes vos." };
 
   await prisma.$transaction(
