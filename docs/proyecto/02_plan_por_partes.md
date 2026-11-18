@@ -51,4 +51,4 @@ Falta para cerrar la fase 3 (espera respuestas):
 - **Aviso por WhatsApp**: falta el número/API (Santiago).
 - **Comprobante**: se pega el link de SharePoint; subirlo desde la app espera el permiso de escritura en SharePoint.
 
-Para usar fases 2 y 3 de verdad hay que aplicar `sql/002` a `sql/007` en production (con OK de Adriano) y crear los usuarios (Candela como operador).
+**Production (18/11, OK de Adriano):** aplicados `sql/000` a `sql/008` en una transacción, con backup antes (rama backup-2026-11-18-pre-app-compras). El rol `app_compras` se creó en production. Falta para usar fases 2 y 3: apuntar la app a production (DATABASE_URL de app_compras en production), crear los usuarios (Candela como operador) y completar el alta de los proveedores.
