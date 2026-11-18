@@ -22,7 +22,7 @@ export async function pagadoDesde(desde: string): Promise<{ mes: string; categor
     from app.v_gastos g
     join cc.unidades u on u.codigo = g.unidad_codigo
     join cc.proveedores p on p.codigo = g.proveedor_codigo
-    where g.fecha >= ${desde}::date
+    where g.fecha >= ${desde}::date and u.nombre not like 'SALDO CTA CTE%' -- el saldo inicial no es un pago del período
     group by 1, 2, 3, 4`;
 }
 
