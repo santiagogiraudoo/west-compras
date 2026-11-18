@@ -8,6 +8,7 @@ import Decimal from "decimal.js";
 import { porVencerSinOP, resumirDeuda } from "@/lib/cuenta/calculos";
 import { formatDate } from "@/lib/utils";
 import { TableroDeuda } from "@/components/cuenta/TableroDeuda";
+import { QueHacer } from "@/components/inicio/QueHacer";
 import { MoneyCell } from "@/components/shared/MoneyCell";
 import { Bienvenida, Flujo, ICONOS, type Paso } from "@/components/inicio/Bienvenida";
 import { auth } from "@/lib/auth";
@@ -17,9 +18,6 @@ import { vencimientoOP } from "@/lib/op/pago";
 const pesos = (v: Decimal.Value) => `$${new Decimal(v).toNumber().toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
 
 export const dynamic = "force-dynamic";
-
-/** Los grupos con más de esto arrancan cerrados, para que la pantalla se lea de un vistazo. */
-const ABIERTO_HASTA = 6;
 
 // Inicio de Adriano (decisión 17/11): arriba lo vencido y lo que hay que hacer, abajo el tablero de deuda.
 export default async function InicioPage() {
@@ -32,8 +30,6 @@ export default async function InicioPage() {
     detalle: `${v.facturas} ${v.facturas === 1 ? "factura" : "facturas"} por ${pesos(v.libre)} · ${v.vence < hoy ? "venció" : "vence"} ${formatDate(v.vence)}`,
   }));
   const pendientes: Pendiente[] = [...porVencer, ...pendientesOP(ops, hoy).map((p) => ({ ...p, origen: "op" as const })), ...alertas];
-  const grupos = new Map<string, Pendiente[]>();
-  for (const p of pendientes) grupos.set(p.tipo, [...(grupos.get(p.tipo) ?? []), p]);
   const tablero = resumirDeuda(abiertos, hoy);
   const conVencido = tablero.porProveedor.filter((p) => Number(p.vencido) > 0).length;
   // Lo vencido que vence el mismo día que se emite (contado o proveedor sin condición de pago).
@@ -102,46 +98,7 @@ export default async function InicioPage() {
         </div>
       )}
 
-      <section className="space-y-3">
-        <div className="flex items-baseline gap-3">
-          <h2 className="text-lg font-semibold text-primary">Lo que hay que hacer</h2>
-          <span className="text-xs text-muted-foreground">{pendientes.length} {pendientes.length === 1 ? "cosa" : "cosas"}</span>
-        </div>
-        {pendientes.length === 0 ? (
-          <div className="rounded-lg border border-border/60 bg-white p-12 text-center">
-            <p className="text-sm text-muted-foreground">Nada pendiente.</p>
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-lg border border-border/60 bg-white">
-            {[...grupos].map(([tipo, lista]) => {
-              const href = lista.find((p) => p.href)?.href;
-              return (
-                <details key={tipo} open={lista.length <= ABIERTO_HASTA} className="group border-b last:border-b-0">
-                  <summary className="flex cursor-pointer list-none items-center gap-2 bg-[#fafaf7] px-4 py-2.5 text-sm font-semibold text-[#1B4332] hover:bg-[#f5f5f0]">
-                    <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${lista[0].origen === "op" ? "bg-[#B8960C]" : lista[0].origen === "alerta" ? "bg-[#dc2626]" : "bg-[#a3a3a3]"}`} />
-                    {tipo}
-                    <span className="rounded-full bg-primary/10 px-2 py-px text-[11px] font-semibold text-primary">{lista.length}</span>
-                    {href && (href.startsWith("/op/nueva")
-                      ? <span className="ml-auto text-xs font-normal text-muted-foreground">tocá el proveedor para armarle la OP</span>
-                      : <span className="ml-auto text-xs font-normal text-muted-foreground">se resuelve en <Link href={href} className="text-primary underline-offset-2 hover:underline">{href.includes("paso=aprobar") ? "Órdenes de pago · Aprobar" : href.includes("paso=pagar") ? "Órdenes de pago · Pagar" : "Órdenes de pago"}</Link></span>)}
-                  </summary>
-                  <ul className="divide-y divide-[#f2f1ec]">
-                    {lista.map((p, i) => (
-                      <li key={i} className="grid grid-cols-[minmax(160px,240px)_minmax(0,1fr)] gap-4 px-4 py-2.5 pl-10 text-[13px]">
-                        {p.href?.startsWith("/op/nueva")
-                          ? <Link href={p.href} className="font-medium text-primary underline-offset-2 hover:underline">{p.proveedor}</Link>
-                          : <span className="font-medium text-foreground">{p.proveedor ?? "—"}</span>}
-                        <span className="text-[#525252]">{p.detalle ?? ""}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      <QueHacer pendientes={pendientes} />
 
       <TableroDeuda t={tablero} hoy={hoy} />
     </div>
