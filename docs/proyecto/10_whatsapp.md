@@ -4,6 +4,20 @@ Para que lo que manden proveedores, encargados y contratistas al número entre s
 (`09_flujo_entrada.md`). Se hace una vez. Los nombres de los menús de Meta cambian seguido:
 si algo no aparece igual, buscá el mismo concepto.
 
+## El número
+**+54 9 260 456-2284** (San Rafael). Ya está en la **app WhatsApp Business** del celular.
+WhatsApp lo manda como `5492604562284`, que es el mismo formato en que la app guarda los
+teléfonos (`normalizarTelefono`).
+
+Como ya está en la app, al agregarlo a la API (paso 2) hay dos caminos:
+- **Coexistencia (recomendado)**: si Meta lo ofrece, elegí *conectar tu app WhatsApp
+  Business existente*. El celular sigue andando igual y la app de compras recibe los mismos
+  mensajes. Se vincula escaneando un código QR desde el celular (app WhatsApp Business
+  actualizada, y el número tiene que venir usándose en esa app).
+- **Pasarlo solo a la API**: si no aparece la coexistencia. El número deja de andar en la app
+  del celular y los chats viejos no pasan. En ese caso conviene pensar si no es mejor un
+  número nuevo solo para facturas y remitos.
+
 ## 0. Antes de empezar
 - **Cuenta de Meta Business** (business.facebook.com) de la empresa, con un admin.
 - **El número**: tiene que poder recibir un SMS o una llamada para verificarlo.
