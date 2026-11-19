@@ -13,6 +13,8 @@ import { limpiarItem } from "@/components/op/formato";
 import { formatDate } from "@/lib/utils";
 import { listasDeCarga, obtenerFactura } from "@/lib/facturas/queries";
 import { FichaForm } from "./FichaForm";
+import { TarjetaCompra } from "@/components/compras/TarjetaCompra";
+import { compraDeFactura } from "@/lib/compras/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +31,7 @@ const COLS_RENGLONES = "minmax(0,1fr) 100px 120px 130px";
 export default async function FichaFacturaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!/^\d+$/.test(id)) notFound();
-  const [datos, listas] = await Promise.all([obtenerFactura(BigInt(id)), listasDeCarga()]);
+  const [datos, listas, compra] = await Promise.all([obtenerFactura(BigInt(id)), listasDeCarga(), compraDeFactura(BigInt(id))]);
   if (!datos) notFound();
   const { c, proveedor, remitos, pagos, requisitos } = datos;
   const unidad = listas.unidades.find((u) => u.value === c.unidad_codigo)?.label ?? c.unidad_codigo;
@@ -109,6 +111,9 @@ export default async function FichaFacturaPage({ params }: { params: Promise<{ i
               </div>
             )}
           </FichaCard>
+
+          {/* La tercera punta: compra ↔ remito ↔ factura (las notas de crédito no llevan compra). */}
+          {!c.tipo.startsWith("Nota de") && <TarjetaCompra datos={compra} facturaId={String(c.id)} />}
 
           <div className="grid gap-4 lg:grid-cols-2">
             <FichaCard icon={Truck} title="Remitos" actions={<span className="text-xs text-white/75">{remitos.length}</span>}>

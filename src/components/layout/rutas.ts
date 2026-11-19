@@ -1,5 +1,5 @@
 import {
-  Bot, BookOpen, Building2, ChartColumn, FilePlus, FileText, Home, Inbox, MailOpen, PieChart, Receipt, Settings, Users, type LucideIcon,
+  Bot, BookOpen, Building2, ChartColumn, FilePlus, FileText, Home, Inbox, MailOpen, PieChart, Receipt, Settings, ShoppingCart, Users, type LucideIcon,
 } from 'lucide-react';
 
 export interface Seccion {
@@ -16,6 +16,7 @@ export const SECCIONES: Seccion[] = [
   { href: '/', label: 'Inicio', icon: Home },
   { href: '/dashboard', label: 'Dashboard', icon: ChartColumn },
   { href: '/entrada', label: 'Buzón', icon: MailOpen },
+  { href: '/compras', label: 'Compras', icon: ShoppingCart },
   { href: '/bandeja', label: 'Bandeja de facturas', icon: Inbox },
   { href: '/cuenta', label: 'Cuentas corrientes', icon: BookOpen },
   { href: '/op', label: 'Órdenes de pago', icon: FileText },

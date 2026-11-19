@@ -85,7 +85,17 @@ La factura sigue el camino de siempre: **Bandeja** (lo que no pasó solo, con el
 ## Canal WhatsApp
 Cómo configurarlo, paso a paso: `10_whatsapp.md`. El webhook es `/api/whatsapp`.
 
+## En la app
+- **Buzón** (`/entrada`): lo que llegó por cada canal y qué se hizo; volver a procesar.
+- **Compras** (`/compras`): cada compra con lo comprado, lo facturado, el saldo y si cruzan
+  las tres puntas.
+- **Ficha de la factura**: tarjeta "Compra" con la cadena entera (remitos, a qué factura fue
+  cada uno, saldo y si cruza).
+- **Añadir factura**: usa el mismo lector y guarda el archivo en el buzón; ata los remitos
+  que ya estaban.
+- **Aprobación**: un renglón sale aprobado solo por tope únicamente si cruzan compra, remito
+  y factura (chequeo "Cruza con la compra" en la tarjeta).
+
 ## Falta
-- Que "Añadir factura" pase por el buzón (un solo camino).
-- Que la aprobación use el control de tres puntas (hoy mira solo factura ↔ remito).
-- Mostrar en la ficha de la factura su compra y sus remitos.
+- Pantalla para atar a mano lo que no cruzó solo (remito ↔ compra ↔ factura).
+- Nota de crédito atada a la factura que cancela (`08_analisis_robustez.md` §5).
