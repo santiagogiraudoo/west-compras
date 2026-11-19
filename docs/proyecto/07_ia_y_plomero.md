@@ -59,3 +59,23 @@ cómo viene la IA y lo que quedó para revisar). Solo lee.
   lectura del QR en fotos?
 - ¿Qué modelo usar para los comprobantes de pago (Opus o Sonnet)?
 - `completar` sigue en sombra: ¿cuándo pasa a real?
+
+## Contrato de lectura (19/11)
+
+La app (`src/lib/facturas/leer-factura.ts` + `lectura.ts`) y el plomero
+(`plomero/documentos.py`, rama `robustez-lectura-ia`) leen facturas con la API de Claude.
+Para que lo que entra a `cc` sea igual venga de donde venga, las dos siguen estas reglas:
+
+| Qué | Regla |
+|---|---|
+| Formato de la respuesta | Structured outputs (`output_config.format`): la respuesta siempre cumple el esquema. Se mira `stop_reason`: `refusal` o `max_tokens` es "no se pudo leer", nunca datos a medias. |
+| Lo que no se ve | `null` y una línea en `dudas`. Ningún campo fiscal es obligatorio en el esquema: obligarlo hace que la IA lo invente. |
+| Número | Siempre `PPPPP-NNNNNNNN` (5 + 8, como ARCA). Se compara con `claveComprobante` / `cc._clave_comprobante`. |
+| Montos | Con punto decimal. Se leen con `leerMonto` (app) o `num_ar` (plomero), nunca con `float`/`new Decimal` sobre el texto crudo. |
+| CUIT | Se valida el dígito verificador. Si no da, es una mala lectura: se avisa, no se da de alta un proveedor nuevo. |
+| Fechas | `AAAA-MM-DD`. Fecha futura o de hace más de dos años: aviso. Vencimiento anterior a la fecha: se descarta (la base lo rechaza) y se usa el plazo del proveedor. |
+| Moneda | Se pide a la IA y se toma del QR. Si no es pesos: aviso, los importes no se cargan como pesos sin revisar. |
+| Notas de crédito | El signo lo lleva el comprobante (negativo); los ítems van en positivo. |
+
+Sin QR (72 % de los últimos 30 días) los datos fiscales salen solo de la IA: por eso estos
+controles. El plomero ahora busca el QR también en las imágenes embebidas del PDF.
