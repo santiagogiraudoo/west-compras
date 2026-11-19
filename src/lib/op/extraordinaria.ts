@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { leerMonto } from "@/lib/montos";
 
 /**
  * Operaciones extraordinarias: lo que no entra por el camino de siempre (factura del
@@ -41,20 +42,10 @@ export function validarExtra(d: DatosExtra, hoy: string): Partial<Record<keyof D
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.fecha)) e.fecha = "Fecha inválida";
   else if (d.fecha > hoy) e.fecha = "No puede ser una fecha futura";
   let total: Decimal | null = null;
-  try { total = new Decimal(leerImporte(d.total)); } catch { total = null; }
+  try { total = new Decimal(leerMonto(d.total)); } catch { total = null; }
   if (!total || !total.isFinite() || total.lte(0)) e.total = "Poné un importe mayor a cero";
   if (d.tipo === "Remito" && d.numero.trim().length < 3) e.numero = "Poné el número del remito";
   if (d.concepto.trim().length < 5) e.concepto = "Contá qué se compró (al menos 5 letras)";
   if (d.motivo.trim().length < 10) e.motivo = "Explicá por qué va por afuera (al menos 10 letras)";
   return e;
-}
-
-/** El importe escrito a la argentina (1.234,56) o con punto decimal, como texto con punto. */
-export function leerImporte(texto: string): string {
-  const t = texto.trim().replace(/\s|\$/g, "");
-  // Con coma: la coma es el decimal y los puntos son miles (1.234,56). Sin coma, puntos en
-  // grupos de tres son miles (12.500 = doce mil quinientos); si no, el punto es decimal.
-  const limpio = t.includes(",") ? t.replace(/\./g, "").replace(",", ".")
-    : /^\d{1,3}(\.\d{3})+$/.test(t) ? t.replace(/\./g, "") : t;
-  return new Decimal(limpio).toFixed(2);
 }

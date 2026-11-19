@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { MARGEN_LIBRE } from "@/lib/montos";
 
 /**
  * Controles antes de mandar a aprobar o pagar una OP: lo que pudo cambiar en la base
@@ -20,7 +21,8 @@ export interface FacturaEnOP {
 const ESTADO: Record<string, string> = { Anulado: "anulada", Pendiente: "sin aprobar", "Factura de remitos": "agrupada en una factura de remitos" };
 
 /** Margen de centavos, el mismo que el resto de la app. */
-const MARGEN = new Decimal("0.5");
+// El de toda la app (src/lib/montos.ts): menos de 50 centavos es redondeo.
+const MARGEN = new Decimal(MARGEN_LIBRE);
 
 /** Lo que frena la OP, una frase por problema. Vacío: se puede seguir. */
 export function problemasOP(facturas: FacturaEnOP[]): string[] {

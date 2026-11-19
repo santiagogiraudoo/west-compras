@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { MARGEN_LIBRE } from "@/lib/montos";
 import { parseDateString, toLocalDateString } from "@/lib/utils";
 
 /**
@@ -10,7 +11,8 @@ import { parseDateString, toLocalDateString } from "@/lib/utils";
  * Una OP prevista todavía no es un pago: la factura sigue debiéndose, pero ya no está
  * libre para otra OP. Mismo margen que cc.v_deuda_proveedor: más de $0,50.
  */
-const MARGEN = new Decimal("0.5");
+// El de toda la app (src/lib/montos.ts): menos de 50 centavos es redondeo.
+const MARGEN = new Decimal(MARGEN_LIBRE);
 
 export interface Abierto {
   id: string;

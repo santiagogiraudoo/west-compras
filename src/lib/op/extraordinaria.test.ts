@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { leerImporte, numeroSinFactura, validarExtra, type DatosExtra } from "./extraordinaria";
+import { numeroSinFactura, validarExtra, type DatosExtra } from "./extraordinaria";
+import { leerMonto } from "@/lib/montos";
 
 describe("numeroSinFactura", () => {
   it("el siguiente libre del día", () => {
@@ -8,15 +9,15 @@ describe("numeroSinFactura", () => {
   });
 });
 
-describe("leerImporte", () => {
+describe("leerMonto (desde extraordinaria)", () => {
   it("entiende el formato argentino y el de punto decimal", () => {
-    expect(leerImporte("1.234.567,89")).toBe("1234567.89");
-    expect(leerImporte("1500.5")).toBe("1500.50");
-    expect(leerImporte("250000")).toBe("250000.00");
+    expect(leerMonto("1.234.567,89")).toBe("1234567.89");
+    expect(leerMonto("1500.5")).toBe("1500.50");
+    expect(leerMonto("250000")).toBe("250000.00");
     // Sin coma, puntos en grupos de tres son miles: "12.500" no es doce coma cinco.
-    expect(leerImporte("12.500")).toBe("12500.00");
-    expect(leerImporte("$ 1.250.000")).toBe("1250000.00");
-    expect(leerImporte("1.5")).toBe("1.50");
+    expect(leerMonto("12.500")).toBe("12500.00");
+    expect(leerMonto("$ 1.250.000")).toBe("1250000.00");
+    expect(leerMonto("1.5")).toBe("1.50");
   });
 });
 

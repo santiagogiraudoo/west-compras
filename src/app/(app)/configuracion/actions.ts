@@ -5,17 +5,19 @@ import Decimal from "decimal.js";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { MARCA } from "@/lib/marca";
+import { leerMonto } from "@/lib/montos";
 
 export interface Resultado {
   ok: boolean;
   mensaje: string;
 }
 
+// Con leerMonto, como todo monto de la app: "1.500" son mil quinientos dólares, no 1,50
+// (new Decimal("1.500") daba 1,5 y "1.000.000" daba error).
 const tope = (v: string): string | null | undefined => {
-  const t = v.trim();
-  if (t === "") return null;
+  if (v.trim() === "") return null;
   try {
-    const d = new Decimal(t);
+    const d = new Decimal(leerMonto(v));
     return d.isNegative() ? undefined : d.toFixed(2);
   } catch { return undefined; }
 };

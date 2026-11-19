@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { leerMonto } from "@/lib/montos";
 
 /**
  * El pago de una OP autorizada: cuadra total − retenciones = neto a transferir
@@ -32,10 +33,11 @@ export interface DatosPago {
   retenciones: Record<ClaveRetencion, string>;
 }
 
+// Vacío es 0; lo demás pasa por leerMonto, que rechaza "NaN", "Infinity" y lo ambiguo
+// (new Decimal("NaN") no tiraba error y el neto quedaba "NaN").
 const num = (s: string) => {
-  const t = s.trim();
-  if (t === "") return new Decimal(0);
-  try { return new Decimal(t); } catch { return null; }
+  if (s.trim() === "") return new Decimal(0);
+  try { return new Decimal(leerMonto(s)); } catch { return null; }
 };
 
 /** Medio sin banco de por medio: no tiene referencia bancaria. */

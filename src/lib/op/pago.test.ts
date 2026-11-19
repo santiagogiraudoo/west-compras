@@ -51,3 +51,14 @@ describe("medioSugerido", () => {
     expect(medioSugerido(null)).toBe("");
   });
 });
+
+describe("calcularPago: montos raros (análisis 19/11)", () => {
+  it.each(["NaN", "Infinity", "1,234.56", "abc"])("rechaza la retención %j en vez de dejar el neto en NaN", (v) => {
+    const r = calcularPago("1000", { ...base, retenciones: { ...base.retenciones, ganancias: v } }, "2026-11-18");
+    expect(r.errores).toContain("Retención Ganancias: monto inválido");
+    expect(r.neto).not.toMatch(/NaN/);
+  });
+  it("acepta la retención escrita a la argentina", () => {
+    expect(calcularPago("51842.76", { ...base, retenciones: { ...base.retenciones, iibb: "1.842,76" } }, "2026-11-18").neto).toBe("50000.00");
+  });
+});

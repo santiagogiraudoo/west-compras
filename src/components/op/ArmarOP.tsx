@@ -12,7 +12,7 @@ import { MoneyCell } from "@/components/shared/MoneyCell";
 import { formatDate } from "@/lib/utils";
 import { validarSeleccionOP, type Abierto } from "@/lib/cuenta/calculos";
 import { reservarOP } from "@/app/(app)/op/actions";
-import { leerImporte } from "@/lib/op/extraordinaria";
+import { leerMonto } from "@/lib/montos";
 
 interface Props {
   proveedor: { codigo: string; razon_social: string; cuit: string | null; cbu: string | null; alias: string | null; banco: string | null; cuenta_titular: string | null };
@@ -36,7 +36,7 @@ export function ArmarOP({ proveedor, faltan, facturas, hoy }: Props) {
   const elegidas = useMemo(() => facturas.filter((f) => sel.has(f.id)).map((f) => {
     const t = parcial[f.id]?.trim();
     if (!t) return f;
-    try { return { ...f, libre: leerImporte(t) }; } catch { return f; }
+    try { return { ...f, libre: leerMonto(t) }; } catch { return f; }
   }), [facturas, sel, parcial]);
   const { errores, total, titular } = validarSeleccionOP(elegidas);
   const titularElegido = elegidas[0]?.facturado_a ?? null;
