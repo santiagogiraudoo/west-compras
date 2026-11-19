@@ -36,7 +36,6 @@ export async function guardarProveedor(codigo: string | null, datos: AltaProveed
     return { ok: false, mensaje: `Ese CUIT ya es de ${mismoCuit.codigo} · ${mismoCuit.razon_social}.`, errores: { cuit: "CUIT repetido" } };
   }
 
-  const cod = codigo ?? proximoCodigo((await prisma.proveedor.findMany({ select: { codigo: true } })).map((p) => p.codigo));
 
   // La cuenta va en sus campos. Si cambió, también se reescribe el texto de cbu_alias,
   // que siguen leyendo cc.v_alertas, el plomero y las OP de ClickUp: si no, una OP podría
@@ -64,7 +63,7 @@ export async function guardarProveedor(codigo: string | null, datos: AltaProveed
     }
   }
 
-  const fila = {
+  const filaDe = (cod: string) => ({
     Codigo: cod,
     "Razon social": limpio.razonSocial,
     CUIT: limpio.cuit,
@@ -81,10 +80,28 @@ export async function guardarProveedor(codigo: string | null, datos: AltaProveed
     Telefono: limpio.telefono,
     Email: limpio.email.trim() || null,
     Contacto: limpio.contacto.trim() || null,
-  };
+  });
 
-  const [{ r }] = await prisma.$queryRaw<{ r: { proveedores: number; errores: { error: string }[] } }[]>`
-    select cc.cargar_nuevos(${JSON.stringify({ proveedores: [fila], comprobantes: [] })}::jsonb, 'app') as r`;
+  // Dos altas a la vez tomaban el mismo PR y la segunda pisaba a la primera (el upsert es
+  // por código). Con el lock, la segunda espera; adentro se vuelven a mirar el próximo
+  // código libre y el CUIT repetido. $executeRaw: la función devuelve void.
+  let cod = codigo ?? "";
+  let r: { proveedores: number; errores: { error: string }[] };
+  try {
+    r = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`select pg_advisory_xact_lock(hashtext('alta-proveedor'))`;
+      const [repetido] = await tx.$queryRaw<{ codigo: string; razon_social: string }[]>`
+        select codigo, razon_social from cc.proveedores where cuit = ${limpio.cuit} and codigo is distinct from ${codigo} limit 1`;
+      if (repetido) throw new Error(`Ese CUIT ya es de ${repetido.codigo} · ${repetido.razon_social}.`);
+      if (!codigo) cod = proximoCodigo((await tx.$queryRaw<{ codigo: string }[]>`select codigo from cc.proveedores`).map((p) => p.codigo));
+      const [{ r }] = await tx.$queryRaw<{ r: { proveedores: number; errores: { error: string }[] } }[]>`
+        select cc.cargar_nuevos(${JSON.stringify({ proveedores: [filaDe(cod)], comprobantes: [] })}::jsonb, 'app') as r`;
+      return r;
+    });
+  } catch (e) {
+    const mensaje = e instanceof Error ? e.message : String(e);
+    return mensaje.startsWith("Ese CUIT") ? { ok: false, mensaje, errores: { cuit: "CUIT repetido" } } : { ok: false, mensaje: `La base lo rechazó: ${mensaje}` };
+  }
 
   if (r.errores?.length) return { ok: false, mensaje: `La base lo rechazó: ${r.errores.map((x) => x.error).join(" · ")}` };
   if (r.proveedores !== 1) return { ok: false, mensaje: "La base no guardó el proveedor." };
