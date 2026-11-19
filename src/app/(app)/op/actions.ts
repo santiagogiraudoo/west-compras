@@ -174,8 +174,8 @@ export async function enviarAAprobar(numero: string): Promise<ResultadoOP> {
       if (n !== 1) throw new Rechazo("La OP ya se mandó a aprobar.");
       for (const { l, motivo } of autos) {
         await tx.$executeRaw`
-          insert into app.aprobaciones_op (op_numero, comprobante_id, unidad_codigo, decision, motivo, usuario_id, usuario)
-          values (${numero}, ${BigInt(l.id)}, ${l.unidad}, 'Aprobada', ${motivo}, ${u.id}, 'Automático por tope')`;
+          insert into app.aprobaciones_op (op_numero, comprobante_id, unidad_codigo, decision, motivo, usuario_id, usuario, cotizacion_blue)
+          values (${numero}, ${BigInt(l.id)}, ${l.unidad}, 'Aprobada', ${motivo}, ${u.id}, 'Automático por tope', ${blue?.promedio ?? null}::numeric)`;
       }
     });
   } catch (e) {
