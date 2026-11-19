@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { armarExtracto, porVencerSinOP, resumirDeuda, sumarDias, validarSeleccionOP, type Abierto } from "./calculos";
+import { armarExtracto, importeElegido, porVencerSinOP, resumirDeuda, sumarDias, validarSeleccionOP, type Abierto } from "./calculos";
 
 const ab = (o: Partial<Abierto>): Abierto => ({
   id: "1", proveedor_codigo: "PR-1", razon_social: "Corralón", unidad_codigo: "UN-01", facturado_a: "Doblege",
@@ -65,7 +65,7 @@ describe("armarExtracto", () => {
 describe("validarSeleccionOP", () => {
   it("suma lo libre y devuelve el titular", () => {
     const r = validarSeleccionOP([ab({ libre: "100.10" }), ab({ libre: "-20.05", numero: "NC" })]);
-    expect(r).toEqual({ errores: [], total: "80.05", titular: "Doblege" });
+    expect(r).toEqual({ errores: [], total: "80.05", titular: "Doblege", compensacion: false });
   });
 
   it("no cruza titulares", () => {
@@ -75,7 +75,7 @@ describe("validarSeleccionOP", () => {
 
   it("no repite facturas que ya están en otra OP ni deja total negativo", () => {
     const r = validarSeleccionOP([ab({ libre: "0", numero: "0001-9" }), ab({ libre: "-5" })]);
-    expect(r.errores).toEqual(["Ya están en otra OP: 0001-9", "El total de la OP tiene que ser positivo"]);
+    expect(r.errores).toEqual(["Ya están en otra OP: 0001-9", "La nota de crédito supera las facturas: aplicá solo una parte"]);
   });
 
   it("vacía no se puede", () => {
@@ -99,5 +99,36 @@ describe("porVencerSinOP", () => {
       { proveedor_codigo: "PR-2", razon_social: "Pinturería", facturas: 1, libre: "30.00", vence: "2026-11-15" },
       { proveedor_codigo: "PR-1", razon_social: "Corralón", facturas: 2, libre: "150.00", vence: "2026-11-20" },
     ]);
+  });
+});
+
+describe("nota de crédito que cancela una factura entera o una parte (decisión 19/11)", () => {
+  it("NC por todo: la OP queda en $0 y es una compensación", () => {
+    const r = validarSeleccionOP([ab({ libre: "1000" }), ab({ libre: "-1000", numero: "NC" })]);
+    expect(r).toMatchObject({ errores: [], total: "0.00", compensacion: true });
+  });
+  it("NC por una parte: se paga la diferencia", () => {
+    const r = validarSeleccionOP([ab({ libre: "1000" }), ab({ libre: "-300", numero: "NC" })]);
+    expect(r).toMatchObject({ errores: [], total: "700.00", compensacion: false });
+  });
+  it("sin NC, $0 no es una OP", () => {
+    expect(validarSeleccionOP([ab({ libre: "0" })]).errores).toContain("El total de la OP tiene que ser positivo");
+  });
+});
+
+describe("importeElegido: lo que se escribe para cada factura o NC", () => {
+  it("vacío es todo lo libre", () => {
+    expect(importeElegido("1000", "F1")).toEqual({ ok: true, importe: "1000.00" });
+    expect(importeElegido("-300", "NC1", "  ")).toEqual({ ok: true, importe: "-300.00" });
+  });
+  it("en una NC lo escrito resta, aunque se escriba en positivo", () => {
+    expect(importeElegido("-1000", "NC1", "250")).toEqual({ ok: true, importe: "-250.00" });
+    expect(importeElegido("-1000", "NC1", "-250")).toEqual({ ok: true, importe: "-250.00" });
+  });
+  it("nunca más que lo libre ni menos que el redondeo", () => {
+    expect(importeElegido("1000", "F1", "1.500")).toEqual({ ok: false, mensaje: "A F1 le quedan libres $1.000: no se puede pagar más" });
+    expect(importeElegido("-1000", "NC1", "1500")).toEqual({ ok: false, mensaje: "A NC1 le quedan libres $1.000: no se puede aplicar más" });
+    expect(importeElegido("1000", "F1", "0,40")).toMatchObject({ ok: false });
+    expect(importeElegido("1000", "F1", "1,234.56")).toMatchObject({ ok: false });
   });
 });

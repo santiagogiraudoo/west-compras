@@ -6,7 +6,7 @@ import Decimal from "decimal.js";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hoyArgentina, listarAbiertos } from "@/lib/cuenta/queries";
-import { validarSeleccionOP } from "@/lib/cuenta/calculos";
+import { importeElegido, validarSeleccionOP } from "@/lib/cuenta/calculos";
 import { faltantesProveedor } from "@/lib/facturas/requisitos";
 import { problemaConstancia } from "@/lib/op/constancias";
 import { leerComprobante, type ResultadoLectura } from "@/lib/pagos/leer-comprobante";
@@ -16,7 +16,7 @@ import { DIAS_MISMA_COMPRA, evaluarTope, previosEnOP } from "@/lib/op/topes";
 import { dolarBlue } from "@/lib/dolar";
 import { estadoOP, facturasDeOP, listarOPsApp } from "@/lib/op/queries";
 import { problemasOP } from "@/lib/op/controles";
-import { hayLibre, leerMonto, MARGEN_LIBRE } from "@/lib/montos";
+
 import { mensajeBase } from "@/lib/errores-base";
 
 export interface ResultadoOP {
@@ -103,21 +103,13 @@ export async function reservarOP(proveedor: string, ids: string[], importes: Rec
   if (libresDe.length !== ids.length) {
     return { ok: false, mensaje: "Alguna factura ya no está abierta: recargá la página." };
   }
-  // Pago parcial: se puede pagar menos que lo libre de una factura (lo que queda sigue
-  // libre para otra OP), nunca más ni cero. Sin importe, va todo lo libre.
+  // Pago parcial o NC aplicada en parte: menos que lo libre (lo que queda sigue libre para
+  // otra OP), nunca más ni cero. Sin importe, va todo lo libre. Misma regla que la pantalla.
   const elegidas: (typeof libresDe[number] & { libreTotal: string })[] = [];
   for (const a of libresDe) {
-    let imp = new Decimal(a.libre);
-    if (importes[a.id]) {
-      try { imp = new Decimal(leerMonto(importes[a.id])); } catch (e) { return { ok: false, mensaje: `El importe de ${a.numero}: ${e instanceof Error ? e.message : "no es un número"}.` }; }
-      if (imp.lte(0)) return { ok: false, mensaje: `El importe de ${a.numero} tiene que ser mayor a cero.` };
-      // Menos que el margen de redondeo no es un pago (y validarSeleccionOP lo leería como "ya en otra OP").
-      if (!hayLibre(imp)) return { ok: false, mensaje: `El importe de ${a.numero} es menor a $${MARGEN_LIBRE.toLocaleString("es-AR")}: no es un pago.` };
-      if (imp.minus(a.libre).gt(0.005)) {
-        return { ok: false, mensaje: `A ${a.numero} le quedan libres $${new Decimal(a.libre).toDecimalPlaces(0).toNumber().toLocaleString("es-AR")}: no se puede pagar más.` };
-      }
-    }
-    elegidas.push({ ...a, libre: imp.toFixed(2), libreTotal: a.libre });
+    const imp = importeElegido(a.libre, a.numero, importes[a.id]);
+    if (!imp.ok) return { ok: false, mensaje: `${imp.mensaje}.` };
+    elegidas.push({ ...a, libre: imp.importe, libreTotal: a.libre });
   }
   const { errores, total, titular } = validarSeleccionOP(elegidas);
   if (errores.length) return { ok: false, mensaje: errores.join(" · ") };
@@ -430,7 +422,8 @@ export async function pagarOP(numero: string, form: FormData): Promise<Resultado
   const bytes = subido ? new Uint8Array(await subido.arrayBuffer()) : null;
   if (bytes && !esDelTipo(bytes, subido!.type)) return { ok: false, mensaje: "El archivo no es un PDF, JPG o PNG válido." };
   if (subido && subido.size > MAX_COMPROBANTE) return { ok: false, mensaje: "El comprobante pesa más de 5 MB." };
-  if (!subido && !datos.comprobante.trim()) return { ok: false, mensaje: "Subí el comprobante o pegá su link." };
+  // Una compensación (NC contra facturas) no mueve plata: no hay comprobante de pago.
+  if (!subido && !datos.comprobante.trim() && datos.medio !== "Compensacion") return { ok: false, mensaje: "Subí el comprobante o pegá su link." };
 
   const [op] = (await listarOPsApp(["Autorizada"])).filter((o) => o.numero === numero);
   if (!op) return { ok: false, mensaje: "La OP no está autorizada para pagar." };

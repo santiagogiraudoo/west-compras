@@ -10,9 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MoneyCell } from "@/components/shared/MoneyCell";
 import { formatDate } from "@/lib/utils";
-import { validarSeleccionOP, type Abierto } from "@/lib/cuenta/calculos";
+import { importeElegido, validarSeleccionOP, type Abierto } from "@/lib/cuenta/calculos";
 import { reservarOP } from "@/app/(app)/op/actions";
-import { leerMonto } from "@/lib/montos";
 
 interface Props {
   proveedor: { codigo: string; razon_social: string; cuit: string | null; cbu: string | null; alias: string | null; banco: string | null; cuenta_titular: string | null };
@@ -33,10 +32,10 @@ export function ArmarOP({ proveedor, faltan, facturas, hoy }: Props) {
   const [parcial, setParcial] = useState<Record<string, string>>({});
   const [pendiente, startTransition] = useTransition();
 
+  // La misma regla que el server: lo escrito va en positivo y, si es una NC, resta.
   const elegidas = useMemo(() => facturas.filter((f) => sel.has(f.id)).map((f) => {
-    const t = parcial[f.id]?.trim();
-    if (!t) return f;
-    try { return { ...f, libre: leerMonto(t) }; } catch { return f; }
+    const r = importeElegido(f.libre, f.numero, parcial[f.id]);
+    return r.ok ? { ...f, libre: r.importe } : f;
   }), [facturas, sel, parcial]);
   const { errores, total, titular } = validarSeleccionOP(elegidas);
   const titularElegido = elegidas[0]?.facturado_a ?? null;

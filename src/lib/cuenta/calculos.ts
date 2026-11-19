@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { MARGEN_LIBRE } from "@/lib/montos";
+import { leerMonto, MARGEN_LIBRE } from "@/lib/montos";
 import { parseDateString, toLocalDateString } from "@/lib/utils";
 
 /**
@@ -164,8 +164,26 @@ export function armarExtracto(movs: Movimiento[]): Extracto {
  * una OP es de un solo titular (cc._controlar_titular_imputacion: "no se cruzan
  * cuentas") y el total tiene que ser positivo.
  */
+/**
+ * Cuánto de una factura o nota de crédito va en la OP, a partir de lo que se escribió (pago
+ * parcial o NC aplicada en parte). Vacío: todo lo libre. Lo escrito va siempre en positivo; si
+ * es una NC (libre negativo), resta. Nunca más que lo libre ni menos que el redondeo.
+ * La usan la pantalla y el server, así el total que se ve es el que se guarda.
+ */
+export function importeElegido(libre: string, numero: string, texto?: string | null): { ok: true; importe: string } | { ok: false; mensaje: string } {
+  if (!texto?.trim()) return { ok: true, importe: new Decimal(libre).toFixed(2) };
+  let escrito: Decimal;
+  try { escrito = new Decimal(leerMonto(texto)).abs(); } catch (e) { return { ok: false, mensaje: `El importe de ${numero}: ${e instanceof Error ? e.message : "no es un número"}` }; }
+  if (!escrito.gt(MARGEN)) return { ok: false, mensaje: `El importe de ${numero} tiene que ser mayor a $${MARGEN_LIBRE.toLocaleString("es-AR")}` };
+  const lib = new Decimal(libre);
+  if (escrito.minus(lib.abs()).gt(0.005)) {
+    return { ok: false, mensaje: `A ${numero} le quedan libres $${lib.abs().toDecimalPlaces(0).toNumber().toLocaleString("es-AR")}: no se puede ${lib.isNegative() ? "aplicar" : "pagar"} más` };
+  }
+  return { ok: true, importe: (lib.isNegative() ? escrito.neg() : escrito).toFixed(2) };
+}
+
 export function validarSeleccionOP(sel: Pick<Abierto, "facturado_a" | "libre" | "numero">[]): {
-  errores: string[]; total: string; titular: string | null;
+  errores: string[]; total: string; titular: string | null; compensacion: boolean;
 } {
   const errores: string[] = [];
   if (sel.length === 0) errores.push("Elegí al menos una factura");
@@ -175,8 +193,14 @@ export function validarSeleccionOP(sel: Pick<Abierto, "facturado_a" | "libre" | 
   const sinLibre = sel.filter((s) => new Decimal(s.libre).abs().lessThanOrEqualTo(MARGEN));
   if (sinLibre.length) errores.push(`Ya están en otra OP: ${sinLibre.map((s) => s.numero).join(", ")}`);
   const total = sel.reduce((t, s) => t.plus(new Decimal(s.libre)), new Decimal(0));
-  if (sel.length > 0 && !total.greaterThan(0)) errores.push("El total de la OP tiene que ser positivo");
-  return { errores, total: total.toFixed(2), titular: titulares.length === 1 && titulares[0] ? titulares[0] : null };
+  // Una nota de crédito que cancela facturas enteras deja la OP en $0: es una compensación
+  // (se registra con medio Compensación, sin plata ni comprobante). Negativa, nunca.
+  const hayNC = sel.some((s) => new Decimal(s.libre).isNegative());
+  const compensacion = sel.length > 0 && hayNC && total.abs().lt(0.01);
+  if (sel.length > 0 && total.isNegative() && total.abs().gte(0.01)) {
+    errores.push(hayNC ? "La nota de crédito supera las facturas: aplicá solo una parte" : "El total de la OP tiene que ser positivo");
+  } else if (sel.length > 0 && !total.greaterThan(0) && !compensacion) errores.push("El total de la OP tiene que ser positivo");
+  return { errores, total: total.toFixed(2), titular: titulares.length === 1 && titulares[0] ? titulares[0] : null, compensacion };
 }
 
 /** Factura que vence el mismo día que se emite: contado, o proveedor sin condición de pago. */

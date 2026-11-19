@@ -61,7 +61,8 @@ export function PagarOP({ numero, proveedor, total, medio: medioInicial, hoy, cb
   const cotejo = lectura ? cotejarComprobante(lectura, { neto: calculo.neto, cbu, alias }) : [];
   const errores = [
     ...calculo.errores,
-    ...(!archivo && !link.trim() ? ["Subí el comprobante o pegá su link"] : []),
+    // Una compensación (NC contra facturas) no mueve plata: no hay comprobante.
+    ...(!archivo && !link.trim() && medio !== "Compensacion" ? ["Subí el comprobante o pegá su link"] : []),
     ...(archivo && !TIPOS.includes(archivo.type) ? ["El comprobante tiene que ser PDF, JPG o PNG"] : []),
     ...(archivo && archivo.size > 5 * 1024 * 1024 ? ["El comprobante pesa más de 5 MB"] : []),
   ];

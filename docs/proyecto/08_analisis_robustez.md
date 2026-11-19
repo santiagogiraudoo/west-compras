@@ -98,9 +98,13 @@ concurrencia**, cada hallazgo verificado leyendo el código.
    y anular lo que aparezca; recién ahí aplicar 019 y 020.
 3. Pasar a la rama de UI: C3 en páginas, C7 en el formulario, C12–C13.
 
-## 5. Pendiente: nota de crédito atada a su factura
+## 5. Nota de crédito que cancela una factura (19/11, hecho)
 
-Decisión del 19/11: una NC cancela una factura entera o una parte. Hoy la NC entra como un
-comprobante negativo más y se compensa cuando va en la misma OP que la factura. Falta
-poder decir "esta NC es de tal factura" y que lo libre de esa factura baje solo, aunque no
-estén en la misma OP.
+Decisión: una NC cancela una factura entera o una parte. Se hace como **compensación**, por
+el mismo camino que una OP (así la cuenta corriente queda bien en la base y el plomero la ve):
+- Al armar la OP se eligen la factura y la NC; de la NC se puede aplicar solo una parte
+  (se escribe en positivo y resta). Misma regla en pantalla y server: `importeElegido`.
+- Si la NC cancela todo, la OP queda en **$0**: es una compensación. Se aprueba como cualquier
+  OP y se registra con medio **Compensación**, sin comprobante ni referencia.
+- La base frena igual: signo de cada imputación, no aplicar más que lo libre, doble pago con
+  ClickUp, y total = suma de imputaciones al registrar.

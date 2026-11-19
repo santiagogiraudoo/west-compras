@@ -64,6 +64,8 @@ export function calcularPago(total: string, d: DatosPago, hoy: string): {
   }
   const neto = new Decimal(total).minus(suma);
   if (neto.isNegative()) errores.push("Las retenciones superan el total de la OP");
+  // Una OP en $0 es una nota de crédito que cancela facturas: se registra como compensación.
+  if (new Decimal(total).isZero() && d.medio !== "Compensacion") errores.push("Una OP en $0 es una compensación: elegí Compensación como medio");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.fecha)) errores.push("Falta la fecha de pago");
   else if (d.fecha > hoy) errores.push("La fecha de pago no puede ser futura");
   if (!(MEDIOS_PAGO as readonly string[]).includes(d.medio)) errores.push("Elegí el medio de pago");

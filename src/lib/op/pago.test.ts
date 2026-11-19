@@ -62,3 +62,12 @@ describe("calcularPago: montos raros (análisis 19/11)", () => {
     expect(calcularPago("51842.76", { ...base, retenciones: { ...base.retenciones, iibb: "1.842,76" } }, "2026-11-18").neto).toBe("50000.00");
   });
 });
+
+describe("calcularPago: compensación (NC contra facturas)", () => {
+  it("una OP en $0 se registra como compensación, sin referencia", () => {
+    const comp = { ...base, medio: "Compensacion", referencia: "", retenciones: { ...base.retenciones, iibb: "" } };
+    expect(calcularPago("0", comp, "2026-11-18")).toMatchObject({ errores: [], neto: "0.00" });
+    expect(calcularPago("0", { ...comp, medio: "Transferencia", referencia: "TRF 1" }, "2026-11-18").errores)
+      .toContain("Una OP en $0 es una compensación: elegí Compensación como medio");
+  });
+});
