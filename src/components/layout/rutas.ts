@@ -53,7 +53,7 @@ export function rutaDe(href: string): Ruta {
     case '/cuenta':
       return ficha(decodeURIComponent(resto));
     case '/op':
-      return resto === 'nueva' ? ficha('Nueva OP', FilePlus) : resto === 'extraordinaria' ? ficha('Operación extraordinaria', FilePlus) : ficha(decodeURIComponent(resto));
+      return resto === 'nueva' ? ficha('Plan de pagos', FilePlus) : resto === 'extraordinaria' ? ficha('Operación extraordinaria', FilePlus) : ficha(decodeURIComponent(resto));
     case '/proveedores':
       return ficha(resto === 'nuevo' ? 'Nuevo proveedor' : decodeURIComponent(resto));
     default:

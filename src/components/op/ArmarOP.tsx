@@ -4,14 +4,14 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { FilePlus } from "lucide-react";
+import { FilePlus, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MoneyCell } from "@/components/shared/MoneyCell";
 import { formatDate } from "@/lib/utils";
 import { importeElegido, validarSeleccionOP, type Abierto } from "@/lib/cuenta/calculos";
-import { reservarOP } from "@/app/(app)/op/actions";
+import { reservarOP, reservarYEnviar } from "@/app/(app)/op/actions";
 
 interface Props {
   proveedor: { codigo: string; razon_social: string; cuit: string | null; cbu: string | null; alias: string | null; banco: string | null; cuenta_titular: string | null };
@@ -19,17 +19,19 @@ interface Props {
   faltan: string[];
   facturas: Abierto[];
   hoy: string;
+  /** Lo que viene tildado: lo que vence, con las NC descontadas (plan de pagos). */
+  inicial?: { ids: string[]; importes: Record<string, string> };
 }
 
 /**
  * Elegir facturas aprobadas con saldo libre (pueden ser de varias unidades) y reservar
  * la OP. La validación es la misma función que usa el server.
  */
-export function ArmarOP({ proveedor, faltan, facturas, hoy }: Props) {
+export function ArmarOP({ proveedor, faltan, facturas, hoy, inicial }: Props) {
   const router = useRouter();
-  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [sel, setSel] = useState<Set<string>>(() => new Set(inicial?.ids ?? []));
   // Pago parcial: lo que se escribe para pagar de cada factura elegida (vacío = todo lo libre).
-  const [parcial, setParcial] = useState<Record<string, string>>({});
+  const [parcial, setParcial] = useState<Record<string, string>>(() => ({ ...(inicial?.importes ?? {}) }));
   const [pendiente, startTransition] = useTransition();
 
   // La misma regla que el server: lo escrito va en positivo y, si es una NC, resta.
@@ -46,10 +48,10 @@ export function ArmarOP({ proveedor, faltan, facturas, hoy }: Props) {
     setSel(n);
   }
 
-  function reservar() {
+  function reservar(mandar: boolean) {
     startTransition(async () => {
       const importes = Object.fromEntries([...sel].filter((id) => parcial[id]?.trim()).map((id) => [id, parcial[id]]));
-      const r = await reservarOP(proveedor.codigo, [...sel], importes);
+      const r = await (mandar ? reservarYEnviar : reservarOP)(proveedor.codigo, [...sel], importes);
       if (!r.ok) { toast.error(r.mensaje); return; }
       toast.success(r.mensaje);
       router.push("/op");
@@ -122,11 +124,14 @@ export function ArmarOP({ proveedor, faltan, facturas, hoy }: Props) {
         {elegidas.length > 0 && errores.length > 0 && (
           <ul className="space-y-1 text-xs text-red-800">{errores.map((e) => <li key={e}>{e}</li>)}</ul>
         )}
-        <Button size="sm" className="w-full" onClick={reservar}
+        <Button size="sm" className="w-full" onClick={() => reservar(true)}
           disabled={pendiente || errores.length > 0 || faltan.length > 0}>
-          <FilePlus className="h-4 w-4" /> {pendiente ? "Reservando…" : "Reservar OP"}
+          <Send className="h-4 w-4" /> {pendiente ? "Armando…" : "Armar y mandar a aprobar"}
         </Button>
-        <p className="text-xs text-muted-foreground">Queda en armado: después la mandás a aprobar desde Órdenes de pago.</p>
+        <Button size="sm" variant="ghost" className="w-full" onClick={() => reservar(false)}
+          disabled={pendiente || errores.length > 0 || faltan.length > 0}>
+          <FilePlus className="h-4 w-4" /> Solo reservar (queda en armado)
+        </Button>
       </aside>
     </div>
   );

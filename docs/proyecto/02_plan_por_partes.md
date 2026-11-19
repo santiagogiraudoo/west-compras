@@ -36,6 +36,12 @@ No entra en la fase 1: OP, aprobaciones, WhatsApp, compras, topes.
 1. **Cuenta corriente** (`/cuenta/[proveedor]`): facturas abiertas con vencimiento y extracto debe/haber; saldo, saldo a favor y PDF a pedido.
 2. **Armado de OP** (`/op/nueva`): facturas aprobadas libres de un proveedor, un solo titular, reservada Prevista con `cc.proxima_op` + `cc.cargar_pagos`. Necesita `sql/002_reservas_op.sql` aplicado.
 3. **OP abiertas** (`/op`): previstas con sus facturas.
+4. **Plan de pagos** (`/op/nueva`, 19/11 — más simple que ClickUp): una sola pantalla con todo lo
+   vencido y lo que vence en 7 días, ya armado en OP (una por proveedor y titular, con las notas de
+   crédito descontadas solas; si cancelan todo, compensación en $0). Se tildan y un botón las arma
+   y las manda a aprobar; vienen tildadas las que tienen algo vencido y el alta completa. Para el
+   detalle, la OP de un proveedor llega con eso mismo tildado y también arma y manda a aprobar en
+   un paso. Antes eran cinco pasos por OP (proveedor, tildar, una por titular, reservar, mandar).
 
 Criterio de deuda: lo que falta pagar = saldo de `cc.v_saldo_comprobante` + lo imputado en OP previstas.
 

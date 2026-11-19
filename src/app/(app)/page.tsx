@@ -69,7 +69,7 @@ export default async function InicioPage() {
   return (
     <div className="px-8 py-6 space-y-6 max-w-[1400px] mx-auto">
       <Bienvenida nombre={nombre} hoy={hoy} hora={hora} frase={frase} accesos={[
-        { href: "/op/nueva", label: "Armar OP", n: porVencer.length, icon: ICONOS.FilePlus },
+        { href: "/op/nueva", label: "Plan de pagos", n: porVencer.length, icon: ICONOS.FilePlus },
         { href: "/op?paso=aprobar", label: "Para aprobar", n: aAprobar.length, icon: ICONOS.ClipboardCheck },
         { href: "/op?paso=pagar", label: "Para pagar", n: autorizadas.length, icon: ICONOS.Banknote },
       ]} />

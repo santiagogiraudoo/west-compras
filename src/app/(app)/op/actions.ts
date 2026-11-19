@@ -146,6 +146,41 @@ export async function reservarOP(proveedor: string, ids: string[], importes: Rec
 }
 
 /**
+ * Armar y mandar a aprobar en un paso (fase 2 más simple que ClickUp): reserva la OP y, si salió,
+ * la manda a aprobar. Cada paso vuelve a validar todo en el server, como si se hicieran por separado.
+ */
+export async function reservarYEnviar(proveedor: string, ids: string[], importes: Record<string, string> = {}): Promise<ResultadoOP> {
+  const r = await reservarOP(proveedor, ids, importes);
+  if (!r.ok || !r.numero) return r;
+  const e = await enviarAAprobar(r.numero);
+  return e.ok ? e : { ok: true, numero: r.numero, mensaje: `${r.numero} armada, pero no se pudo mandar a aprobar: ${e.mensaje}` };
+}
+
+/**
+ * El plan de pagos: varias OP de una (una por proveedor y titular), cada una armada y, si se
+ * pide, mandada a aprobar. Una que falla no frena a las demás: cada una dice qué pasó.
+ */
+export async function armarPlan(grupos: { proveedor: string; ids: string[]; importes: Record<string, string> }[], mandar: boolean):
+  Promise<{ ok: boolean; mensaje: string; resultados: (ResultadoOP & { proveedor: string })[] }> {
+  const u = await usuario();
+  if (!u || u.role === "consulta") return { ok: false, mensaje: "No tenés permiso para armar OP.", resultados: [] };
+  if (!Array.isArray(grupos) || grupos.length === 0) return { ok: false, mensaje: "Elegí al menos una OP.", resultados: [] };
+  if (grupos.length > 50) return { ok: false, mensaje: "Son demasiadas OP de una vez: armá de a 50.", resultados: [] };
+  const resultados: (ResultadoOP & { proveedor: string })[] = [];
+  for (const g of grupos) {
+    const r = mandar ? await reservarYEnviar(g.proveedor, g.ids, g.importes) : await reservarOP(g.proveedor, g.ids, g.importes);
+    resultados.push({ ...r, proveedor: g.proveedor });
+  }
+  const bien = resultados.filter((r) => r.ok).length;
+  return {
+    ok: bien > 0,
+    mensaje: bien === grupos.length ? `${bien} OP armada${bien > 1 ? "s" : ""}${mandar ? " y mandada" + (bien > 1 ? "s" : "") + " a aprobar" : ""}`
+      : `${bien} de ${grupos.length} OP armadas; las demás dicen por qué no`,
+    resultados,
+  };
+}
+
+/**
  * En armado → A aprobar. Cada renglón le llega a quien aprueba su unidad, salvo el que
  * cruza y queda dentro del tope de su unidad: sale aprobado solo ("se aprueba una sola
  * vez"), con el motivo (US$, tope y cotización) guardado como decisión automática.

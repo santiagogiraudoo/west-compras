@@ -7,12 +7,15 @@ import { prisma } from "@/lib/prisma";
 import { faltantesProveedor } from "@/lib/facturas/requisitos";
 import { hoyArgentina, listarAbiertos } from "@/lib/cuenta/queries";
 import { ArmarOP } from "@/components/op/ArmarOP";
+import { PlanDePagos } from "@/components/op/PlanDePagos";
+import { aReservar, planDePagos } from "@/lib/cuenta/plan";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Armado de OP (Adriano la arma eligiendo facturas aprobadas; no hay CC mensual).
- * Sin proveedor: a quién se le puede armar una. Con proveedor: sus facturas libres.
+ * Sin proveedor: el plan de pagos (todas las OP que hay que armar ya, de un toque) y abajo el
+ * resto. Con proveedor: sus facturas libres, con lo que vence ya tildado y las NC descontadas.
  */
 export default async function NuevaOPPage({ searchParams }: { searchParams: Promise<{ proveedor?: string }> }) {
   const { proveedor: codigo } = await searchParams;
@@ -21,14 +24,36 @@ export default async function NuevaOPPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="px-8 py-6 space-y-6 max-w-[1400px] mx-auto">
-      {codigo ? <ConProveedor codigo={codigo} facturas={abiertos} hoy={hoy} /> : <ElegirProveedor abiertos={abiertos} />}
+      {codigo ? <ConProveedor codigo={codigo} facturas={abiertos} hoy={hoy} /> : <Plan abiertos={abiertos} hoy={hoy} />}
     </div>
+  );
+}
+
+async function Plan({ abiertos, hoy }: { abiertos: Awaited<ReturnType<typeof listarAbiertos>>; hoy: string }) {
+  const ops = planDePagos(abiertos, hoy);
+  const proveedores = await prisma.proveedor.findMany({ where: { codigo: { in: [...new Set(ops.map((o) => o.proveedor))] } } });
+  const faltan = Object.fromEntries(proveedores.map((p) => [p.codigo, faltantesProveedor(p)]));
+  return (
+    <>
+      <TituloDePestana label="Plan de pagos" />
+      <div>
+        <h1 className="text-2xl font-bold text-primary">Plan de pagos</h1>
+        <p className="text-sm text-muted-foreground">
+          Lo vencido y lo que vence en los próximos 7 días, ya armado en OP: una por proveedor y titular, con las notas de crédito descontadas. Tildá y mandá a aprobar.
+        </p>
+      </div>
+      <PlanDePagos ops={ops} faltan={faltan} hoy={hoy} />
+      <ElegirProveedor abiertos={abiertos} />
+    </>
   );
 }
 
 async function ConProveedor({ codigo, facturas, hoy }: { codigo: string; facturas: Awaited<ReturnType<typeof listarAbiertos>>; hoy: string }) {
   const p = await prisma.proveedor.findUnique({ where: { codigo } });
   if (!p) return <p className="text-sm">No encontré el proveedor {codigo}.</p>;
+  // Viene tildado lo que vence (la OP del titular con más vencido), con las NC descontadas.
+  const sugerida = planDePagos(facturas, hoy)[0];
+  const inicial = sugerida ? aReservar(sugerida) : { ids: [], importes: {} };
   return (
     <>
       <TituloDePestana label={`Nueva OP · ${p.razon_social}`} />
@@ -42,7 +67,7 @@ async function ConProveedor({ codigo, facturas, hoy }: { codigo: string; factura
         </div>
       ) : (
         <ArmarOP proveedor={{ codigo: p.codigo, razon_social: p.razon_social, cuit: p.cuit, cbu: p.cbu, alias: p.alias, banco: p.banco, cuenta_titular: p.cuenta_titular }}
-          faltan={faltantesProveedor(p)} facturas={facturas} hoy={hoy} />
+          faltan={faltantesProveedor(p)} facturas={facturas} hoy={hoy} inicial={inicial} />
       )}
     </>
   );
@@ -60,8 +85,8 @@ function ElegirProveedor({ abiertos }: { abiertos: Awaited<ReturnType<typeof lis
   return (
     <>
       <div>
-        <h1 className="text-2xl font-bold text-primary">Nueva OP</h1>
-        <p className="text-sm text-muted-foreground">Proveedores con facturas aprobadas que todavía no están en ninguna OP.</p>
+        <h2 className="text-lg font-semibold text-primary">Armar una OP a mano</h2>
+        <p className="text-sm text-muted-foreground">Todos los proveedores con facturas aprobadas que todavía no están en ninguna OP, venzan cuando venzan.</p>
       </div>
       <div className="rounded-md border overflow-hidden">
         <Table>

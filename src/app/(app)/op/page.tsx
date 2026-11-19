@@ -87,7 +87,7 @@ export default async function OPPage({ searchParams }: { searchParams: Promise<{
               <Link href="/op/extraordinaria"><FileWarning className="h-4 w-4" /> Operación extraordinaria</Link>
             </Button>
             <Button size="sm" asChild>
-              <Link href="/op/nueva"><FilePlus className="h-4 w-4" /> Nueva OP</Link>
+              <Link href="/op/nueva"><FilePlus className="h-4 w-4" /> Plan de pagos</Link>
             </Button>
           </div>
         )}
