@@ -82,10 +82,33 @@ describe("analizarLectura", () => {
     expect(a).toMatchObject({ proveedor: "PR-004", tipo: "Factura A", numero: "00003-00045564", repetida: false, avisos: [] });
   });
   it("avisa CUIT desconocido, total que no cierra, repetida y las dudas de la IA", () => {
-    expect(analizarLectura(l({ cuit_emisor: "20-11111111-1" }), provs, []).avisos[0]).toContain("no es de ningún proveedor");
+    expect(analizarLectura(l({ cuit_emisor: "20-11111111-2" }), provs, []).avisos[0]).toContain("no es de ningún proveedor");
     expect(analizarLectura(l({ total: "1500" }), provs, []).avisos).toContain("El total no cierra con neto + IVA + percepciones");
     const rep = analizarLectura(l(), provs, [{ proveedor: "PR-004", numero: "0003-00045564" }]);
     expect(rep.repetida).toBe(true);
     expect(analizarLectura(l({ dudas: ["fecha borrosa"] }), provs, []).avisos).toEqual(["La IA dudó: fecha borrosa"]);
+  });
+});
+
+describe("analizarLectura: mismos controles que el plomero (documentos.validar_factura)", () => {
+  const provs = [{ codigo: "PR-004", cuit: "30709189812" }];
+  const HOY = "2026-11-19";
+  it("CUIT con el verificador mal es una mala lectura, no un proveedor nuevo", () => {
+    const a = analizarLectura(l({ cuit_emisor: "30-70918981-3" }), provs, [], HOY).avisos;
+    expect(a.some((x) => x.includes("no es válido"))).toBe(true);
+    expect(a.some((x) => x.includes("dalo de alta"))).toBe(false);
+  });
+  it("receptor mal leído, moneda extranjera y fechas raras", () => {
+    expect(analizarLectura(l({ cuit_receptor: "20-25766140-9" }), provs, [], HOY).avisos.join()).toMatch(/receptor/);
+    expect(analizarLectura(l({ moneda: "DOL" }), provs, [], HOY).avisos.join()).toMatch(/no son pesos/);
+    expect(analizarLectura(l({ moneda: "PES" }), provs, [], HOY).avisos).toEqual([]);
+    expect(analizarLectura(l({ fecha: "2026-12-01" }), provs, [], HOY).avisos.join()).toMatch(/futura/);
+    expect(analizarLectura(l({ fecha: "2024-01-05" }), provs, [], HOY).avisos.join()).toMatch(/dos años/);
+    expect(analizarLectura(l({ fecha: "05/11/2026" }), provs, [], HOY).avisos.join()).toMatch(/no se entiende/);
+  });
+  it("montos que la IA devolvió a la argentina no rompen el análisis", () => {
+    const a = analizarLectura(l({ neto: "1.000,00", iva: "210,00", total: "1.210,00" }), provs, [], HOY);
+    expect(a.avisos).toEqual([]);
+    expect(analizarLectura(l({ total: "mil" }), provs, [], HOY).avisos.join()).toMatch(/no es un monto/);
   });
 });

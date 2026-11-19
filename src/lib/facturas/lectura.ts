@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
-import { cierra, leerMonto } from "@/lib/montos";
+import { cierra, leerMonto, leerMontoONull } from "@/lib/montos";
+import { normalizarCuit } from "@/lib/proveedores/validar";
 
 /** Lo que Claude lee de una factura (mismo esquema que el plomero, documentos.py). */
 export interface LecturaFactura {
@@ -18,6 +19,8 @@ export interface LecturaFactura {
   iva: string | null;
   percepciones: string | null;
   total: string | null;
+  /** PES, DOL u otra sigla, como figura; null si no dice (en pesos). */
+  moneda?: string | null;
   items: { descripcion: string; cantidad: string | null; precio_unitario: string | null; subtotal: string | null }[];
   dudas: string[];
 }
@@ -131,12 +134,25 @@ export function analizarLectura(
   l: LecturaFactura,
   proveedores: { codigo: string; cuit: string | null }[],
   existentes: { proveedor: string; numero: string }[],
+  hoy?: string,
 ): Analisis {
   const avisos: string[] = [];
   const cuit = digitos(l.cuit_emisor);
   const prov = cuit ? proveedores.find((p) => digitos(p.cuit) === cuit) : undefined;
   if (!cuit) avisos.push("No se leyó el CUIT del emisor: elegí el proveedor");
+  // Mismos controles que el plomero (documentos.validar_factura): un CUIT con el dígito
+  // verificador mal es un CUIT mal leído, no un proveedor nuevo.
+  else if (!normalizarCuit(cuit)) avisos.push(`El CUIT ${l.cuit_emisor} no es válido (dígito verificador): se leyó mal`);
   else if (!prov) avisos.push(`El CUIT ${l.cuit_emisor} no es de ningún proveedor: dalo de alta o elegilo`);
+  if (l.cuit_receptor && !normalizarCuit(l.cuit_receptor)) avisos.push(`El CUIT del receptor ${l.cuit_receptor} no es válido: revisá a nombre de quién está`);
+  if (l.moneda && !["PES", "ARS", "$"].includes(l.moneda.trim().toUpperCase())) {
+    avisos.push(`Está en ${l.moneda}: los importes no son pesos, convertilos antes de cargarla`);
+  }
+  if (l.fecha && !/^\d{4}-\d{2}-\d{2}$/.test(l.fecha)) avisos.push(`La fecha «${l.fecha}» no se entiende: revisala`);
+  else if (hoy && l.fecha) {
+    if (l.fecha > hoy) avisos.push("La fecha es futura: revisala");
+    else if (l.fecha < `${Number(hoy.slice(0, 4)) - 2}${hoy.slice(4)}`) avisos.push("La fecha es de hace más de dos años: revisala");
+  }
   const numero = numeroComprobante(l.punto_venta, l.numero);
   if (!numero) avisos.push("No se leyó el número de la factura");
   const repetida = !!(prov && numero && existentes.some((e) => e.proveedor === prov.codigo && mismoNumero(e.numero, numero)));
@@ -146,8 +162,12 @@ export function analizarLectura(
   else if (l.vencimiento && l.vencimiento < l.fecha) avisos.push("El vencimiento es anterior a la fecha: revisalo");
   if (!l.total) avisos.push("No se leyó el total");
   else {
-    const suma = [l.neto, l.iva, l.percepciones].reduce((t, v) => t.plus(v ?? 0), new Decimal(0));
-    if (l.neto && !cierra(suma, l.total)) avisos.push("El total no cierra con neto + IVA + percepciones");
+    // Con leerMontoONull: si la IA devuelve "1.234,56" en vez de "1234.56", no se cae.
+    const m = (v: string | null) => (v == null ? null : leerMontoONull(v));
+    const total = m(l.total);
+    const suma = [l.neto, l.iva, l.percepciones].reduce((t, v) => t.plus(m(v) ?? 0), new Decimal(0));
+    if (total == null) avisos.push(`El total «${l.total}» no es un monto: revisalo`);
+    else if (l.neto && !cierra(suma, total)) avisos.push("El total no cierra con neto + IVA + percepciones");
   }
   for (const d of l.dudas) avisos.push(`La IA dudó: ${d}`);
   return { proveedor: prov?.codigo ?? null, tipo: tipoComprobante(l.tipo, l.letra), numero, avisos, repetida };

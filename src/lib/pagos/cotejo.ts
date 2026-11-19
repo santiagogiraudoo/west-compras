@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { cierra } from "@/lib/montos";
+import { cierra, leerMontoONull } from "@/lib/montos";
 
 /** Lo que se lee de un comprobante de pago (transferencia, echeq, depósito). */
 export interface LecturaComprobante {
@@ -34,7 +34,9 @@ export function cotejarComprobante(
   const out: Cotejo[] = [];
   if (l.monto) {
     let leido: Decimal | null = null;
-    try { leido = new Decimal(l.monto); } catch { leido = null; }
+    // Con leerMontoONull: la IA a veces devuelve "1.587.634,15" y new Decimal no lo leía (no se cotejaba nada).
+    const t = leerMontoONull(l.monto);
+    leido = t == null ? null : new Decimal(t);
     if (leido) {
       const dif = leido.minus(esperado.neto).abs();
       out.push(cierra(leido, esperado.neto)

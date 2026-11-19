@@ -64,7 +64,7 @@ export async function leerFacturaSubida(form: FormData): Promise<ResultadoLeer> 
     ? await prisma.$queryRaw<{ proveedor: string; numero: string }[]>`
         select proveedor_codigo as proveedor, numero from cc.comprobantes where proveedor_codigo = ${prov.codigo}`
     : [];
-  return { ok: true, lectura: r.lectura, analisis: analizarLectura(r.lectura, proveedores, existentes) };
+  return { ok: true, lectura: r.lectura, analisis: analizarLectura(r.lectura, proveedores, existentes, hoyArgentina()) };
 }
 
 export interface DatosFactura {

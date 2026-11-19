@@ -40,3 +40,9 @@ describe("cotejarComprobante: cuenta de destino (análisis 19/11)", () => {
     expect(cotejarComprobante(lectura({ cuenta_destino: "***7080" }), esperado)[1].ok).toBe(true);
   });
 });
+
+describe("cotejarComprobante: monto escrito a la argentina", () => {
+  it("lo coteja igual", () => {
+    expect(cotejarComprobante(lectura({ monto: "1.000,00", cuenta_destino: null }), esperado)[0].ok).toBe(true);
+  });
+});

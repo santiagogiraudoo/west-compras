@@ -31,6 +31,7 @@ const Lectura = z.object({
   iva: z.string().nullable(),
   percepciones: z.string().nullable(),
   total: z.string().nullable(),
+  moneda: z.string().nullable(),
   items: z.array(Item),
   dudas: z.array(z.string()),
 });
@@ -42,6 +43,8 @@ Devolvé SOLO lo que se ve, sin adivinar:
 - punto_venta y numero tal como figuran (ej. "00003" y "00008897").
 - fecha y vencimiento en formato AAAA-MM-DD.
 - neto, iva, percepciones (suma de percepciones y otros impuestos) y total: con punto decimal y sin separador de miles (ej. "1234567.89").
+- moneda: PES si es en pesos, DOL si es en dólares, otra sigla si figura; null si no dice.
+- vencimiento es el de PAGO; el "vencimiento del CAE" no es el vencimiento de la factura.
 - items: cada renglón con descripcion, cantidad, precio_unitario y subtotal.
 Si un dato no está o no se lee seguro, va null y lo contás en "dudas" en pocas palabras (ej. "fecha borrosa").
 Si no es una factura, nota de crédito ni nota de débito (un remito, un presupuesto, un comprobante de pago), es_factura va false.`;
