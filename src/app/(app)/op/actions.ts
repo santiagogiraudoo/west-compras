@@ -361,6 +361,7 @@ function esDelTipo(b: Uint8Array, tipo: string): boolean {
   if (tipo === "application/pdf") return empieza(0x25, 0x50, 0x44, 0x46); // %PDF
   if (tipo === "image/jpeg") return empieza(0xff, 0xd8, 0xff);
   if (tipo === "image/png") return empieza(0x89, 0x50, 0x4e, 0x47);
+  if (tipo === "image/webp") return empieza(0x52, 0x49, 0x46, 0x46); // RIFF
   return false;
 }
 
@@ -468,6 +469,8 @@ export async function subirConstancia(numero: string, form: FormData): Promise<R
   if (!existe.length) return { ok: false, mensaje: "No encontré la OP." };
 
   const bytes = Buffer.from(await subido.arrayBuffer());
+  // Como el comprobante de pago: el tipo declarado tiene que coincidir con el contenido.
+  if (!esDelTipo(bytes, subido.type)) return { ok: false, mensaje: "El archivo no es una foto o un PDF válidos." };
   await prisma.$executeRaw`
     insert into app.constancias_op (op_numero, nombre, tipo, archivo, nota, subido_por)
     values (${numero}, ${subido.name.slice(0, 200) || "constancia"}, ${subido.type}, ${bytes}, ${nota}, ${u.name})`;
