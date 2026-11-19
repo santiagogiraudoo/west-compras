@@ -16,7 +16,7 @@ const Item = z.object({
   precio_unitario: z.string().nullable(),
   subtotal: z.string().nullable(),
 });
-const Lectura = z.object({
+export const LecturaFacturaZ = z.object({
   es_factura: z.boolean(),
   cuit_emisor: z.string().nullable(),
   razon_social: z.string().nullable(),
@@ -65,7 +65,7 @@ export async function leerFactura(bytes: Buffer, tipo: string): Promise<Resultad
       model: "claude-opus-5-5",
       max_tokens: 16000,
       // Extracción: poco esfuerzo alcanza y responde rápido.
-      output_config: { effort: "low", format: betaZodOutputFormat(Lectura) },
+      output_config: { effort: "low", format: betaZodOutputFormat(LecturaFacturaZ) },
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
       messages: [{ role: "user", content: [archivo, { type: "text", text: INSTRUCCIONES }] }],

@@ -25,5 +25,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api/auth|_next/static|_next/image|images|favicon.ico|docs).*)"],
+  // api/whatsapp lo llama Meta sin sesión: se protege con la firma del webhook (route.ts).
+  matcher: ["/((?!api/auth|api/whatsapp|_next/static|_next/image|images|favicon.ico|docs).*)"],
 };
