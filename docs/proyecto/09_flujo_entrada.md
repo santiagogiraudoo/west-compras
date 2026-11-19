@@ -47,15 +47,29 @@ pierde: lo que no se pudo procesar queda con su motivo y se resuelve a mano.
 | Qué es | Qué se hace |
 |---|---|
 | Factura / NC / ND | Si ya está (misma clave) → duplicado. Si no, se carga **Pendiente** con `cc.cargar_nuevos` + ítems; lo dudoso va "⚠️ revisar". Titular por CUIT del receptor; unidad si el texto o el remito la dicen. |
-| Remito | Se carga con `cc.cargar_remitos` (firmado = `ok`, sin firma = `falta`) y se cruza. |
+| Compra | Se crea con `cc.cargar_compras` (clave `app:…`) y se lleva los remitos que ya habían llegado. |
+| Remito | Se carga con `cc.cargar_remitos` (firmado = `ok`, sin firma = `falta`), se ata a su compra (o la crea) y a su factura. |
 | Comprobante de pago | No se registra solo: queda para "Registrar pago" de la OP que coincida. |
 | Otro | Descartado con motivo (presupuesto, foto de stock, planilla). |
 
-5. **Cruzar remito ↔ factura** (`cruce.ts`, reglas del plomero `completar.py`):
-   el remito cita el número de la factura · la factura cita el número del remito · mismo
-   proveedor, importe que cierra (menos de $1) y fecha cercana · **factura de remitos**: la
-   factura es la suma de varios remitos abiertos del proveedor. El remito que llega antes que
-   su factura queda abierto y se liga cuando entra la factura.
+5. **Cruzar las tres puntas: compra ↔ remito ↔ factura** (`cruce.ts`, reglas del plomero
+   `completar.py`). La cadena queda en la base: `cc.remitos.compra_id` y `comprobante_id`;
+   `app.v_compras` dice lo comprado, lo facturado y el saldo de cada compra.
+   - **Compra**: entra con su confirmación (pedido, orden o presupuesto aceptado) o, si no
+     hay, con el remito: "la compra entra con el remito o la confirmación" (Adriano 17/11).
+     La orden sigue en ClickUp hasta que la app la reemplace.
+   - **Remito → compra**: una compra abierta del proveedor que el remito cite, o la única con
+     el mismo importe y de hasta 60 días antes. Si no hay una sola, el remito crea su compra.
+     La compra que llega después se lleva los remitos sueltos que la citan, el que tiene su
+     importe o los que lo suman (entregas parciales).
+   - **Remito ↔ factura**: el remito cita la factura · la factura cita el remito · mismo
+     importe (menos de $1) y fecha cercana · **factura de remitos**: la factura es la suma
+     exacta de varios remitos abiertos. El remito que llega antes que su factura se liga
+     cuando entra la factura.
+   - **Control de tres puntas** (`tresPuntas`): lo facturado contra lo comprado (tolerancia
+     cero) y remitos firmados. Es lo que permite aprobar una sola vez: compra dentro del tope
+     + factura que cruza con compra y remito → no pide otra firma.
+   - La unidad sale del destino escrito ("obra West Club") solo si nombra una sola.
 
 ### 4. Después
 La factura sigue el camino de siempre: **Bandeja** (lo que no pasó solo, con el motivo) →
@@ -68,7 +82,10 @@ La factura sigue el camino de siempre: **Bandeja** (lo que no pasó solo, con el
 - **Plomero**: mientras la app esté en desarrollo, sigue operando igual. Cuando la app
   procese la entrada en producción, el plomero deja de leer facturas.
 
-## Falta para que el canal WhatsApp ande
-Número de WhatsApp Business (Cloud API de Meta), y en Vercel: `WHATSAPP_TOKEN`,
-`WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_PHONE_ID`. El webhook es
-`/api/whatsapp`.
+## Canal WhatsApp
+Cómo configurarlo, paso a paso: `10_whatsapp.md`. El webhook es `/api/whatsapp`.
+
+## Falta
+- Que "Añadir factura" pase por el buzón (un solo camino).
+- Que la aprobación use el control de tres puntas (hoy mira solo factura ↔ remito).
+- Mostrar en la ficha de la factura su compra y sus remitos.
