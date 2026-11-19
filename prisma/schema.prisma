@@ -32,14 +32,55 @@ model AprobacionOp {
   id             Int      @id @default(autoincrement())
   op_numero      String
   comprobante_id BigInt
-  decision       String // Aprobada, Observada (Observada lleva motivo)
+  decision       String // Aprobada, Observada, Bloqueada (las dos últimas llevan motivo)
   motivo         String?
   usuario_id     Int
   usuario        String
   creado_en      DateTime @default(now()) @db.Timestamptz(6)
+  unidad_codigo  String? // sql/011: el renglón es (factura, unidad)
+  cotizacion_blue Decimal? @db.Decimal // sql/015: blue usado en la aprobación automática por tope
 
   @@index([op_numero, comprobante_id, creado_en(sort: Desc)], map: "aprobaciones_op_linea")
   @@map("aprobaciones_op")
+  @@schema("app")
+}
+
+// Qué sql/ tiene aplicados esta base (sql/015). Lo escribe scripts/aplicar-sql.ts.
+model Migracion {
+  archivo      String   @id
+  huella       String?
+  aplicado_en  DateTime @default(now()) @db.Timestamptz(6)
+  aplicado_por String
+
+  @@map("migraciones")
+  @@schema("app")
+}
+
+// Quién aprueba cada unidad (sql/009). Topes en dólar blue, vacíos hasta que se definan.
+model Aprobador {
+  unidad_codigo   String   @id
+  usuario_id      Int
+  tope_compra_usd Decimal? @db.Decimal
+  tope_mes_usd    Decimal? @db.Decimal
+  actualizado_por String?
+  actualizado_en  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("aprobadores")
+  @@schema("app")
+}
+
+// OP armadas en la app (sql/009). El estado no se guarda: lo deriva app.v_op_estado.
+model OpApp {
+  op_numero       String    @id
+  armada_por      String
+  armada_en       DateTime  @default(now()) @db.Timestamptz(6)
+  enviada_por     String?
+  enviada_en      DateTime? @db.Timestamptz(6)
+  descartada_por  String?
+  descartada_en   DateTime? @db.Timestamptz(6)
+  motivo_descarte String?
+
+  @@map("ops")
   @@schema("app")
 }
 

@@ -108,6 +108,10 @@ export interface Movimiento {
   importe: string;
   /** "comprobante" o "pago": el mismo día van primero los comprobantes. */
   clase: "comprobante" | "pago";
+  /** El id del comprobante o el número de la OP, para abrir su detalle. */
+  ref?: string | null;
+  /** La OP es de la app (tiene ficha). */
+  de_app?: boolean;
 }
 
 export interface LineaExtracto {
@@ -117,6 +121,9 @@ export interface LineaExtracto {
   debe: string;
   haber: string;
   saldo: string;
+  clase?: "comprobante" | "pago";
+  ref?: string | null;
+  de_app?: boolean;
 }
 
 export interface Extracto {
@@ -144,7 +151,7 @@ export function armarExtracto(movs: Movimiento[]): Extracto {
     haber = haber.plus(h);
     debe = debe.plus(d);
     saldo = saldo.plus(imp);
-    return { fecha: m.fecha, concepto: m.concepto, unidad: m.unidad, debe: d.toFixed(2), haber: h.toFixed(2), saldo: saldo.toFixed(2) };
+    return { fecha: m.fecha, concepto: m.concepto, unidad: m.unidad, debe: d.toFixed(2), haber: h.toFixed(2), saldo: saldo.toFixed(2), clase: m.clase, ref: m.ref ?? null, de_app: m.de_app ?? false };
   });
   return { lineas, debe: debe.toFixed(2), haber: haber.toFixed(2), saldo: saldo.toFixed(2) };
 }
@@ -168,4 +175,40 @@ export function validarSeleccionOP(sel: Pick<Abierto, "facturado_a" | "libre" | 
   const total = sel.reduce((t, s) => t.plus(new Decimal(s.libre)), new Decimal(0));
   if (sel.length > 0 && !total.greaterThan(0)) errores.push("El total de la OP tiene que ser positivo");
   return { errores, total: total.toFixed(2), titular: titulares.length === 1 && titulares[0] ? titulares[0] : null };
+}
+
+/** Factura que vence el mismo día que se emite: contado, o proveedor sin condición de pago. */
+export const venceElDia = (a: Pick<Abierto, "fecha" | "vencimiento">) => !a.vencimiento || a.vencimiento <= a.fecha;
+
+export interface PorVencer {
+  proveedor_codigo: string;
+  razon_social: string;
+  facturas: number;
+  libre: string;
+  /** El vencimiento más próximo (o el más viejo, si ya venció). */
+  vence: string;
+}
+
+/**
+ * Para pagar en término: facturas con plazo pactado que vencen en los próximos `dias`
+ * (o ya vencieron) y que siguen sin OP, por proveedor, la que vence primero arriba.
+ * Las que vencen el mismo día que se emiten (contado o sin condición) no entran: vencen
+ * antes de cargarse y llenarían la lista sin decir nada nuevo.
+ */
+export function porVencerSinOP(abiertos: Abierto[], hoy: string, dias = 7): PorVencer[] {
+  const hasta = sumarDias(hoy, dias);
+  const m = new Map<string, { nombre: string; n: number; libre: Decimal; vence: string }>();
+  for (const a of abiertos) {
+    if (venceElDia(a) || a.vencimiento! >= hasta) continue;
+    const libre = new Decimal(a.libre);
+    if (!libre.greaterThan(MARGEN)) continue;
+    const p = m.get(a.proveedor_codigo) ?? { nombre: a.razon_social, n: 0, libre: new Decimal(0), vence: a.vencimiento! };
+    p.n += 1;
+    p.libre = p.libre.plus(libre);
+    if (a.vencimiento! < p.vence) p.vence = a.vencimiento!;
+    m.set(a.proveedor_codigo, p);
+  }
+  return [...m]
+    .map(([codigo, p]) => ({ proveedor_codigo: codigo, razon_social: p.nombre, facturas: p.n, libre: p.libre.toFixed(2), vence: p.vence }))
+    .sort((a, b) => a.vence.localeCompare(b.vence));
 }

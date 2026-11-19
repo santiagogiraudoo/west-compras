@@ -3,7 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, ClipboardCheck, Loader2, TriangleAlert, XCircle } from "lucide-react";
+import { FichaCard } from "@/components/properties/FichaCard";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -63,7 +64,8 @@ export function FichaForm({ id, proveedorCodigo, inicial, listas, rubroProveedor
   }
 
   return (
-    <aside className="space-y-4 rounded-md border bg-card p-4 text-sm">
+    <FichaCard icon={ClipboardCheck} title={aprobada ? "Datos de la factura" : "Para aprobar"} className="self-start">
+    <div className="space-y-4 px-5 py-4 text-sm">
       <Campo label="Unidad de negocio">
         <Select value={unidad} onValueChange={setUnidad}>
           <SelectTrigger className="w-full"><SelectValue placeholder="Elegí la unidad" /></SelectTrigger>
@@ -79,7 +81,7 @@ export function FichaForm({ id, proveedorCodigo, inicial, listas, rubroProveedor
           <p className="text-xs text-muted-foreground">Sugerida por la unidad: cambiala si no corresponde.</p>
         )}
       </Campo>
-      <p className="text-xs text-muted-foreground">Rubro (sale del proveedor): {rubroProveedor ?? "sin rubro"}</p>
+      <p className="text-xs text-muted-foreground">Rubro (sale del proveedor): <span className="font-medium text-foreground">{rubroProveedor ?? "sin rubro"}</span></p>
       <Campo label="A nombre de (titular)">
         <Select value={facturadoA} onValueChange={setFacturadoA}>
           <SelectTrigger className="w-full"><SelectValue placeholder="Elegí el titular" /></SelectTrigger>
@@ -88,8 +90,8 @@ export function FichaForm({ id, proveedorCodigo, inicial, listas, rubroProveedor
       </Campo>
 
       {faltan.length > 0 && (
-        <ul className="space-y-1 rounded-md bg-red-50 p-3 text-red-800">
-          {faltan.map((f) => <li key={f}>• {f}</li>)}
+        <ul className="space-y-1 rounded-[6px] border-l-[3px] border-l-[#dc2626] bg-[#fef2f2] px-3 py-2 text-[13px] text-[#991b1b]">
+          {faltan.map((f) => <li key={f} className="flex gap-1.5"><XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {f}</li>)}
         </ul>
       )}
 
@@ -105,18 +107,19 @@ export function FichaForm({ id, proveedorCodigo, inicial, listas, rubroProveedor
       )}
 
       {requisitos.avisos.length > 0 && (
-        <div className="rounded-md bg-amber-50 p-3 text-amber-900">
-          <p className="font-medium">No frena la factura, sí el pago:</p>
-          <ul>{requisitos.avisos.map((a) => <li key={a}>• {a}</li>)}</ul>
-          <a href={`/proveedores/${proveedorCodigo}`} className="mt-1 inline-block underline">Completar el proveedor</a>
+        <div className="rounded-[6px] border-l-[3px] border-l-[#f59e0b] bg-[#fffbeb] px-3 py-2 text-[13px] text-[#92400e]">
+          <p className="flex items-center gap-1.5 font-semibold"><TriangleAlert className="h-3.5 w-3.5" /> No frena la factura, sí el pago</p>
+          <ul className="mt-1 space-y-0.5">{requisitos.avisos.map((a) => <li key={a}>{a}</li>)}</ul>
+          <a href={`/proveedores/${proveedorCodigo}`} className="mt-1 inline-block font-medium underline underline-offset-2">Completar el proveedor</a>
         </div>
       )}
 
-      <Button size="sm" className="w-full" disabled={!puede || pending} onClick={aprobar}>
+      <Button size="sm" className="h-9 w-full" disabled={!puede || pending} onClick={aprobar}>
         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
         {aprobada ? "Guardar" : "Aprobar"}
       </Button>
-    </aside>
+    </div>
+    </FichaCard>
   );
 }
 

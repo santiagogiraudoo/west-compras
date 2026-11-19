@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { obtenerFactura } from "@/lib/facturas/queries";
 import { requisitosFactura } from "@/lib/facturas/requisitos";
 import { CATEGORIAS } from "@/lib/facturas/categorias";
+import { unidadesDeLaMarca } from "@/lib/marca";
 
 export interface ResultadoAprobar {
   ok: boolean;
@@ -33,12 +34,30 @@ export async function guardarYAprobar(e: Entrada): Promise<ResultadoAprobar> {
     return { ok: false, mensaje: "No tenés permiso para aprobar." };
   }
 
+  if (!/^\d+$/.test(e.id)) return { ok: false, mensaje: "No encontré la factura." };
   const datos = await obtenerFactura(BigInt(e.id));
   if (!datos) return { ok: false, mensaje: "No encontré la factura." };
   const { c, remitos } = datos;
 
+  // La unidad tiene que ser de West Desarrolladora: cc.cargar_nuevos crea la que no
+  // existe, y una unidad sin marca haría desaparecer la factura de toda la app.
+  if (e.unidad && !(await unidadesDeLaMarca()).includes(e.unidad)) {
+    return { ok: false, mensaje: "Esa unidad no es de West Desarrolladora." };
+  }
+  // Con la factura en una OP viva no se cambian titular ni unidad: la OP ya se armó (y
+  // quizá se aprobó) con esos datos, y el titular de la OP tiene que coincidir.
+  const [{ en_op }] = await prisma.$queryRaw<{ en_op: string | null }[]>`
+    select string_agg(distinct o.numero, ', ') as en_op
+    from cc.imputaciones i join cc.ordenes_pago o on o.numero = i.op_numero
+    where i.comprobante_id = ${BigInt(e.id)} and i.importe <> 0 and o.estado <> 'Anulada'`;
+  if (en_op && (e.facturadoA !== c.facturado_a || e.unidad !== c.unidad_codigo)) {
+    return { ok: false, mensaje: `La factura está en ${en_op}: no se cambian titular ni unidad. Sacala de la OP primero.` };
+  }
+
+  // Solo remitos firmados (estado ok), igual que la pantalla: uno "falta" no cuenta.
+  const firmados = remitos.filter((r) => r.estado === "ok");
   const req = requisitosFactura(
-    { ...c, unidad_codigo: e.unidad, categoria: e.categoria, facturado_a: e.facturadoA, tieneRemito: remitos.length > 0 || !!c.retiro_por },
+    { ...c, unidad_codigo: e.unidad, categoria: e.categoria, facturado_a: e.facturadoA, tieneRemito: firmados.length > 0 || !!c.retiro_por },
     datos.proveedor,
   );
   if (e.categoria && !(CATEGORIAS as readonly string[]).includes(e.categoria)) {

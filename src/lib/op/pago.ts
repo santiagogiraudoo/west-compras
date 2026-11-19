@@ -1,44 +1,14 @@
 import Decimal from "decimal.js";
 
 /**
- * Fase 3: aprobación por línea y pago de la OP. Reglas de Adriano (17/11):
- * - cada línea (factura imputada) se aprueba; una línea observada frena toda la OP;
- * - la OP se paga recién con todas sus líneas aprobadas (la base también lo frena,
- *   sql/007);
- * - el pago cuadra: total − retenciones = neto a transferir (cc.cargar_pagos lo vuelve
- *   a chequear con margen de $1).
- * Quién aprueba: por ahora quien tenga rol admin ("todos los pagos pasan por Adriano").
- * Aprobadores por unidad y topes esperan a Santiago.
+ * El pago de una OP autorizada: cuadra total − retenciones = neto a transferir
+ * (cc.cargar_pagos lo vuelve a chequear con margen de $1). Las retenciones se cargan a
+ * mano hasta tener el doc de retenciones de Candela.
  */
 
-export type Decision = "Aprobada" | "Observada";
-export type EstadoAprobacion = "A aprobar" | "Observada" | "Autorizada";
-
-export interface LineaOP {
-  id: string;
-  tipo: string;
-  numero: string;
-  unidad: string;
-  importe: string;
-  vencimiento: string | null;
-  decision: Decision | null;
-  motivo: string | null;
-  usuario: string | null;
-}
-
-/** Las líneas en 0 (anuladas o compensadas) no se aprueban. */
-const cuenta = (l: Pick<LineaOP, "importe">) => !new Decimal(l.importe).isZero();
-
-export function estadoAprobacion(lineas: Pick<LineaOP, "importe" | "decision">[]): EstadoAprobacion {
-  const vivas = lineas.filter(cuenta);
-  if (vivas.some((l) => l.decision === "Observada")) return "Observada";
-  if (vivas.length > 0 && vivas.every((l) => l.decision === "Aprobada")) return "Autorizada";
-  return "A aprobar";
-}
-
 /** El vencimiento que manda en la cola de pagos: el más próximo de sus facturas. */
-export function vencimientoOP(lineas: Pick<LineaOP, "importe" | "vencimiento">[]): string | null {
-  const v = lineas.filter(cuenta).map((l) => l.vencimiento).filter((x): x is string => !!x).sort();
+export function vencimientoOP(lineas: { importe: string; vencimiento: string | null }[]): string | null {
+  const v = lineas.filter((l) => !new Decimal(l.importe).isZero()).map((l) => l.vencimiento).filter((x): x is string => !!x).sort();
   return v[0] ?? null;
 }
 

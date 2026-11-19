@@ -1,23 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { calcularPago, estadoAprobacion, medioSugerido, vencimientoOP, type DatosPago } from "./pago";
+import { calcularPago, medioSugerido, vencimientoOP, type DatosPago } from "./pago";
 
-const l = (importe: string, decision: "Aprobada" | "Observada" | null, vencimiento: string | null = null) =>
-  ({ importe, decision, vencimiento });
-
-describe("estadoAprobacion", () => {
-  it("sin decisiones está a aprobar", () => {
-    expect(estadoAprobacion([l("100", null), l("50", "Aprobada")])).toBe("A aprobar");
-  });
-  it("una línea observada frena toda la OP", () => {
-    expect(estadoAprobacion([l("100", "Aprobada"), l("50", "Observada")])).toBe("Observada");
-  });
-  it("todas aprobadas: autorizada; las líneas en 0 no cuentan", () => {
-    expect(estadoAprobacion([l("100", "Aprobada"), l("0", null)])).toBe("Autorizada");
-  });
-  it("sin líneas vivas no se autoriza", () => {
-    expect(estadoAprobacion([l("0", null)])).toBe("A aprobar");
-  });
-});
+const l = (importe: string, _d: null, vencimiento: string | null = null) => ({ importe, vencimiento });
 
 describe("vencimientoOP", () => {
   it("el más próximo de las líneas vivas", () => {
