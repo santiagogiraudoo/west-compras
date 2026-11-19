@@ -42,13 +42,27 @@ describe("normalizarTelefono", () => {
     expect(normalizarTelefono("+54 9 260 412-3456")).toBe("5492604123456");
     expect(normalizarTelefono("4123456")).toBeNull();
   });
+  it.each([
+    "0351 15 123-4567", "351 1234567", "+54 9 351 123 4567", "54 351 1234567", "0054 9 351 1234567", "(0351) 15-1234567", "93511234567",
+  ])("%s es el mismo celular de Córdoba", (t) => {
+    expect(normalizarTelefono(t)).toBe("5493511234567");
+  });
+  it("Buenos Aires (área 11) y área de 4 dígitos con 15", () => {
+    expect(normalizarTelefono("011 15 2345-6789")).toBe("5491123456789");
+    expect(normalizarTelefono("02954 15 123456")).toBe("5492954123456");
+  });
+  it("de otro país queda con sus dígitos; lo que no se entiende es null", () => {
+    expect(normalizarTelefono("+56 9 1234 5678")).toBe("56912345678");
+    expect(normalizarTelefono("351 123")).toBeNull();
+    expect(normalizarTelefono("PRUEBA DEV (no es real)")).toBeNull();
+  });
 });
 
 describe("validarAlta", () => {
   it("un alta completa no tiene errores", () => {
     const { errores, limpio } = validarAlta(alta);
     expect(errores).toEqual({});
-    expect(limpio.telefono).toBe("2604123456");
+    expect(limpio.telefono).toBe("5492604123456");
   });
   it("marca cada dato obligatorio que falta", () => {
     const { errores } = validarAlta({ ...alta, cuit: "", alias: "", telefono: "", rubro: "", condicionPago: "" });
