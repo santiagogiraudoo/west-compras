@@ -83,3 +83,10 @@ Estás en una rama ui/: solo cambiás cómo se ve, no la lógica (no toques src/
 Mejorá <pantalla>: <qué querés que cambie>.
 Probá con npm run dev, commits chicos y push a tu rama. No hagas merge a main.
 ```
+
+## Cambios en la base (`sql/`)
+
+- Cada cambio es un archivo nuevo con el número que sigue. **Un `sql/` ya aplicado no se edita**: se agrega otro.
+- 013 y 014 son de la rama `ui/primer-tema`; lo nuevo sigue desde 017. Antes de crear uno, mirá en `origin` que nadie haya tomado ese número.
+- Se aplica con `scripts/aplicar-sql.ts` y la conexión del dueño en `OWNER_URL` (nunca en el repo). Sin `--aplicar` solo muestra qué falta; con `--aplicar` lo aplica y lo anota en `app.migraciones`. Primero en dev; si anda, en production.
+- `app.v_controles` lista lo que no cierra (imputado de más, OP pagada sin autorizar, renglones que no suman, unidad sin aprobador). Sale en el Inicio: después de un cambio tiene que seguir vacía.
