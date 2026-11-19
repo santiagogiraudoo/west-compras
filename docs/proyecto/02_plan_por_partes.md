@@ -64,4 +64,4 @@ Falta (espera respuestas):
 - **Aviso por WhatsApp** a quien aprueba: falta número/API.
 - **Comprobante en SharePoint**: mientras no haya permiso de escritura, el archivo queda en `app.comprobantes_pago`.
 
-**Antes de unir esta rama a main:** aplicar `sql/011` y `sql/012` en production (`009` y `010` ya están, 18/11).
+**Production (18/11):** quedaron aplicados `sql/000`–`012` y `015`–`018` (backup antes: backup-2026-11-18-pre-app-compras); `013`, `014` y `019` solo en dev. **19/11:** `app_compras` quedó sin acceso a production (NOLOGIN) hasta salir de verdad; la app no arranca con el host de production salvo `ALLOW_PRODUCTION=si` (Adriano). Se desarrolla y se prueba en `dev-app-compras`.
