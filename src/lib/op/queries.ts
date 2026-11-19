@@ -59,7 +59,7 @@ export async function listarOPsApp(estados?: EstadoOP[], numero?: string): Promi
         it.para_que as para_que,
         (r.n > 0 or c.retiro_por is not null) as tiene_remito,
         l.decision, l.motivo, l.usuario, (l.creado_en at time zone 'America/Argentina/Mendoza')::date::text as decidido_en,
-        au.id as aprobador_id, au.name as aprobador, it.items
+        au.id as aprobador_id, au.name as aprobador, it.items, kc.compra
       -- Un renglón por factura y unidad: una factura con ítems de varias unidades se parte.
       from app.v_op_renglones i
       join app.v_op_estado e on e.op_numero = i.op_numero and ${vivasLinea}
@@ -71,6 +71,13 @@ export async function listarOPsApp(estados?: EstadoOP[], numero?: string): Promi
           json_agg(json_build_object('numero', rm.numero, 'fecha', rm.fecha::text, 'autorizo', rm.autorizo,
             'archivo_link', case when rm.archivo_link like 'http%' then rm.archivo_link end) order by rm.fecha) as remitos
         from cc.remitos rm where rm.comprobante_id = c.id and rm.estado = 'ok') r on true
+      -- La compra de la factura, por sus remitos (tercera punta del cruce, app.v_compras).
+      left join lateral (
+        select json_build_object('clave', k.clickup_id, 'nombre', k.nombre, 'importe', k.importe::text,
+          'facturado', k.facturado::text, 'firmados', k.remitos_firmados, 'sin_firmar', k.remitos_sin_firmar) as compra
+        from app.v_compras k
+        where k.id in (select rm.compra_id from cc.remitos rm where rm.comprobante_id = c.id and rm.estado <> 'anulado')
+        order by k.id limit 1) kc on true
       left join lateral (
         select string_agg(distinct x.para_que, ', ') as para_que,
           json_agg(json_build_object('descripcion', x.descripcion, 'cantidad', x.cantidad::text,

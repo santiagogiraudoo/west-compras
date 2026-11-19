@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { aDecidir, aQuitar, aResolver, chequeosOP, decide, diferenciaRemito, noCruzaRenglon, pendientesOP, quita, subasDePrecio, type ItemLinea } from "./estados";
+import { aDecidir, aQuitar, aResolver, chequeosOP, decide, diferenciaRemito, noCruzaCompra, noCruzaRenglon, pendientesOP, quita, subasDePrecio, type CompraLinea, type ItemLinea } from "./estados";
+
+/** Una compra que cruza: lo facturado es lo comprado y el remito está firmado. */
+const compra = (o: Partial<CompraLinea> = {}): CompraLinea => ({ clave: "app:1", nombre: "Pedido 1", importe: "1210.00", facturado: "1210.00", firmados: 1, sin_firmar: 0, ...o });
 
 const item = (precio: string | null, anterior: string | null): ItemLinea =>
   ({ descripcion: "Cemento x 50 kg", cantidad: "10", precio, anterior, anterior_fecha: "2026-10-01" });
-const linea = (over: Partial<{ tipo: string; tiene_remito: boolean; archivo_link: string | null; items: ItemLinea[] | null; remito_importe: string | null }> = {}) => ({
+const linea = (over: Partial<{ tipo: string; tiene_remito: boolean; archivo_link: string | null; items: ItemLinea[] | null; remito_importe: string | null; compra: CompraLinea | null }> = {}) => ({
   tipo: "Factura A", numero: "0001-00000001", tiene_remito: true, archivo_link: "https://x/f.pdf", items: null,
-  remito_importe: null as string | null, factura_total: "1210.00", factura_neto: "1000.00", ...over,
+  remito_importe: null as string | null, factura_total: "1210.00", factura_neto: "1000.00", compra: compra() as CompraLinea | null, ...over,
 });
 
 describe("decide", () => {
@@ -147,9 +150,28 @@ describe("chequeos con el remito", () => {
 
 describe("noCruzaRenglon: lo que nunca sale aprobado solo", () => {
   it("compra sin factura y remito sin importe piden firma", () => {
-    const base = { tipo: "Factura A", numero: "1", items: null, tiene_remito: true, archivo_link: "x", remito_importe: "1210", factura_total: "1210", factura_neto: "1000" };
+    const base = { tipo: "Factura A", numero: "1", items: null, tiene_remito: true, archivo_link: "x", remito_importe: "1210", factura_total: "1210", factura_neto: "1000", compra: compra() };
     expect(noCruzaRenglon(base)).toEqual([]);
     expect(noCruzaRenglon({ ...base, tipo: "Sin factura" })).toContain("compra sin factura");
     expect(noCruzaRenglon({ ...base, remito_importe: null })).toEqual(["el remito no tiene importe para cruzar"]);
+  });
+});
+
+describe("noCruzaCompra: se aprueba una sola vez si cruzan compra, remito y factura", () => {
+  it("sin compra, o con una que no cierra, no sale sola por tope", () => {
+    expect(noCruzaCompra({ tipo: "Factura A", compra: null })).toEqual(["sin compra"]);
+    expect(noCruzaCompra({ tipo: "Factura A", compra: compra({ facturado: "1500.00" }) })).toEqual(["compra: se facturó $290.00 más que la compra"]);
+    expect(noCruzaCompra({ tipo: "Factura A", compra: compra({ sin_firmar: 1 }) })).toEqual(["compra: 1 remito(s) sin firmar"]);
+    expect(noCruzaCompra({ tipo: "Factura A", compra: compra() })).toEqual([]);
+  });
+  it("notas de crédito y compras sin factura no piden compra (las segundas piden firma igual)", () => {
+    expect(noCruzaCompra({ tipo: "Nota de Credito A", compra: null })).toEqual([]);
+    expect(noCruzaCompra({ tipo: "Sin factura", compra: null })).toEqual([]);
+  });
+  it("el renglón y el chequeo de la tarjeta lo dicen", () => {
+    expect(noCruzaRenglon(linea({ remito_importe: "1210.00", compra: null }))).toEqual(["sin compra"]);
+    const c = chequeosOP([linea({ compra: null })], []).find((x) => x.clave === "compra");
+    expect(c).toMatchObject({ ok: false, texto: "0001-00000001: sin compra" });
+    expect(chequeosOP([linea()], []).find((x) => x.clave === "compra")).toMatchObject({ ok: true, texto: "Cruza con la compra" });
   });
 });

@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { tresPuntas } from "@/lib/entrada/cruce";
 
 /**
  * Estados de la OP (doc "estados, formatos y topes"). No se calculan acá: los deriva la
@@ -25,6 +26,23 @@ export interface ItemLinea {
   /** Precio unitario de la última compra del mismo ítem al mismo proveedor. */
   anterior: string | null;
   anterior_fecha: string | null;
+}
+
+/** La compra a la que llegan los remitos de la factura, con lo comprado y lo ya facturado. */
+export interface CompraLinea {
+  clave: string;
+  nombre: string;
+  importe: string | null;
+  facturado: string;
+  firmados: number;
+  sin_firmar: number;
+}
+
+/** Por qué no cruzan compra, remito y factura (vacío si cruzan). Ver tresPuntas en lib/entrada/cruce. */
+export function noCruzaCompra(l: Pick<LineaAprobacion, "tipo" | "compra">): string[] {
+  if (l.tipo === "Sin factura" || sinRemitoAparte(l.tipo)) return [];
+  if (!l.compra) return ["sin compra"];
+  return tresPuntas(l.compra.importe, l.compra.facturado, l.compra.firmados, l.compra.sin_firmar).motivos.map((m) => `compra: ${m}`);
 }
 
 export interface LineaAprobacion {
@@ -54,6 +72,8 @@ export interface LineaAprobacion {
   aprobador_id: number | null;
   aprobador: string | null;
   items: ItemLinea[] | null;
+  /** La compra de la factura (por sus remitos, app.v_compras): la tercera punta del cruce. */
+  compra?: CompraLinea | null;
   /** Los remitos firmados de la factura, para abrirlos desde la tarjeta. */
   remitos: { numero: string | null; fecha: string | null; autorizo: string | null; archivo_link: string | null }[] | null;
 }
@@ -224,7 +244,7 @@ const sinRemitoAparte = (tipo: string) => tipo.startsWith("Nota de") || tipo ===
  * Es lo mismo que la línea de chequeos, pero de un renglón.
  */
 export function noCruzaRenglon(
-  l: Pick<LineaAprobacion, "tipo" | "numero" | "items" | "tiene_remito" | "archivo_link" | "remito_importe" | "factura_total" | "factura_neto">,
+  l: Pick<LineaAprobacion, "tipo" | "numero" | "items" | "tiene_remito" | "archivo_link" | "remito_importe" | "factura_total" | "factura_neto" | "compra">,
 ): string[] {
   const no: string[] = [];
   // Compra en negro: "aprobación sí o sí" (Adriano 17/11), nunca sale sola por tope.
@@ -236,11 +256,13 @@ export function noCruzaRenglon(
   if (dif) no.push(`no coincide con el remito (${dif})`);
   if (!l.archivo_link && l.tipo !== "Sin factura") no.push("sin PDF");
   if (subasDePrecio([l]).length > 0) no.push("más caro que la última compra");
+  // Se aprueba una sola vez (Adriano 17/11): solo si la factura cruza con la compra y el remito.
+  no.push(...noCruzaCompra(l));
   return no;
 }
 
 export interface Chequeo {
-  clave: "remito" | "pdf" | "alta" | "precio";
+  clave: "remito" | "compra" | "pdf" | "alta" | "precio";
   ok: boolean;
   texto: string;
 }
@@ -250,7 +272,7 @@ export interface Chequeo {
  * mirar. Si todo está en verde, se aprueba de un toque.
  */
 export function chequeosOP(
-  lineas: Pick<LineaAprobacion, "tipo" | "numero" | "items" | "tiene_remito" | "archivo_link" | "remito_importe" | "factura_total" | "factura_neto">[],
+  lineas: Pick<LineaAprobacion, "tipo" | "numero" | "items" | "tiene_remito" | "archivo_link" | "remito_importe" | "factura_total" | "factura_neto" | "compra">[],
   faltantesProveedor: string[],
 ): Chequeo[] {
   const sinRemito = lineas.filter((l) => !l.tiene_remito && !sinRemitoAparte(l.tipo));
@@ -264,6 +286,11 @@ export function chequeosOP(
       texto: sinRemito.length > 0 ? `Sin remito: ${nombres(sinRemito)}`
         : noCoinciden.length > 0 ? `No coincide con el remito: ${[...new Set(noCoinciden.map((l) => `${l.numero} (${diferenciaRemito(l)})`))].join(", ")}`
         : "Cruza con remito" },
+    (() => {
+      const no = lineas.map((l) => ({ l, m: noCruzaCompra(l) })).filter((x) => x.m.length > 0);
+      return { clave: "compra" as const, ok: no.length === 0,
+        texto: no.length === 0 ? "Cruza con la compra" : no.map((x) => `${x.l.numero}: ${x.m.join(", ").replace(/compra: /g, "")}`).join(" · ") };
+    })(),
     { clave: "pdf", ok: sinPdf.length === 0,
       texto: sinPdf.length === 0 ? "Tiene PDF" : `Sin PDF: ${nombres(sinPdf)}` },
     { clave: "alta", ok: faltantesProveedor.length === 0,
