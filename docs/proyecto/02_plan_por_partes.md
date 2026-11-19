@@ -65,3 +65,5 @@ Falta (espera respuestas):
 - **Comprobante en SharePoint**: mientras no haya permiso de escritura, el archivo queda en `app.comprobantes_pago`.
 
 **Antes de unir esta rama a main:** aplicar `sql/011` y `sql/012` en production (`009` y `010` ya están, 18/11).
+
+**Production (18/11, OK de Adriano):** aplicados `sql/000` a `sql/008` en una transacción, con backup antes (rama backup-2026-11-18-pre-app-compras). El rol `app_compras` se creó en production. Falta para usar fases 2 y 3: apuntar la app a production (DATABASE_URL de app_compras en production), crear los usuarios (Candela como operador) y completar el alta de los proveedores.
