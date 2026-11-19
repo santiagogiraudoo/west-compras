@@ -6,16 +6,14 @@ import { mensajeBase } from "@/lib/errores-base";
 import { leerMonto } from "@/lib/montos";
 import { normalizarItems, normalizarNumero, tipoComprobante, TIPOS_COMPROBANTE } from "@/lib/facturas/lectura";
 import { decidirEntrada, identificarProveedor, type Accion, type LecturaEntrada } from "./decidir";
-import {
-  compraDelRemito, facturaDelRemito, numerosEnTexto, remitosDeLaCompra, remitosDeLaFactura, unidadDelTexto,
-  type CompraCruce, type FacturaCruce, type RemitoCruce,
-} from "./cruce";
+import { unidadDelTexto } from "./cruce";
 import { leerDocumento } from "./leer";
 
 /**
  * El procesador único del buzón (docs/proyecto/09_flujo_entrada.md): registra lo que llega por
  * cualquier canal, lo lee, decide y lo carga en cc solo con las funciones de la base
- * (cargar_nuevos, cargar_items, cargar_remitos, ligar_remito), y cruza remitos con facturas.
+ * (cargar_nuevos, cargar_items, cargar_remitos, cargar_compras). La cadena compra ↔ remito ↔
+ * factura la arma la base por consecuencia (sql/023): acá solo se lee lo que ató.
  */
 
 export const TIPOS_ARCHIVO = ["application/pdf", "image/jpeg", "image/png", "image/webp"] as const;
@@ -149,23 +147,33 @@ async function cargarFactura(id: string, l: LecturaEntrada, a: CargaFactura, fil
     "Archivo / link": `${base()}/entrada/${id}/archivo`,
   };
 
-  const out = await prisma.$transaction(async (tx) => {
+  const comprobanteId = await prisma.$transaction(async (tx) => {
     const [{ r }] = await tx.$queryRaw<{ r: { errores?: { error: string }[] } }[]>`
       select cc.cargar_nuevos(${JSON.stringify([fila_])}::jsonb, 'app') as r`;
     if (r.errores?.length) throw new Error(r.errores.map((x) => x.error).join(" · "));
-    const [c] = await tx.$queryRaw<{ id: string; fecha: string; total: string; descripcion: string | null }[]>`
-      select id::text, fecha::text, total::text, descripcion from cc.comprobantes
-      where proveedor_codigo = ${a.proveedor} and numero = ${a.numero}`;
+    const [c] = await tx.$queryRaw<{ id: string }[]>`
+      select id::text from cc.comprobantes where proveedor_codigo = ${a.proveedor} and numero = ${a.numero}`;
     if (!c) throw new Error("la base no cargó el comprobante");
     if (items.length) {
       const carga = { "Comprobante (clave)": `${a.proveedor} | ${a.numero}`, items };
-      await tx.$queryRaw`select cc.cargar_items(${JSON.stringify(carga)}::jsonb, 'app')::text as r`;
+      const [{ r: ri }] = await tx.$queryRaw<{ r: { items?: number } | null }[]>`
+        select cc.cargar_items(${JSON.stringify(carga)}::jsonb, 'app') as r`;
+      if (ri?.items !== items.length) throw new Error("la base no cargó todos los ítems");
     }
-    const cruce = signo > 0 ? await cruzarFacturaNueva(tx, a.proveedor, c.id) : { cruzados: [], por: null };
-    return { comprobanteId: c.id, ...cruce };
+    return c.id;
   });
-  await anotar(id, "procesado", null, a.proveedor, { accion: a, ...out }, { comprobante: out.comprobanteId });
-  return { ...a, comprobanteId: out.comprobanteId, numero: a.numero, cruzados: out.cruzados };
+  // Al entrar la factura, la base ya ató los remitos que le corresponden (sql/023).
+  const cruzados = await remitosDeFactura(comprobanteId);
+  await anotar(id, "procesado", null, a.proveedor, { accion: a, comprobanteId, cruzados }, { comprobante: comprobanteId });
+  return { ...a, comprobanteId, numero: a.numero, cruzados };
+}
+
+/** Los remitos que la base ató a una factura (sql/023, por consecuencia). */
+export async function remitosDeFactura(comprobanteId: string): Promise<string[]> {
+  const rs = await prisma.$queryRaw<{ id: string; numero: string | null }[]>`
+    select id::text, numero from cc.remitos
+    where comprobante_id = ${BigInt(comprobanteId)} and estado <> 'anulado' order by fecha nulls last, id`;
+  return rs.map((r) => r.numero ?? `remito ${r.id}`);
 }
 
 async function cargarRemito(id: string, l: LecturaEntrada, a: CargaRemito): Promise<Resultado> {
@@ -182,78 +190,35 @@ async function cargarRemito(id: string, l: LecturaEntrada, a: CargaRemito): Prom
     if (r.errores?.length) throw new Error(r.errores.map((x) => x.error).join(" · "));
     const nuevo = r.ids[0];
     if (!nuevo) throw new Error("la base no cargó el remito");
-    if (nuevo.duplicado) return { remitoId: String(nuevo.id), duplicado: true, factura: null as string | null, por: null as string | null };
-    // La factura que ya estaba: se ata ahora.
-    const facturas = await tx.$queryRaw<FacturaCruce[]>`
-      select c.id::text, c.numero, c.fecha::text, c.total::text, c.descripcion from cc.comprobantes c
-      where c.proveedor_codigo = ${a.proveedor} and c.tipo not ilike 'nota de cr%' and c.estado_aprobacion <> 'Anulado'
-        and c.fecha >= current_date - 120
-        and not exists (select 1 from cc.remitos r where r.comprobante_id = c.id and r.estado <> 'anulado')`;
-    const cruce = facturaDelRemito({ id: String(nuevo.id), numero, fecha: rem.fecha, importe, facturas_citadas: rem.facturas_citadas }, facturas);
-    if (cruce) await tx.$executeRaw`select cc.ligar_remito(${BigInt(nuevo.id)}, ${BigInt(cruce.factura.id)})`;
-    // La tercera punta: la compra. Si hay una abierta que le corresponde, el remito se ata a ella;
-    // si no, el remito crea su compra ("la compra entra con el remito o la confirmación").
-    const remCruce = { id: String(nuevo.id), numero, fecha: rem.fecha, importe, facturas_citadas: rem.facturas_citadas };
-    const k = compraDelRemito(remCruce, await comprasDe(tx, a.proveedor));
-    const unidad = unidadDelTexto(rem.destino, await unidades(tx));
-    const compra = k
-      ? await guardarCompra(tx, { clave: k.compra.clave, remitos: [nuevo.id], estado: rem.firmado && importe && k.compra.importe && new Decimal(importe).minus(k.compra.importe).abs().lt(1) ? "hecho" : "esperando remito" })
-      : await guardarCompra(tx, {
-          clave: `app:remito-${nuevo.id}`, nombre: `Remito ${numero ?? "s/n"}${rem.destino ? ` · ${rem.destino}` : ""}`, proveedor: a.proveedor,
-          unidad, importe, paraQue: rem.destino, autorizo: rem.autoriza, fecha: rem.fecha, remitos: [nuevo.id],
-          estado: rem.firmado ? "hecho" : "esperando remito",
-        });
-    return {
-      remitoId: String(nuevo.id), duplicado: false, factura: cruce?.factura.numero ?? null, por: cruce?.por ?? null,
-      compraId: compra, compra: k ? `atado a la compra ${k.compra.clave} (${k.por})` : "compra nueva desde el remito",
-    };
+    if (nuevo.duplicado) return { remitoId: String(nuevo.id), duplicado: true };
+    // La base ya le dio factura y compra (sql/023). Si la compra no tiene unidad y el remito dice
+    // a qué obra fue, se le pone (con cargar_compras, como todo lo que la app escribe en cc).
+    const u = unidadDelTexto(rem.destino, await unidades(tx));
+    const [k] = await tx.$queryRaw<{ clave: string; unidad: string | null }[]>`
+      select k.clickup_id as clave, k.unidad_codigo as unidad from cc.remitos x join cc.compras k on k.id = x.compra_id
+      where x.id = ${BigInt(nuevo.id)}`;
+    if (u && k && !k.unidad) await guardarCompra(tx, { clave: k.clave, unidad: u, estado: undefined });
+    return { remitoId: String(nuevo.id), duplicado: false };
   });
   if (out.duplicado) {
     const motivo = `el remito ${numero} ya estaba cargado`;
     await anotar(id, "duplicado", motivo, a.proveedor, { accion: a, ...out }, { remito: out.remitoId });
     return { tipo: "duplicado", motivo, proveedor: a.proveedor };
   }
+  // Al guardar en el buzón lo que el remito cita, la base vuelve a conciliar (sql/023).
   await anotar(id, "procesado", null, a.proveedor, { accion: a, ...out }, { remito: out.remitoId });
-  return { ...a, remitoId: out.remitoId, numero, cruzados: out.factura ? [out.factura] : [] };
-}
-
-/**
- * Una factura que acaba de entrar (por el buzón o por Añadir factura) se lleva los remitos que
- * llegaron antes que ella: se citan, tienen su importe o la suman. Así queda la cadena con la compra.
- */
-export async function cruzarFacturaNueva(tx: Pick<typeof prisma, "$queryRaw" | "$executeRaw">, proveedor: string, comprobanteId: string):
-  Promise<{ cruzados: string[]; por: string | null }> {
-  const [c] = await tx.$queryRaw<{ numero: string; fecha: string; total: string; descripcion: string | null }[]>`
-    select numero, fecha::text, total::text, descripcion from cc.comprobantes where id = ${BigInt(comprobanteId)}`;
-  if (!c) return { cruzados: [], por: null };
-  const cruce = remitosDeLaFactura({ id: comprobanteId, ...c }, await remitosAbiertos(tx, proveedor));
-  for (const rem of cruce?.remitos ?? []) await tx.$executeRaw`select cc.ligar_remito(${BigInt(rem.id)}, ${BigInt(comprobanteId)})`;
-  return { cruzados: (cruce?.remitos ?? []).map((x) => x.numero ?? `remito ${x.id}`), por: cruce?.por ?? null };
-}
-
-/** Remitos del proveedor sin factura, con las facturas que citan (guardadas en su lectura del buzón). */
-async function remitosAbiertos(tx: Pick<typeof prisma, "$queryRaw">, proveedor: string): Promise<RemitoCruce[]> {
-  const filas = await tx.$queryRaw<{ id: string; numero: string | null; fecha: string | null; importe: string | null; citadas: string[] | null }[]>`
-    select r.id::text, r.numero, r.fecha::text, r.importe::text,
-      (select array_agg(x) from app.entrada e, jsonb_array_elements_text(e.lectura->'remito'->'facturas_citadas') x
-       where e.remito_id = r.id) as citadas
-    from cc.remitos r
-    where r.proveedor_codigo = ${proveedor} and r.comprobante_id is null and r.estado <> 'anulado'`;
-  return filas.map((f) => ({ id: f.id, numero: f.numero, fecha: f.fecha, importe: f.importe, facturas_citadas: f.citadas ?? [] }));
+  const [x] = await prisma.$queryRaw<{ factura: string | null; compra: string | null; compra_id: string | null }[]>`
+    select c.numero as factura, k.nombre as compra, k.id::text as compra_id from cc.remitos r
+    left join cc.comprobantes c on c.id = r.comprobante_id left join cc.compras k on k.id = r.compra_id
+    where r.id = ${BigInt(out.remitoId)}`;
+  if (x?.compra_id) await prisma.$executeRaw`update app.entrada set compra_id = ${BigInt(x.compra_id)} where id = ${BigInt(id)}`;
+  return { ...a, remitoId: out.remitoId, numero, cruzados: x?.factura ? [x.factura] : [] };
 }
 
 // ── Compras ───────────────────────────────────────────────────────────────────
 
 type Tx = Pick<typeof prisma, "$queryRaw">;
 type CargaCompra = Extract<Accion, { tipo: "cargar_compra" }>;
-
-/** Compras del proveedor de los últimos 120 días. El número de pedido sale de su nombre. */
-async function comprasDe(tx: Tx, proveedor: string): Promise<CompraCruce[]> {
-  const filas = await tx.$queryRaw<{ id: string; clave: string; nombre: string; fecha: string; importe: string | null; estado: string }[]>`
-    select id::text, clickup_id as clave, nombre, fecha::text, importe::text, estado from cc.compras
-    where proveedor_codigo = ${proveedor} and estado <> 'descartado' and fecha >= current_date - 120`;
-  return filas.map((f) => ({ id: f.id, clave: f.clave, numero: numerosEnTexto(f.nombre)[0] ?? null, fecha: f.fecha, importe: f.importe, estado: f.estado }));
-}
 
 async function unidades(tx: Tx): Promise<{ codigo: string; nombre: string }[]> {
   return tx.$queryRaw`select codigo, nombre from cc.unidades where coalesce(activa, true)`;
@@ -265,14 +230,14 @@ async function unidades(tx: Tx): Promise<{ codigo: string; nombre: string }[]> {
  */
 export async function guardarCompra(tx: Tx, c: {
   clave: string; nombre?: string; proveedor?: string; unidad?: string | null; importe?: string | null; paraQue?: string | null;
-  pidio?: string | null; autorizo?: string | null; fecha?: string | null; estado: string; remitos?: number[];
+  pidio?: string | null; autorizo?: string | null; fecha?: string | null; estado?: string;
 }): Promise<string> {
   const fila = {
     "ClickUp id": c.clave, Nombre: c.nombre, "Proveedor (elegir)": c.proveedor, Unidad: c.unidad ?? undefined,
     // Como número: cargar_compras lee el texto como monto argentino y "121000.50" sería otra cosa.
     Importe: c.importe != null ? Number(c.importe) : undefined,
     "Para qué": c.paraQue ?? undefined, Pidió: c.pidio ?? undefined, Autorizó: c.autorizo ?? undefined, Fecha: c.fecha ?? undefined,
-    Estado: c.estado, Remitos: c.remitos?.map(Number),
+    Estado: c.estado,
   };
   const [{ r }] = await tx.$queryRaw<{ r: { errores?: { error: string }[] } }[]>`
     select cc.cargar_compras(${JSON.stringify({ compras: [fila] })}::jsonb, 'app') as r`;
@@ -282,32 +247,18 @@ export async function guardarCompra(tx: Tx, c: {
   return k.id;
 }
 
-/** Remitos del proveedor que todavía no tienen compra. */
-async function remitosSinCompra(tx: Tx, proveedor: string): Promise<RemitoCruce[]> {
-  const filas = await tx.$queryRaw<{ id: string; numero: string | null; fecha: string | null; importe: string | null; citadas: string[] | null }[]>`
-    select r.id::text, r.numero, r.fecha::text, r.importe::text,
-      (select array_agg(x) from app.entrada e, jsonb_array_elements_text(e.lectura->'remito'->'facturas_citadas') x
-       where e.remito_id = r.id) as citadas
-    from cc.remitos r
-    where r.proveedor_codigo = ${proveedor} and r.compra_id is null and r.estado <> 'anulado'`;
-  return filas.map((f) => ({ id: f.id, numero: f.numero, fecha: f.fecha, importe: f.importe, facturas_citadas: f.citadas ?? [] }));
-}
-
-/** Confirmación de compra: crea la compra y le ata los remitos que ya habían llegado. */
+/** Confirmación de compra: la crea; la base le ata los remitos que ya habían llegado (sql/023). */
 async function cargarCompra(id: string, l: LecturaEntrada, a: CargaCompra): Promise<Resultado> {
   const c = l.compra!;
   const importe = (() => { try { return c.importe ? leerMonto(c.importe) : null; } catch { return null; } })();
   const numero = c.numero ? normalizarNumero(c.numero) ?? c.numero.trim() : null;
-  const out = await prisma.$transaction(async (tx) => {
-    const clave = `app:entrada-${id}`;
-    const base = { clave, nombre: `Pedido ${numero ?? "s/n"}${c.descripcion ? ` · ${c.descripcion}` : ""}`.slice(0, 200), proveedor: a.proveedor,
-      unidad: unidadDelTexto(c.destino, await unidades(tx)), importe, paraQue: c.descripcion ?? c.destino, pidio: c.pidio, autorizo: c.autorizo, fecha: c.fecha };
-    const compraId = await guardarCompra(tx, { ...base, estado: "pedido confirmado" });
-    const remitos = remitosDeLaCompra({ id: compraId, clave, numero, fecha: c.fecha ?? hoyArgentina(), importe, estado: "pedido confirmado" }, await remitosSinCompra(tx, a.proveedor));
-    if (remitos.length) await guardarCompra(tx, { clave, estado: "esperando remito", remitos: remitos.map((x) => Number(x.id)) });
-    return { compraId, remitos: remitos.map((x) => x.numero ?? `remito ${x.id}`), unidad: base.unidad };
-  });
-  await anotar(id, "procesado", null, a.proveedor, { accion: a, ...out }, { compra: out.compraId });
-  return { ...a, numero, cruzados: out.remitos };
+  const compraId = await prisma.$transaction(async (tx) => guardarCompra(tx, {
+    clave: `app:entrada-${id}`, nombre: `Pedido ${numero ?? "s/n"}${c.descripcion ? ` · ${c.descripcion}` : ""}`.slice(0, 200),
+    proveedor: a.proveedor, unidad: unidadDelTexto(c.destino, await unidades(tx)), importe, paraQue: c.descripcion ?? c.destino,
+    pidio: c.pidio, autorizo: c.autorizo, fecha: c.fecha, estado: "pedido confirmado",
+  }));
+  await anotar(id, "procesado", null, a.proveedor, { accion: a, compraId }, { compra: compraId });
+  const remitos = await prisma.$queryRaw<{ numero: string | null; id: string }[]>`
+    select id::text, numero from cc.remitos where compra_id = ${BigInt(compraId)} and estado <> 'anulado' order by fecha, id`;
+  return { ...a, numero, cruzados: remitos.map((r) => r.numero ?? `remito ${r.id}`) };
 }
-

@@ -1,59 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { facturaDelRemito, numerosEnTexto, remitosDeLaFactura, subconjunto, type FacturaCruce, type RemitoCruce } from "./cruce";
+import { tresPuntas, unidadDelTexto } from "./cruce";
 
-const f = (o: Partial<FacturaCruce> = {}): FacturaCruce => ({ id: "1", numero: "00003-00008897", fecha: "2026-11-10", total: "121000", descripcion: null, ...o });
-const r = (o: Partial<RemitoCruce> = {}): RemitoCruce => ({ id: "r1", numero: "0001-00011778", fecha: "2026-11-08", importe: null, facturas_citadas: [], ...o });
+// Las reglas de cruce (citas, importe, suma de remitos, compras) viven en la base y se prueban
+// con sql/pruebas/023_conciliar.sql. Acá, lo que calcula la app.
 
-describe("numerosEnTexto", () => {
-  it("encuentra los números con guion y los pegados de 13 dígitos", () => {
-    expect(numerosEnTexto("Remito RE 0001-00011778 · retira Juan")).toEqual(["0001-00011778"]);
-    expect(numerosEnTexto("X0000100013385")).toEqual(["00001-00013385"]);
-    expect(numerosEnTexto(null)).toEqual([]);
+describe("unidadDelTexto", () => {
+  const unidades = [{ codigo: "UN-02", nombre: "WCL - WEST CLUB" }, { codigo: "UN-19", nombre: "SIRIA 455" }, { codigo: "UN-28", nombre: "SIRIA 339" }, { codigo: "UN-03", nombre: "ISELIN 90" }];
+  it("encuentra la unidad nombrada, sin tildes ni mayúsculas", () => {
+    expect(unidadDelTexto("obra West Club, retira Juan", unidades)).toBe("UN-02");
+    expect(unidadDelTexto("Av. Iselin 90", unidades)).toBe("UN-03");
+    expect(unidadDelTexto("Siria 455.", unidades)).toBe("UN-19");
+  });
+  it("si nombra dos o ninguna, no adivina", () => {
+    expect(unidadDelTexto("Siria", unidades)).toBeNull();
+    expect(unidadDelTexto("West Club y Siria 455", unidades)).toBeNull();
+    expect(unidadDelTexto(null, unidades)).toBeNull();
   });
 });
 
-describe("facturaDelRemito", () => {
-  it("1. el remito cita la factura (con 4 o 5 dígitos de punto de venta)", () => {
-    const x = facturaDelRemito(r({ facturas_citadas: ["0003-00008897"] }), [f(), f({ id: "2", numero: "00003-00008898" })]);
-    expect(x?.factura.id).toBe("1");
-    expect(x?.por).toBe("el remito cita la factura");
+describe("tresPuntas", () => {
+  it("cruza si lo facturado es lo comprado (menos de $1) y los remitos están firmados", () => {
+    expect(tresPuntas("121000", "121000.50", 1, 0)).toEqual({ cruza: true, motivos: [] });
   });
-  it("2. la factura cita el remito", () => {
-    const x = facturaDelRemito(r(), [f({ descripcion: "[plomero] arena · Remito 00001-00011778" }), f({ id: "2" })]);
-    expect(x?.por).toBe("la factura cita el remito");
-    expect(x?.factura.id).toBe("1");
-  });
-  it("3. mismo importe y fecha cercana, solo si hay un candidato", () => {
-    expect(facturaDelRemito(r({ importe: "121.000,00" }), [f(), f({ id: "2", total: "5000" })])?.por).toBe("mismo importe y fecha");
-    expect(facturaDelRemito(r({ importe: "121000" }), [f(), f({ id: "2" })])).toBeNull(); // dos iguales: no se adivina
-    expect(facturaDelRemito(r({ importe: "121000", fecha: "2026-09-01" }), [f()])).toBeNull(); // lejos
-    expect(facturaDelRemito(r({ importe: "120998" }), [f()])).toBeNull(); // $2 de diferencia: no cierra
-  });
-});
-
-describe("remitosDeLaFactura", () => {
-  it("factura de remitos: la suma de varios remitos abiertos", () => {
-    const rs = [r({ id: "a", importe: "50000", fecha: "2026-10-20" }), r({ id: "b", importe: "71000", fecha: "2026-10-25" }), r({ id: "c", importe: "9999", fecha: "2026-11-01" })];
-    const x = remitosDeLaFactura(f(), rs);
-    expect(x?.por).toBe("suma de remitos");
-    expect(x?.remitos.map((y) => y.id).sort()).toEqual(["a", "b"]);
-  });
-  it("los remitos posteriores a la factura no suman", () => {
-    const rs = [r({ id: "a", importe: "50000", fecha: "2026-11-20" }), r({ id: "b", importe: "71000", fecha: "2026-11-21" })];
-    expect(remitosDeLaFactura(f(), rs)).toBeNull();
-  });
-  it("un remito del mismo importe y fecha", () => {
-    expect(remitosDeLaFactura(f(), [r({ id: "a", importe: "121000" })])?.remitos.map((y) => y.id)).toEqual(["a"]);
-  });
-});
-
-describe("subconjunto", () => {
-  it("todos, todos menos uno o una combinación, en centavos exactos", () => {
-    const rs = ["100.01", "200.02", "300.03", "400.04"].map((v, i) => r({ id: String(i + 1), importe: v }));
-    expect(subconjunto(rs, "1000.10")?.length).toBe(4); // todos
-    expect(subconjunto(rs, "900.09")?.map((x) => x.id)).toEqual(["2", "3", "4"]); // todos menos uno
-    expect(subconjunto(rs, "500.05")?.map((x) => x.id)).toEqual(["1", "4"]); // combinación
-    expect(subconjunto(rs, "0.01")).toBeNull();
-    expect(subconjunto(rs, "500.04")).toBeNull(); // un centavo de diferencia no es la suma
+  it("dice qué no cierra", () => {
+    expect(tresPuntas("121000", "125000", 1, 0).motivos).toEqual(["se facturó $4000.00 más que la compra"]);
+    expect(tresPuntas("121000", "100000", 0, 1).motivos).toEqual(["falta facturar $21000.00 de la compra", "ningún remito firmado", "1 remito(s) sin firmar"]);
+    expect(tresPuntas(null, "1", 1, 0).cruza).toBe(false);
   });
 });

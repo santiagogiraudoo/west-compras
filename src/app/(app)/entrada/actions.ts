@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { procesarEntrada, registrarEntrada, type Resultado } from "@/lib/entrada/procesar";
 import { acuse } from "@/lib/entrada/whatsapp";
-import { conciliarDespues } from "@/lib/entrada/conciliar.server";
 
 export interface ResultadoSubida {
   ok: boolean;
@@ -30,7 +29,6 @@ export async function subirAlBuzon(form: FormData): Promise<ResultadoSubida> {
   if (!reg.ok) return { ok: false, mensaje: reg.mensaje };
   if (!reg.nuevo) return { ok: false, mensaje: "Ese archivo ya está en el buzón.", id: reg.id };
   const r: Resultado = await procesarEntrada(reg.id);
-  await conciliarDespues("proveedor" in r ? r.proveedor : null);
   revalidatePath("/entrada");
   revalidatePath("/bandeja");
   return {
@@ -47,7 +45,6 @@ export async function reprocesar(id: string): Promise<ResultadoSubida> {
   if (!session?.user || session.user.role === "consulta") return { ok: false, mensaje: "No tenés permiso." };
   if (!/^\d+$/.test(id)) return { ok: false, mensaje: "Documento inválido." };
   const r = await procesarEntrada(id);
-  await conciliarDespues("proveedor" in r ? r.proveedor : null);
   revalidatePath("/entrada");
   revalidatePath("/bandeja");
   return { ok: r.tipo !== "error" && r.tipo !== "revisar", mensaje: acuse(r, { numero: "numero" in r ? r.numero : null }), id };

@@ -10,11 +10,10 @@ import { hoyArgentina } from "@/lib/cuenta/queries";
 import { unidadesDeLaMarca } from "@/lib/marca";
 import { CATEGORIAS } from "@/lib/facturas/categorias";
 import { leerDocumento } from "@/lib/entrada/leer";
-import { cruzarFacturaNueva, esDelTipo, registrarEntrada, TIPOS_ARCHIVO } from "@/lib/entrada/procesar";
+import { esDelTipo, registrarEntrada, remitosDeFactura, TIPOS_ARCHIVO } from "@/lib/entrada/procesar";
 import { analizarLectura, mismoNumero, normalizarItems, normalizarNumero, TIPOS_COMPROBANTE, type Analisis, type LecturaFactura } from "@/lib/facturas/lectura";
 import { cierra, leerMonto } from "@/lib/montos";
 import { mensajeBase } from "@/lib/errores-base";
-import { conciliarDespues } from "@/lib/entrada/conciliar.server";
 
 const MAX = 10 * 1024 * 1024;
 
@@ -165,7 +164,7 @@ export async function guardarFacturaNueva(form: FormData): Promise<ResultadoGuar
   const clase = d.tipo.startsWith("Nota de Credito") ? "nota_credito" : d.tipo.startsWith("Nota de Debito") ? "nota_debito" : "factura";
 
   try {
-    const { id, cruzados } = await prisma.$transaction(async (tx) => {
+    const id = await prisma.$transaction(async (tx) => {
       const fila = {
         Fecha: d.fecha,
         "Unidad de negocio (elegir)": d.unidad,
@@ -198,16 +197,15 @@ export async function guardarFacturaNueva(form: FormData): Promise<ResultadoGuar
           select cc.cargar_items(${JSON.stringify(carga)}::jsonb, 'app') as r`;
         if (r3?.items !== its.items.length) throw new Error("la base no cargó todos los ítems");
       }
-      // Los remitos que llegaron antes se atan ahora (y con ellos, la compra).
-      const cruce = signo > 0 ? await cruzarFacturaNueva(tx, d.proveedor, nuevo.id) : { cruzados: [], por: null };
+      // Los remitos que llegaron antes los ató la base al entrar la factura (sql/023).
       await tx.$executeRaw`
         update app.entrada set estado = 'procesado', clase = ${clase}, proveedor_codigo = ${d.proveedor},
           comprobante_id = ${BigInt(nuevo.id)}, procesado_en = now(),
-          resultado = ${JSON.stringify({ cargada_a_mano: session.user!.name, ...cruce })}::jsonb
+          resultado = ${JSON.stringify({ cargada_a_mano: session.user!.name })}::jsonb
         where id = ${BigInt(reg.id)}`;
-      return { id: nuevo.id, cruzados: cruce.cruzados };
+      return nuevo.id;
     });
-    await conciliarDespues(d.proveedor);
+    const cruzados = await remitosDeFactura(id);
     revalidatePath("/bandeja");
     revalidatePath("/entrada");
     revalidatePath("/");

@@ -11,8 +11,7 @@
     "test": "vitest run --reporter=verbose",
     "db:pull": "prisma db pull",
     "usuario": "npx tsx --env-file=.env scripts/crear-usuario.ts",
-    "sql": "npx tsx --env-file=.env scripts/aplicar-sql.ts",
-    "conciliar": "npx tsx --env-file=.env scripts/conciliar.ts"
+    "sql": "npx tsx --env-file=.env scripts/aplicar-sql.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.10.0",
