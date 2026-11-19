@@ -14,6 +14,7 @@ import { cruzarFacturaNueva, esDelTipo, registrarEntrada, TIPOS_ARCHIVO } from "
 import { analizarLectura, mismoNumero, normalizarItems, normalizarNumero, TIPOS_COMPROBANTE, type Analisis, type LecturaFactura } from "@/lib/facturas/lectura";
 import { cierra, leerMonto } from "@/lib/montos";
 import { mensajeBase } from "@/lib/errores-base";
+import { conciliarDespues } from "@/lib/entrada/conciliar.server";
 
 const MAX = 10 * 1024 * 1024;
 
@@ -206,6 +207,7 @@ export async function guardarFacturaNueva(form: FormData): Promise<ResultadoGuar
         where id = ${BigInt(reg.id)}`;
       return { id: nuevo.id, cruzados: cruce.cruzados };
     });
+    await conciliarDespues(d.proveedor);
     revalidatePath("/bandeja");
     revalidatePath("/entrada");
     revalidatePath("/");

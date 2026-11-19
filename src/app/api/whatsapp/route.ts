@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { acuse, firmaValida, leerWebhook, TIPOS_ACEPTADOS } from "@/lib/entrada/whatsapp";
 import { bajarMedia, responder, WHATSAPP_DISPONIBLE } from "@/lib/entrada/whatsapp-api";
 import { procesarEntrada, registrarEntrada } from "@/lib/entrada/procesar";
+import { conciliarDespues } from "@/lib/entrada/conciliar.server";
 
 /**
  * Webhook del número de WhatsApp Business (docs/proyecto/09_flujo_entrada.md). No pide sesión
@@ -46,6 +47,7 @@ export async function POST(req: Request) {
         if (!reg.ok) { await responder(m.de, acuse({ tipo: "error", motivo: reg.mensaje })); continue; }
         if (!reg.nuevo) { await responder(m.de, acuse({ tipo: "repetido" })); continue; }
         const r = await procesarEntrada(reg.id);
+        await conciliarDespues("proveedor" in r ? r.proveedor : null);
         await responder(m.de, acuse(r, { numero: "numero" in r ? r.numero : null }));
       } catch (e) {
         console.error("whatsapp: no pude procesar", m.id, e);

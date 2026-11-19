@@ -25,6 +25,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // api/whatsapp lo llama Meta sin sesión: se protege con la firma del webhook (route.ts).
-  matcher: ["/((?!api/auth|api/whatsapp|_next/static|_next/image|images|favicon.ico|docs).*)"],
+  // Sin sesión: api/whatsapp la llama Meta (firma del webhook) y api/conciliar el cron de Vercel (CRON_SECRET).
+  matcher: ["/((?!api/auth|api/whatsapp|api/conciliar|_next/static|_next/image|images|favicon.ico|docs).*)"],
 };

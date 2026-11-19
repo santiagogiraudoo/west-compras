@@ -96,6 +96,26 @@ Cómo configurarlo, paso a paso: `10_whatsapp.md`. El webhook es `/api/whatsapp`
 - **Aprobación**: un renglón sale aprobado solo por tope únicamente si cruzan compra, remito
   y factura (chequeo "Cruza con la compra" en la tarjeta).
 
-## Falta
-- Pantalla para atar a mano lo que no cruzó solo (remito ↔ compra ↔ factura).
-- Nota de crédito atada a la factura que cancela (`08_analisis_robustez.md` §5).
+## El conciliador (nada se ata a mano)
+La cadena compra ↔ remito ↔ factura la arma el sistema solo, con las reglas de `cruce.ts`
+(`src/lib/entrada/conciliar.ts`, con tests). Recorre todo lo abierto de cada proveedor, venga
+del Buzón, de Añadir factura o del plomero:
+1. cada factura sin remito se lleva los remitos sueltos que le corresponden;
+2. cada remito suelto busca su factura;
+3. cada remito sin compra (desde `CONCILIAR_COMPRAS_DESDE`, por defecto 2026-11-01) va a su
+   compra abierta o crea la suya.
+Por importe o por suma nunca adivina: si dos facturas abiertas tienen el mismo total, no ata.
+Corre después de cada documento (para su proveedor) y todos los días a las 7 (`/api/conciliar`,
+cron de Vercel con `CRON_SECRET`). A mano: `npm run conciliar` (en seco) o
+`npm run conciliar -- --aplicar`. Es idempotente: correrlo dos veces no duplica nada.
+
+En dev (19/11): creó 35 compras desde los remitos de noviembre y 10 quedaron con las tres
+puntas cruzadas. No ató ningún remito suelto a factura: los 20 que hay no tienen importe ni
+citan la factura, y donde hay facturas cerca son varias.
+
+## Falta para que todo cruce
+- **Importe en los remitos**: casi ningún remito que carga el plomero lo trae (sin importe no
+  hay cruce de tolerancia cero). El Buzón lo lee; el plomero debería leerlo igual.
+- **`cc.remitos.origen` con notas**: además de plomero/excel/yrigoyen tiene textos como
+  "plomero (10/11: duplicado del id 182…)". El origen tiene que ser una lista fija y la nota ir
+  aparte (cambio del plomero y de production).
