@@ -14,8 +14,7 @@ import { formatDate } from "@/lib/utils";
 import { listasDeCarga, obtenerFactura } from "@/lib/facturas/queries";
 import { FichaForm } from "./FichaForm";
 import { TarjetaCompra } from "@/components/compras/TarjetaCompra";
-import { compraDeFactura, paraAtar } from "@/lib/compras/queries";
-import { AtarAMano } from "@/components/compras/AtarAMano";
+import { compraDeFactura } from "@/lib/compras/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +32,6 @@ export default async function FichaFacturaPage({ params }: { params: Promise<{ i
   const { id } = await params;
   if (!/^\d+$/.test(id)) notFound();
   const [datos, listas, compra] = await Promise.all([obtenerFactura(BigInt(id)), listasDeCarga(), compraDeFactura(BigInt(id))]);
-  const atar = llevaCompra(datos?.c.tipo) ? await paraAtar(BigInt(id)) : null;
   if (!datos) notFound();
   const { c, proveedor, remitos, pagos, requisitos } = datos;
   const unidad = listas.unidades.find((u) => u.value === c.unidad_codigo)?.label ?? c.unidad_codigo;
@@ -116,7 +114,6 @@ export default async function FichaFacturaPage({ params }: { params: Promise<{ i
 
           {/* La tercera punta: compra ↔ remito ↔ factura (las notas de crédito no llevan compra). */}
           {!c.tipo.startsWith("Nota de") && <TarjetaCompra datos={compra} facturaId={String(c.id)} />}
-          {atar && <AtarAMano facturaId={String(c.id)} datos={atar} />}
 
           <div className="grid gap-4 lg:grid-cols-2">
             <FichaCard icon={Truck} title="Remitos" actions={<span className="text-xs text-white/75">{remitos.length}</span>}>
@@ -187,9 +184,6 @@ export default async function FichaFacturaPage({ params }: { params: Promise<{ i
     </div>
   );
 }
-
-/** Las notas de crédito o débito no llevan remito ni compra: no hay nada que atar. */
-const llevaCompra = (tipo: string | undefined) => !!tipo && !tipo.startsWith("Nota de");
 
 /** Solo cambia cómo se ve el estado que ya viene de la base. */
 function EstadoPill({ estado }: { estado: string | null }) {

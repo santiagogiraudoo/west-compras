@@ -263,7 +263,7 @@ async function unidades(tx: Tx): Promise<{ codigo: string; nombre: string }[]> {
  * Crea o actualiza una compra con cc.cargar_compras (la función que la base ya tiene para las de
  * ClickUp). Las de la app usan una clave "app:…" en lugar del id de ClickUp. Devuelve su id.
  */
-export async function guardarCompra(tx: Tx, c: {
+async function guardarCompra(tx: Tx, c: {
   clave: string; nombre?: string; proveedor?: string; unidad?: string | null; importe?: string | null; paraQue?: string | null;
   pidio?: string | null; autorizo?: string | null; fecha?: string | null; estado: string; remitos?: number[];
 }): Promise<string> {
