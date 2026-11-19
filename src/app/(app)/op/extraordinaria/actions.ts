@@ -1,11 +1,13 @@
 "use server";
 
+import { mensajeBase } from "@/lib/errores-base";
+import { leerMonto } from "@/lib/montos";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hoyArgentina } from "@/lib/cuenta/queries";
 import { unidadesDeLaMarca } from "@/lib/marca";
-import { leerImporte, numeroSinFactura, validarExtra, type DatosExtra } from "@/lib/op/extraordinaria";
+import { numeroSinFactura, validarExtra, type DatosExtra } from "@/lib/op/extraordinaria";
 
 export interface ResultadoExtra {
   ok: boolean;
@@ -36,15 +38,17 @@ export async function cargarExtraordinaria(d: DatosExtra): Promise<ResultadoExtr
   if (!unidades.includes(d.unidad)) return { ok: false, mensaje: "Esa unidad no es de West Desarrolladora.", errores: { unidad: "No es de West" } };
   if (!titulares.some((t) => t.nombre === d.facturadoA)) return { ok: false, mensaje: "Ese titular no está en la lista.", errores: { facturadoA: "No está en la lista" } };
 
-  const total = leerImporte(d.total);
+  const total = leerMonto(d.total);
   let numero = d.numero.trim();
   if (d.tipo === "Sin factura") {
     const existentes = await prisma.$queryRaw<{ numero: string }[]>`
       select numero from cc.comprobantes where proveedor_codigo = ${d.proveedor} and numero like ${`SF-${d.fecha.replaceAll("-", "")}-%`}`;
     numero = numeroSinFactura(d.fecha, existentes.map((x) => x.numero));
   } else {
+    // Con la misma regla que la base (cc._clave_comprobante): "0001-123" y "0001-00000123" son el mismo remito.
     const [ya] = await prisma.$queryRaw<{ id: string }[]>`
-      select id::text from cc.comprobantes where proveedor_codigo = ${d.proveedor} and numero = ${numero} limit 1`;
+      select id::text from cc.comprobantes where proveedor_codigo = ${d.proveedor}
+        and cc._clave_comprobante(numero) = cc._clave_comprobante(${numero}) limit 1`;
     if (ya) return { ok: false, mensaje: `Ese remito ya está cargado para ${proveedor.razon_social}.`, errores: { numero: "Ya cargado" } };
   }
 
@@ -68,7 +72,7 @@ export async function cargarExtraordinaria(d: DatosExtra): Promise<ResultadoExtr
   };
   const [{ r }] = await prisma.$queryRaw<{ r: { cargados?: number; errores?: { error: string }[] } }[]>`
     select cc.cargar_nuevos(${JSON.stringify([fila])}::jsonb, 'app') as r`;
-  if (r.errores?.length) return { ok: false, mensaje: `La base lo rechazó: ${r.errores.map((x) => x.error).join(" · ")}` };
+  if (r.errores?.length) return { ok: false, mensaje: `La base lo rechazó: ${r.errores.map((x) => mensajeBase(x.error)).join(" · ")}` };
 
   const [nuevo] = await prisma.$queryRaw<{ id: string }[]>`
     select id::text from cc.comprobantes where proveedor_codigo = ${d.proveedor} and numero = ${numero} order by id desc limit 1`;

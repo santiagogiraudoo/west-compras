@@ -10,8 +10,9 @@ import { hoyArgentina } from "@/lib/cuenta/queries";
 import { unidadesDeLaMarca } from "@/lib/marca";
 import { CATEGORIAS } from "@/lib/facturas/categorias";
 import { leerFactura } from "@/lib/facturas/leer-factura";
-import { analizarLectura, mismoNumero, type Analisis, type LecturaFactura } from "@/lib/facturas/lectura";
-import { leerImporte } from "@/lib/op/extraordinaria";
+import { analizarLectura, mismoNumero, normalizarItems, normalizarNumero, TIPOS_COMPROBANTE, type Analisis, type LecturaFactura } from "@/lib/facturas/lectura";
+import { cierra, leerMonto } from "@/lib/montos";
+import { mensajeBase } from "@/lib/errores-base";
 
 const TIPOS = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 const MAX = 10 * 1024 * 1024;
@@ -102,21 +103,26 @@ export async function guardarFacturaNueva(form: FormData): Promise<ResultadoGuar
   const hoy = hoyArgentina();
   const falta: string[] = [];
   if (!d.proveedor) falta.push("el proveedor");
-  if (!/^(Factura|Nota de Credito|Nota de Debito) [ABCMX]$/.test(d.tipo)) falta.push("el tipo");
-  if (!/^\d{4,5}-\d{8}$/.test(d.numero)) falta.push("el número (00003-00008897)");
+  if (!(TIPOS_COMPROBANTE as readonly string[]).includes(d.tipo)) falta.push("el tipo");
+  // Siempre con 5 + 8 dígitos: "3-8897" y "0003-00008897" se guardan como 00003-00008897.
+  const numero = normalizarNumero(d.numero ?? "");
+  if (!numero) falta.push("el número (00003-00008897)");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.fecha) || d.fecha > hoy) falta.push("la fecha (no futura)");
   if (d.vencimiento && !/^\d{4}-\d{2}-\d{2}$/.test(d.vencimiento)) falta.push("un vencimiento válido");
+  else if (d.vencimiento && d.vencimiento < d.fecha) falta.push("un vencimiento que no sea anterior a la fecha");
   if (!d.unidad) falta.push("la unidad");
   if (!d.facturadoA) falta.push("a nombre de quién");
-  if (falta.length) return { ok: false, mensaje: `Falta ${falta.join(", ")}.` };
+  if (falta.length || !numero) return { ok: false, mensaje: `Falta ${falta.join(", ")}.` };
   if (d.categoria && !(CATEGORIAS as readonly string[]).includes(d.categoria)) return { ok: false, mensaje: "Esa categoría no está en la lista." };
 
   let neto: Decimal, iva: Decimal, perc: Decimal, total: Decimal;
   try {
-    [neto, iva, perc, total] = [d.neto, d.iva, d.percepciones, d.total].map((v) => new Decimal(leerImporte(v || "0")));
-  } catch { return { ok: false, mensaje: "Algún importe no es un número." }; }
+    [neto, iva, perc, total] = [d.neto, d.iva, d.percepciones, d.total].map((v) => new Decimal(leerMonto(v || "0")));
+  } catch (e) { return { ok: false, mensaje: e instanceof Error ? e.message : "Algún importe no es un número." }; }
   if (total.lte(0)) return { ok: false, mensaje: "El total tiene que ser mayor a cero." };
-  if (neto.plus(iva).plus(perc).minus(total).abs().gt(1)) return { ok: false, mensaje: "El total no cierra con neto + IVA + percepciones (±$1)." };
+  if (!cierra(neto.plus(iva).plus(perc), total)) return { ok: false, mensaje: "El total no cierra con neto + IVA + percepciones (menos de $1)." };
+  const its = normalizarItems(d.items ?? []);
+  if (!its.ok) return { ok: false, mensaje: its.mensaje };
   // La nota de crédito va en negativo, como la carga el plomero.
   const signo = d.tipo.startsWith("Nota de Credito") ? -1 : 1;
 
@@ -129,7 +135,7 @@ export async function guardarFacturaNueva(form: FormData): Promise<ResultadoGuar
   if (!prov) return { ok: false, mensaje: "No encontré el proveedor." };
   if (!unidades.includes(d.unidad)) return { ok: false, mensaje: "Esa unidad no es de West Desarrolladora." };
   if (!titulares.some((t) => t.nombre === d.facturadoA)) return { ok: false, mensaje: "Ese titular no está en la lista." };
-  if (existentes.some((e) => mismoNumero(e.numero, d.numero))) return { ok: false, mensaje: "Esa factura ya está cargada para ese proveedor." };
+  if (existentes.some((e) => mismoNumero(e.numero, numero))) return { ok: false, mensaje: "Esa factura ya está cargada para ese proveedor." };
 
   const sha = createHash("sha256").update(a.bytes).digest("hex");
   const h = await headers();
@@ -146,7 +152,7 @@ export async function guardarFacturaNueva(form: FormData): Promise<ResultadoGuar
         "Proveedor (elegir)": d.proveedor,
         "Facturado a (elegir)": d.facturadoA,
         Tipo: d.tipo,
-        "N° comprobante": d.numero,
+        "N° comprobante": numero,
         Rubro: prov.rubro,
         ...(d.categoria ? { Categoria: d.categoria } : {}),
         Descripcion: `[app] ${d.descripcion.trim() || "Factura cargada desde la app"}${dudas} · Cargó ${session.user!.name}`,
@@ -158,29 +164,31 @@ export async function guardarFacturaNueva(form: FormData): Promise<ResultadoGuar
         select cc.cargar_nuevos(${JSON.stringify([fila])}::jsonb, 'app') as r`;
       if (r.errores?.length) throw new Error(r.errores.map((x) => x.error).join(" · "));
       const [nuevo] = await tx.$queryRaw<{ id: string }[]>`
-        select id::text from cc.comprobantes where proveedor_codigo = ${d.proveedor} and numero = ${d.numero} order by id desc limit 1`;
+        select id::text from cc.comprobantes where proveedor_codigo = ${d.proveedor} and numero = ${numero} order by id desc limit 1`;
       if (!nuevo) throw new Error("la base no cargó la factura");
       await tx.$executeRaw`
         insert into app.archivos_factura (comprobante_id, nombre, tipo, archivo, sha256, subido_por)
         values (${BigInt(nuevo.id)}, ${a.archivo.name}, ${a.archivo.type}, ${a.bytes}, ${sha}, ${session.user!.name})`;
-      const link = [{ Corregir: "SI", "Proveedor (elegir)": d.proveedor, "N° comprobante": d.numero, "Archivo / link": `${base}/bandeja/${nuevo.id}/archivo` }];
+      const link = [{ Corregir: "SI", "Proveedor (elegir)": d.proveedor, "N° comprobante": numero, "Archivo / link": `${base}/bandeja/${nuevo.id}/archivo` }];
       const [{ r: r2 }] = await tx.$queryRaw<{ r: { errores?: { error: string }[] } }[]>`select cc.cargar_nuevos(${JSON.stringify(link)}::jsonb, 'app') as r`;
       if (r2.errores?.length) throw new Error(r2.errores.map((x) => x.error).join(" · "));
-      const items = d.items.filter((it) => it.descripcion.trim());
-      if (items.length) {
-        const carga = { "Comprobante (clave)": `${d.proveedor} | ${d.numero}`, items: items.map((it) => ({
-          descripcion: it.descripcion.trim(), cantidad: it.cantidad, precio_unitario: it.precio_unitario, subtotal: it.subtotal,
+      if (its.items.length) {
+        const carga = { "Comprobante (clave)": `${d.proveedor} | ${numero}`, items: its.items.map((it) => ({
+          ...it,
           // cc.cargar_items toma la unidad de negocio de cada ítem de "unidad".
           unidad: d.unidad,
         })) };
-        await tx.$queryRaw`select cc.cargar_items(${JSON.stringify(carga)}::jsonb, 'app')::text as r`;
+        // cargar_items tira error si no encuentra la factura; acá además se confirma que entraron todos.
+        const [{ r: r3 }] = await tx.$queryRaw<{ r: { items?: number } | null }[]>`
+          select cc.cargar_items(${JSON.stringify(carga)}::jsonb, 'app') as r`;
+        if (r3?.items !== its.items.length) throw new Error("la base no cargó todos los ítems");
       }
       return nuevo.id;
     });
     revalidatePath("/bandeja");
     revalidatePath("/");
-    return { ok: true, id, mensaje: `Cargada ${d.tipo} ${d.numero}: ahora revisala y aprobala` };
+    return { ok: true, id, mensaje: `Cargada ${d.tipo} ${numero}: ahora revisala y aprobala` };
   } catch (e) {
-    return { ok: false, mensaje: `La base lo rechazó: ${e instanceof Error ? e.message : String(e)}` };
+    return { ok: false, mensaje: `La base lo rechazó: ${mensajeBase(e instanceof Error ? e.message : String(e))}` };
   }
 }
