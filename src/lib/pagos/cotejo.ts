@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { cierra } from "@/lib/montos";
 
 /** Lo que se lee de un comprobante de pago (transferencia, echeq, depósito). */
 export interface LecturaComprobante {
@@ -36,14 +37,20 @@ export function cotejarComprobante(
     try { leido = new Decimal(l.monto); } catch { leido = null; }
     if (leido) {
       const dif = leido.minus(esperado.neto).abs();
-      out.push(dif.lt(1)
+      out.push(cierra(leido, esperado.neto)
         ? { ok: true, texto: "El monto coincide con el neto a transferir" }
         : { ok: false, texto: `El monto del comprobante no coincide con el neto (diferencia $${dif.toDecimalPlaces(0).toNumber().toLocaleString("es-AR", { maximumFractionDigits: 0 })})` });
     }
   }
   if (l.cuenta_destino && (esperado.cbu || esperado.alias)) {
     const dest = l.cuenta_destino.trim();
-    const coincideCbu = !!esperado.cbu && soloDigitos(dest).length >= 6 && soloDigitos(esperado.cbu).includes(soloDigitos(dest).slice(-6));
+    // Es un CBU (entero o enmascarado, "***1234") solo si no tiene letras; y coincide si
+    // termina igual que el del proveedor. Antes bastaba con que los últimos 6 dígitos
+    // aparecieran en cualquier parte del CBU, y un alias con números ("PEREZ.123456")
+    // se tomaba por CBU.
+    const digDest = soloDigitos(dest);
+    const pareceCbu = !/[a-z]/i.test(dest.replace(/x/gi, "")) && digDest.length >= 4;
+    const coincideCbu = !!esperado.cbu && pareceCbu && soloDigitos(esperado.cbu).endsWith(digDest.slice(-Math.min(6, digDest.length)));
     const coincideAlias = !!esperado.alias && dest.toLowerCase() === esperado.alias.trim().toLowerCase();
     out.push(coincideCbu || coincideAlias
       ? { ok: true, texto: "La cuenta de destino es la del proveedor" }

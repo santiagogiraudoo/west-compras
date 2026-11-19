@@ -27,3 +27,16 @@ describe("cotejarComprobante", () => {
     expect(cotejarComprobante(lectura({ monto: null, cuenta_destino: null }), esperado)).toEqual([]);
   });
 });
+
+describe("cotejarComprobante: cuenta de destino (análisis 19/11)", () => {
+  it("no da por buena una cuenta cuyos 6 dígitos aparecen en el medio del CBU", () => {
+    // "807702" está adentro del CBU del proveedor, pero la cuenta termina distinto.
+    expect(cotejarComprobante(lectura({ cuenta_destino: "9999999999999999807702" }), esperado)[1].ok).toBe(false);
+  });
+  it("un alias con números no se toma por CBU", () => {
+    expect(cotejarComprobante(lectura({ cuenta_destino: "PEREZ.477080" }), esperado)[1].ok).toBe(false);
+  });
+  it("acepta el CBU enmascarado con solo 4 dígitos", () => {
+    expect(cotejarComprobante(lectura({ cuenta_destino: "***7080" }), esperado)[1].ok).toBe(true);
+  });
+});
