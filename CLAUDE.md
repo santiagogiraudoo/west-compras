@@ -27,6 +27,12 @@ máximo, derivar en vez de guardar, una regla pareja antes que una excepción.
     topes). Se crea con los archivos de `sql/`, numerados, en orden.
 - **Desarrollo: rama `dev-app-compras`** (br-blue-violet-b695flm2), copia de production
   del 17/11. Nunca apuntar la app a `production` sin OK de Adriano.
+- **Production es la base real y está en uso** (plomero, OP reales). Ni la app ni los `sql/`
+  se corren contra production mientras se desarrolla: todo contra `dev-app-compras`. La app
+  no arranca con el host de production (`src/lib/prisma.ts`) salvo `ALLOW_PRODUCTION=si`,
+  que pone solo Adriano. Nunca contraseñas ni `.env` en el repo: es público.
+- Para refrescar dev con los datos reales: resetear `dev-app-compras` desde production y
+  volver a aplicar los `sql/` en dev. Nunca al revés.
 - Roles: `app_compras` (la app: lee todo, inserta/actualiza, no borra, ejecuta funciones)
   y el dueño (solo para aplicar `sql/` y leer el esquema).
 - **No se migra con Prisma.** `prisma/schema.prisma` refleja la base, no la manda.
