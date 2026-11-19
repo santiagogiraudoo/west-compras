@@ -161,11 +161,8 @@ async function cargarFactura(id: string, l: LecturaEntrada, a: CargaFactura, fil
       const carga = { "Comprobante (clave)": `${a.proveedor} | ${a.numero}`, items };
       await tx.$queryRaw`select cc.cargar_items(${JSON.stringify(carga)}::jsonb, 'app')::text as r`;
     }
-    // Remitos que llegaron antes que su factura: se atan ahora.
-    const abiertos = await remitosAbiertos(tx, a.proveedor);
-    const cruce = signo > 0 ? remitosDeLaFactura({ id: c.id, numero: a.numero, fecha: c.fecha, total: c.total, descripcion: c.descripcion }, abiertos) : null;
-    for (const rem of cruce?.remitos ?? []) await tx.$executeRaw`select cc.ligar_remito(${BigInt(rem.id)}, ${BigInt(c.id)})`;
-    return { comprobanteId: c.id, cruzados: (cruce?.remitos ?? []).map((x) => x.numero ?? `remito ${x.id}`), por: cruce?.por ?? null };
+    const cruce = signo > 0 ? await cruzarFacturaNueva(tx, a.proveedor, c.id) : { cruzados: [], por: null };
+    return { comprobanteId: c.id, ...cruce };
   });
   await anotar(id, "procesado", null, a.proveedor, { accion: a, ...out }, { comprobante: out.comprobanteId });
   return { ...a, comprobanteId: out.comprobanteId, numero: a.numero, cruzados: out.cruzados };
@@ -218,6 +215,20 @@ async function cargarRemito(id: string, l: LecturaEntrada, a: CargaRemito): Prom
   }
   await anotar(id, "procesado", null, a.proveedor, { accion: a, ...out }, { remito: out.remitoId });
   return { ...a, remitoId: out.remitoId, numero, cruzados: out.factura ? [out.factura] : [] };
+}
+
+/**
+ * Una factura que acaba de entrar (por el buzón o por Añadir factura) se lleva los remitos que
+ * llegaron antes que ella: se citan, tienen su importe o la suman. Así queda la cadena con la compra.
+ */
+export async function cruzarFacturaNueva(tx: Pick<typeof prisma, "$queryRaw" | "$executeRaw">, proveedor: string, comprobanteId: string):
+  Promise<{ cruzados: string[]; por: string | null }> {
+  const [c] = await tx.$queryRaw<{ numero: string; fecha: string; total: string; descripcion: string | null }[]>`
+    select numero, fecha::text, total::text, descripcion from cc.comprobantes where id = ${BigInt(comprobanteId)}`;
+  if (!c) return { cruzados: [], por: null };
+  const cruce = remitosDeLaFactura({ id: comprobanteId, ...c }, await remitosAbiertos(tx, proveedor));
+  for (const rem of cruce?.remitos ?? []) await tx.$executeRaw`select cc.ligar_remito(${BigInt(rem.id)}, ${BigInt(comprobanteId)})`;
+  return { cruzados: (cruce?.remitos ?? []).map((x) => x.numero ?? `remito ${x.id}`), por: cruce?.por ?? null };
 }
 
 /** Remitos del proveedor sin factura, con las facturas que citan (guardadas en su lectura del buzón). */
