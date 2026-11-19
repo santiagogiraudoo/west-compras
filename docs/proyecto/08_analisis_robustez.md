@@ -51,7 +51,7 @@ concurrencia**, cada hallazgo verificado leyendo el código.
 | C3 | La tolerancia "cero, menos de $1" escrita de 4 maneras (`gt(1)`, `lt(1)`, `0.005`, `0.5`). | Media | **Hecho** en lib y acciones: `cierra()` y `MARGEN_LIBRE`. Quedan ~15 `Number(x) > 0.5` en páginas (solo muestran): pasarlas a `hayLibre()` en la rama de UI. |
 | C4 | Número de comprobante guardado con 4 o 5 dígitos de punto de venta. | Media | **Hecho**: se guarda siempre `00003-00008897`; la base frena el repetido (D1). |
 | C5 | Si la IA traía el punto de venta dentro del número, se perdía (`00000-…`). | Media | **Hecho**. |
-| C6 | Repetida sin mirar el tipo (AFIP numera por tipo: una NC puede tener el mismo número que una factura). | Media | **Pendiente, decisión**: `comprobante_unico` de la base tampoco mira el tipo. Si hace falta, cambia la clave en la base y en `claveComprobante`. |
+| C6 | Repetida sin mirar el tipo (AFIP numera por tipo: una NC puede tener el mismo número que una factura). | — | **Decidido (19/11): no hace falta.** Lo que sí: una NC cancela una factura entera o una parte, así que tiene que poder quedar atada a esa factura (hoy solo se compensa dentro de una OP). Ver sección 5. |
 | C7 | La lista de tipos del formulario no era la del server; sin letra se ponía "A" callado. | Media | **Hecho** en lógica (`TIPOS_COMPROBANTE`, aviso de letra). El formulario (`AnadirFactura.tsx`) tiene que importar la constante: es de la rama `ui/primer-tema`. |
 | C8 | CUIT repetido comparado con guiones. | — | **No es problema**: la base exige `99-99999999-9` (`proveedores_cuit_formato`). |
 | C9 | Cotejo de la cuenta de destino: coincidencias falsas. | Media | **Hecho**. |
@@ -70,8 +70,8 @@ concurrencia**, cada hallazgo verificado leyendo el código.
 | F2 | Aprobar podía pisar una observación hecha en el mismo momento; `v_aprobacion_linea` ordenaba por `now()`. | Media | **Hecho**: se revisa la decisión con la OP bloqueada y la vista ordena por `id`. |
 | F3 | Dos OP de la misma unidad mandadas a la vez pasaban juntas el tope. | Media | **Hecho**: bloqueo por unidad. (Hoy no hay topes cargados.) |
 | F4 | `cargar_pagos` chequea "imputado de más" sin bloquear la factura y contando anuladas. | Media | **Hecho para la app** (trigger con `for update`, sin anuladas). El plomero sigue con su chequeo. |
-| F5 | Alta de proveedor a medias: alias sin CBU alcanza; titular de la cuenta sin verificar. | Media | **Pendiente, decisión de Adriano**: CLAUDE.md dice "CBU con titular verificado". Exigir CBU puede frenar pagos a proveedores que hoy pagan por alias. |
-| F6 | Cualquier usuario no consulta arma, aprueba y paga; quien aprobó puede pagar. | Media | **Pendiente, decisión de negocio**: "todos los pagos pasan por Adriano". |
+| F5 | Alta de proveedor a medias: alias sin CBU alcanza; titular de la cuenta sin verificar. | — | **Decidido (19/11): la cuenta puede ser alias o CBU.** Queda como está. |
+| F6 | Cualquier usuario no consulta arma, aprueba y paga; quien aprobó puede pagar. | — | **Decidido (19/11): lo definen los topes.** Quien aprueba cada unidad y hasta cuánto sale solo se carga en Configuración. |
 | F7 | La base no congelaba una OP pagada. | Media | **Hecho**: una OP de la app pagada no vuelve atrás. |
 | F8 | Prorrateo con ítems sin subtotal; la aprobación no guarda el importe aprobado. | Baja | Pendiente. |
 | F9 | Retención "NaN" dejaba el neto en NaN. | Baja | **Hecho**. |
@@ -96,5 +96,11 @@ concurrencia**, cada hallazgo verificado leyendo el código.
 1. Unir `adriano/fase-3`, `adriano/sql-production`, `ui/primer-tema` y esta rama.
 2. En production, correr la consulta del comentario de `sql/020` (repetidos por clave)
    y anular lo que aparezca; recién ahí aplicar 019 y 020.
-3. Decidir F5, F6 y C6 (Adriano).
-4. Pasar a la rama de UI: C3 en páginas, C7 en el formulario, C12–C13.
+3. Pasar a la rama de UI: C3 en páginas, C7 en el formulario, C12–C13.
+
+## 5. Pendiente: nota de crédito atada a su factura
+
+Decisión del 19/11: una NC cancela una factura entera o una parte. Hoy la NC entra como un
+comprobante negativo más y se compensa cuando va en la misma OP que la factura. Falta
+poder decir "esta NC es de tal factura" y que lo libre de esa factura baje solo, aunque no
+estén en la misma OP.
