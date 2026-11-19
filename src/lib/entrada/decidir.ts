@@ -7,7 +7,7 @@ import { normalizarCuit, normalizarTelefono } from "@/lib/proveedores/validar";
  * procesar.ts. Reglas en docs/proyecto/09_flujo_entrada.md.
  */
 
-export const CLASES = ["factura", "nota_credito", "nota_debito", "remito", "comprobante_pago", "otro"] as const;
+export const CLASES = ["factura", "nota_credito", "nota_debito", "remito", "compra", "comprobante_pago", "otro"] as const;
 export type Clase = (typeof CLASES)[number];
 
 export interface LecturaRemito {
@@ -23,6 +23,20 @@ export interface LecturaRemito {
   firmado: boolean;
 }
 
+/** Confirmación de compra: pedido confirmado, presupuesto aceptado u orden de compra (la compra entra con esto o con el remito). */
+export interface LecturaCompra {
+  /** Número de pedido, presupuesto u orden. */
+  numero: string | null;
+  fecha: string | null;
+  importe: string | null;
+  /** Qué se compró, en pocas palabras. */
+  descripcion: string | null;
+  /** Obra, dirección o unidad. */
+  destino: string | null;
+  pidio: string | null;
+  autorizo: string | null;
+}
+
 /** Lo que devuelve la lectura del buzón: qué es y sus datos (la parte que corresponda). */
 export interface LecturaEntrada {
   clase: Clase;
@@ -30,6 +44,7 @@ export interface LecturaEntrada {
   razon_social: string | null;
   factura: LecturaFactura | null;
   remito: LecturaRemito | null;
+  compra?: LecturaCompra | null;
   dudas: string[];
 }
 
@@ -46,6 +61,7 @@ export interface Contexto {
 export type Accion =
   | { tipo: "cargar_factura"; proveedor: string; titular: string | null; numero: string; avisos: string[] }
   | { tipo: "cargar_remito"; proveedor: string; avisos: string[] }
+  | { tipo: "cargar_compra"; proveedor: string; avisos: string[] }
   | { tipo: "comprobante_pago"; proveedor: string | null }
   | { tipo: "duplicado"; motivo: string; proveedor: string }
   | { tipo: "revisar"; motivo: string; proveedor: string | null }
@@ -83,6 +99,13 @@ export function decidirEntrada(l: LecturaEntrada, ctx: Contexto): Accion {
   const prov = identificarProveedor(l.cuit_emisor, ctx);
   if (l.clase === "comprobante_pago") return { tipo: "comprobante_pago", proveedor: prov.codigo };
   if (!prov.codigo) return { tipo: "revisar", motivo: "motivo" in prov ? prov.motivo : "sin proveedor", proveedor: null };
+
+  if (l.clase === "compra") {
+    if (!l.compra) return { tipo: "revisar", motivo: "es una compra pero no se pudo leer", proveedor: prov.codigo };
+    const avisos = [...l.dudas.map((d) => `La IA dudó: ${d}`)];
+    if (!l.compra.importe) avisos.push("Compra sin importe: no se va a poder cruzar con la factura");
+    return { tipo: "cargar_compra", proveedor: prov.codigo, avisos };
+  }
 
   if (l.clase === "remito") {
     if (!l.remito) return { tipo: "revisar", motivo: "es un remito pero no se pudo leer", proveedor: prov.codigo };

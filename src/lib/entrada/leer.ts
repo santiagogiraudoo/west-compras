@@ -23,12 +23,23 @@ const RemitoZ = z.object({
   firmado: z.boolean(),
 });
 
+const CompraZ = z.object({
+  numero: z.string().nullable(),
+  fecha: z.string().nullable(),
+  importe: z.string().nullable(),
+  descripcion: z.string().nullable(),
+  destino: z.string().nullable(),
+  pidio: z.string().nullable(),
+  autorizo: z.string().nullable(),
+});
+
 const EntradaZ = z.object({
   clase: z.enum(CLASES),
   cuit_emisor: z.string().nullable(),
   razon_social: z.string().nullable(),
   factura: LecturaFacturaZ.nullable(),
   remito: RemitoZ.nullable(),
+  compra: CompraZ.nullable(),
   dudas: z.array(z.string()),
 });
 
@@ -36,8 +47,9 @@ const INSTRUCCIONES = `Es un documento que un proveedor, un encargado o un contr
 Primero decí qué es en "clase":
 - factura, nota_credito o nota_debito: comprobante fiscal (tiene punto de venta, número y CAE o letra A/B/C/M). Un comprobante "X" o "no válido como factura" NO es factura: es remito.
 - remito: remito, nota de entrega o factura firmada en conformidad de recepción.
+- compra: confirmación de una compra (pedido confirmado, nota de pedido, orden de compra o presupuesto ACEPTADO). Un presupuesto sin aceptar es "otro".
 - comprobante_pago: transferencia, echeq, cheque o depósito.
-- otro: presupuesto, planilla, foto de mercadería o cualquier otra cosa.
+- otro: presupuesto sin aceptar, planilla, foto de mercadería o cualquier otra cosa.
 Devolvé SOLO lo que se ve, sin adivinar. Lo que no está o no se lee seguro va null y lo contás en "dudas" en pocas palabras.
 - cuit_emisor (con guiones si figuran) y razon_social: de quien emite el documento.
 - Si es factura, nota de crédito o de débito, completá "factura" (y "remito" en null):
@@ -47,7 +59,9 @@ Devolvé SOLO lo que se ve, sin adivinar. Lo que no está o no se lee seguro va 
 - Si es remito, completá "remito" (y "factura" en null): numero; fecha AAAA-MM-DD; facturas_citadas (números de factura o presupuesto que figuren, "PPPP-NNNNNNNN");
   retira: el nombre ESCRITO de quien recibió (el nombre a mano junto a "Chofer:" en corralones es de quien recibió); autoriza; destino (obra, dirección o unidad);
   importe total si figura; firmado true si hay firma o aclaración de quien recibió. No adivines nombres por una firma.
-- Si es comprobante de pago u otro, "factura" y "remito" van null.`;
+- Si es compra, completá "compra": numero de pedido, presupuesto u orden; fecha AAAA-MM-DD; importe total con punto decimal; descripcion de lo comprado en pocas palabras;
+  destino (obra, dirección o unidad); pidio y autorizo si figuran.
+- Lo que no corresponde a la clase va null ("factura", "remito" y "compra").`;
 
 export type ResultadoLecturaEntrada = { ok: true; lectura: LecturaEntrada } | { ok: false; mensaje: string };
 

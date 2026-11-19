@@ -107,3 +107,83 @@ export function subconjunto(todos: RemitoCruce[], total: string, tope = 200_000)
   const r = buscar(0, objetivo, []);
   return r ? r.map((i) => remitos[i]) : null;
 }
+
+// ── Compras: la tercera punta (compra ↔ remito ↔ factura) ─────────────────────
+
+export interface CompraCruce {
+  id: string;
+  /** Clave de la compra en cc.compras (ClickUp o "app:…"): con ella se le atan remitos. */
+  clave: string;
+  /** Número de pedido, presupuesto u orden, si lo tiene. */
+  numero: string | null;
+  fecha: string;
+  importe: string | null;
+  estado: string;
+}
+
+/** Hasta cuántos días después de la compra puede llegar su remito. */
+export const DIAS_COMPRA_A_REMITO = 60;
+const ABIERTA = new Set(["pedido confirmado", "esperando remito"]);
+
+/**
+ * La compra de un remito: una abierta del mismo proveedor que el remito cite, o la única con el
+ * mismo importe (cierra) y que sea de antes del remito (hasta 60 días). Si no hay una sola, null:
+ * el remito crea su propia compra ("la compra entra con el remito o la confirmación").
+ */
+export function compraDelRemito(r: RemitoCruce, compras: CompraCruce[]): { compra: CompraCruce; por: string } | null {
+  const abiertas = compras.filter((c) => ABIERTA.has(c.estado));
+  const citada = abiertas.filter((c) => c.numero && (r.facturas_citadas ?? []).some((n) => mismoNumero(n, c.numero!)));
+  if (citada.length === 1) return { compra: citada[0], por: "el remito cita la compra" };
+  const imp = importe(r.importe);
+  if (imp && r.fecha) {
+    const mismas = abiertas.filter((c) => {
+      const ci = importe(c.importe);
+      const d = dias(r.fecha!, c.fecha);
+      return ci != null && cierra(imp, ci) && d >= 0 && d <= DIAS_COMPRA_A_REMITO;
+    });
+    if (mismas.length === 1) return { compra: mismas[0], por: "mismo importe" };
+  }
+  return null;
+}
+
+/** Los remitos sueltos (sin compra) que corresponden a una compra que acaba de llegar. */
+export function remitosDeLaCompra(c: CompraCruce, remitos: RemitoCruce[]): RemitoCruce[] {
+  const citan = remitos.filter((r) => c.numero && (r.facturas_citadas ?? []).some((n) => mismoNumero(n, c.numero!)));
+  if (citan.length) return citan;
+  const ci = importe(c.importe);
+  if (!ci) return [];
+  const despues = remitos.filter((r) => r.fecha && importe(r.importe) && dias(r.fecha, c.fecha) >= 0 && dias(r.fecha, c.fecha) <= DIAS_COMPRA_A_REMITO);
+  const uno = despues.filter((r) => cierra(importe(r.importe)!, ci));
+  if (uno.length === 1) return uno;
+  return subconjunto(despues, ci) ?? []; // entregas parciales que suman la compra
+}
+
+/** La unidad que nombra un texto libre ("Dto Gutiérrez 110", "obra West Club"): solo si es una. */
+export function unidadDelTexto(texto: string | null | undefined, unidades: { codigo: string; nombre: string }[]): string | null {
+  if (!texto) return null;
+  const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[.,;:]/g, " ").replace(/\s+/g, " ").trim();
+  const t = ` ${norm(texto)} `;
+  const hallados = unidades.filter((u) => {
+    // "WCL - WEST CLUB" → "west club" y "wcl"; "SIRIA 455" → "siria 455".
+    const partes = norm(u.nombre).split(" - ").map((x) => x.trim()).filter((x) => x.length >= 4 || /\d/.test(x));
+    return partes.some((p) => t.includes(` ${p} `));
+  });
+  return hallados.length === 1 ? hallados[0].codigo : null;
+}
+
+/**
+ * El control de tres puntas de una compra: lo facturado contra lo comprado (tolerancia cero,
+ * menos de $1) y que sus remitos estén firmados. Es lo que permite aprobar una sola vez.
+ */
+export function tresPuntas(compraImporte: string | null, facturado: string, remitosFirmados: number, remitosSinFirmar: number):
+  { cruza: boolean; motivos: string[] } {
+  const motivos: string[] = [];
+  if (compraImporte == null) motivos.push("la compra no tiene importe");
+  else if (!cierra(compraImporte, facturado)) {
+    const dif = new Decimal(facturado).minus(compraImporte);
+    motivos.push(dif.gt(0) ? `se facturó $${dif.toFixed(2)} más que la compra` : `falta facturar $${dif.neg().toFixed(2)} de la compra`);
+  }
+  if (remitosFirmados === 0) motivos.push("ningún remito firmado");
+  if (remitosSinFirmar > 0) motivos.push(`${remitosSinFirmar} remito(s) sin firmar`);
+  return { cruza: motivos.length === 0, motivos };
+}
