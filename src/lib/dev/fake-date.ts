@@ -20,11 +20,15 @@ export function setFakeOffset(ms: number): void {
  * encoded in the cookie value. Returns 0 for missing, empty, or unparseable
  * cookies.
  *
- * Cookie format: YYYY-MM-DD (interpreted as local-midnight of that day).
+ * Cookie format: YYYY-MM-DD. Se toma como el mediodía de ese día en Mendoza: new Date("2026-11-20")
+ * es medianoche UTC, que en Mendoza es el 19 a las 21 hs, y hoyArgentina() daba un día menos.
+ *
+ * Ojo: el corrimiento vive en globalThis (lo comparten todos los requests del proceso) y la
+ * base no se entera: now() y current_date siguen con la fecha real. Es solo para desarrollo.
  */
-export function computeFakeOffset(cookieValue: string | undefined): number {
-  if (!cookieValue) return 0;
-  const parsed = new Date(cookieValue);
+export function computeFakeOffset(cookieValue: string | undefined, ahora = Date.now()): number {
+  if (!cookieValue || !/^\d{4}-\d{2}-\d{2}$/.test(cookieValue)) return 0;
+  const parsed = new Date(`${cookieValue}T12:00:00-03:00`);
   if (Number.isNaN(parsed.getTime())) return 0;
-  return parsed.getTime() - Date.now();
+  return parsed.getTime() - ahora;
 }
