@@ -8,6 +8,7 @@ import { normalizarItems, normalizarNumero, tipoComprobante, TIPOS_COMPROBANTE }
 import { decidirEntrada, identificarProveedor, type Accion, type LecturaEntrada } from "./decidir";
 import { unidadDelTexto } from "./cruce";
 import { leerDocumento } from "./leer";
+import { pagoDesdeEntrada } from "@/lib/op/registrar-pago";
 
 /**
  * El procesador único del buzón (docs/proyecto/09_flujo_entrada.md): registra lo que llega por
@@ -94,6 +95,11 @@ export async function procesarEntrada(id: string): Promise<Resultado> {
     if (accion.tipo === "cargar_factura") return await cargarFactura(id, l, accion, fila);
     if (accion.tipo === "cargar_remito") return await cargarRemito(id, l, accion);
     if (accion.tipo === "cargar_compra") return await cargarCompra(id, l, accion);
+    // Un comprobante de pago busca su OP autorizada y, si coincide exacto, registra el pago (fase 3).
+    if (accion.tipo === "comprobante_pago") {
+      const r = await pagoDesdeEntrada(id, fila.remitente ?? fila.canal);
+      return { ...accion, numero: "numero" in r ? r.numero : null };
+    }
   } catch (e) {
     const motivo = mensajeBase(e instanceof Error ? e.message : String(e));
     await anotar(id, "revisar", `la base lo rechazó: ${motivo}`, "proveedor" in accion ? accion.proveedor : null, { accion, error: motivo });

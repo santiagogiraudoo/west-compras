@@ -60,3 +60,40 @@ export function cotejarComprobante(
   }
   return out;
 }
+
+export interface OPAPagar {
+  numero: string;
+  proveedor: string;
+  /** Lo que se transfiere: el total de la OP (sin retenciones). */
+  total: string;
+  cbu: string | null;
+  alias: string | null;
+}
+
+export type OPDelPago =
+  | { tipo: "exacto"; op: OPAPagar }
+  | { tipo: "sugerida"; op: OPAPagar; motivo: string }
+  | { tipo: "ninguna"; motivo: string };
+
+/**
+ * A qué OP autorizada corresponde un comprobante de pago (fase 3: registrar el pago por
+ * consecuencia). Exacto: una sola OP con el monto (menos de $1, sin retenciones) y la cuenta del
+ * proveedor; ese se registra solo. Si coincide la cuenta pero no el monto (retenciones), o el
+ * monto pero no se leyó la cuenta, se sugiere y lo confirma quien paga. Nunca adivina entre dos.
+ */
+export function elegirOPDelPago(l: LecturaComprobante, ops: OPAPagar[]): OPDelPago {
+  const eval_ = ops.map((op) => {
+    const c = cotejarComprobante(l, { neto: op.total, cbu: op.cbu, alias: op.alias });
+    const monto = c.find((x) => x.texto.startsWith("El monto"));
+    const cuenta = c.find((x) => x.texto.startsWith("La cuenta"));
+    return { op, monto: monto?.ok === true, cuenta: cuenta?.ok === true, cuentaLeida: !!cuenta };
+  });
+  const exactos = eval_.filter((e) => e.monto && e.cuenta);
+  if (exactos.length === 1) return { tipo: "exacto", op: exactos[0].op };
+  if (exactos.length > 1) return { tipo: "ninguna", motivo: `coincide con ${exactos.length} OP por el mismo monto y cuenta: elegí a mano` };
+  const porCuenta = eval_.filter((e) => e.cuenta);
+  if (porCuenta.length === 1) return { tipo: "sugerida", op: porCuenta[0].op, motivo: "la cuenta es la del proveedor pero el monto no es el total: ¿hubo retenciones?" };
+  const porMonto = eval_.filter((e) => e.monto && !e.cuentaLeida);
+  if (porMonto.length === 1) return { tipo: "sugerida", op: porMonto[0].op, motivo: "el monto coincide pero no se leyó la cuenta de destino" };
+  return { tipo: "ninguna", motivo: "no coincide con ninguna OP autorizada" };
+}

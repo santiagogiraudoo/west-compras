@@ -67,7 +67,7 @@ export function acuse(a: Accion | { tipo: "error"; motivo: string } | { tipo: "r
     case "cargar_factura": return `Recibida la factura ${a.numero}. Queda para aprobar.${a.avisos.length ? " Hay cosas para revisar: te avisamos si falta algo." : ""}`;
     case "cargar_remito": return `Recibido el remito${extra?.numero ? ` ${extra.numero}` : ""}.${a.avisos.length ? ` Ojo: ${a.avisos.join("; ").toLowerCase()}.` : ""}`;
     case "cargar_compra": return `Recibida la compra${extra?.numero ? ` ${extra.numero}` : ""}. Cuando llegue el remito y la factura se cruzan solos.`;
-    case "comprobante_pago": return "Recibido el comprobante de pago.";
+    case "comprobante_pago": return `Recibido el comprobante de pago${extra?.numero ? ` de la ${extra.numero}` : ""}.`;
     case "duplicado": return `Ya lo teníamos: ${a.motivo}.`;
     case "repetido": return "Ese archivo ya lo habías mandado.";
     case "revisar": return `Lo recibimos, pero hay que revisarlo a mano: ${a.motivo}.`;

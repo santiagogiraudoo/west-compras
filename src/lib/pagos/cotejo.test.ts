@@ -46,3 +46,23 @@ describe("cotejarComprobante: monto escrito a la argentina", () => {
     expect(cotejarComprobante(lectura({ monto: "1.000,00", cuenta_destino: null }), esperado)[0].ok).toBe(true);
   });
 });
+
+import { elegirOPDelPago, type OPAPagar } from "./cotejo";
+
+describe("elegirOPDelPago: a qué OP autorizada va un comprobante", () => {
+  const op = (o: Partial<OPAPagar> = {}): OPAPagar => ({ numero: "OP-1", proveedor: "PR-1", total: "1000.40", cbu: "0150807702000105477080", alias: "ROSA.TAPA.TEATRO", ...o });
+  const otra = op({ numero: "OP-2", proveedor: "PR-2", total: "5000", cbu: "0000003100099999999999", alias: null });
+  it("monto y cuenta de una sola OP: exacto, se registra solo", () => {
+    expect(elegirOPDelPago(lectura(), [op(), otra])).toEqual({ tipo: "exacto", op: op() });
+  });
+  it("misma cuenta y otro monto: sugerida (retenciones)", () => {
+    expect(elegirOPDelPago(lectura({ monto: "950.00" }), [op(), otra])).toMatchObject({ tipo: "sugerida", op: { numero: "OP-1" } });
+  });
+  it("mismo monto sin cuenta leída: sugerida", () => {
+    expect(elegirOPDelPago(lectura({ cuenta_destino: null }), [op(), otra])).toMatchObject({ tipo: "sugerida", op: { numero: "OP-1" } });
+  });
+  it("nunca adivina entre dos iguales, ni con la cuenta de otro", () => {
+    expect(elegirOPDelPago(lectura(), [op(), op({ numero: "OP-3" })]).tipo).toBe("ninguna");
+    expect(elegirOPDelPago(lectura({ cuenta_destino: "9999999999999999999999" }), [op()]).tipo).toBe("ninguna");
+  });
+});

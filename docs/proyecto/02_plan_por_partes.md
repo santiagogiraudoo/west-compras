@@ -62,6 +62,15 @@ Ciclo de la OP armada en la app: **En armado → A aprobar → Autorizada → Pa
 10. **Factura con ítems de varias unidades**: el renglón es (factura, unidad); `app.v_op_renglones` reparte lo imputado en proporción a los ítems y cada parte la aprueba quien aprueba su unidad (`sql/011`).
 11. **Cruce factura ↔ remito**: tolerancia cero (menos de $1) contra el total o el neto. Solo cuentan remitos firmados (estado ok; "falta" es sin firmar).
 12. **Gastos** (`/gastos`, `sql/012`): cada renglón pagado es un gasto de su unidad y, si la unidad es una propiedad o grupo de la app de alquileres, de esa propiedad (`app.unidades_destino`; Nevado Golf mitad y mitad, Olascoaga 23/77). Lo deriva `app.v_gastos`; no se guarda nada.
+13. **Más simple que ClickUp (19/11):**
+    - **Aprobar todo lo que está en verde**: un botón firma todos los renglones de quien entra que
+      cruzan compra, remito y factura, con PDF y sin suba de precio, en OP sin frenos. Lo demás,
+      tarjeta por tarjeta (`enVerde`, con tests).
+    - **Pagar con los comprobantes**: en Pagar se sueltan una o varias transferencias; cada una va
+      al Buzón, se lee y busca su OP autorizada. Si coincide exacto (monto = total y cuenta del
+      proveedor) el pago queda registrado solo; si no, dice a qué OP parece (por ejemplo, hubo
+      retenciones) y se registra en su tarjeta (`elegirOPDelPago`, con tests).
+    - **Por consecuencia**: un comprobante de pago que llega por WhatsApp o al Buzón hace lo mismo.
 
 Falta (espera respuestas):
 - **Montos de los topes**: los carga Santiago en Configuración. Hasta entonces todo renglón pide firma.

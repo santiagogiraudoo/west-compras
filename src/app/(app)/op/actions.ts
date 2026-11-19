@@ -5,19 +5,21 @@ import { headers } from "next/headers";
 import Decimal from "decimal.js";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { hoyArgentina, listarAbiertos } from "@/lib/cuenta/queries";
+import { listarAbiertos } from "@/lib/cuenta/queries";
 import { importeElegido, validarSeleccionOP } from "@/lib/cuenta/calculos";
 import { faltantesProveedor } from "@/lib/facturas/requisitos";
 import { problemaConstancia } from "@/lib/op/constancias";
 import { leerComprobante, type ResultadoLectura } from "@/lib/pagos/leer-comprobante";
-import { calcularPago, RETENCIONES, type DatosPago } from "@/lib/op/pago";
+import { RETENCIONES, type DatosPago } from "@/lib/op/pago";
 import { aDecidir, aQuitar, aResolver, noCruzaRenglon, SE_DECIDE, SE_DESCARTA, SE_QUITA, SE_SACA, type Decision } from "@/lib/op/estados";
 import { DIAS_MISMA_COMPRA, evaluarTope, previosEnOP } from "@/lib/op/topes";
 import { dolarBlue } from "@/lib/dolar";
 import { estadoOP, facturasDeOP, listarOPsApp } from "@/lib/op/queries";
 import { problemasOP } from "@/lib/op/controles";
 
-import { mensajeBase } from "@/lib/errores-base";
+import { cargarPagos, pagoDesdeEntrada, Rechazo, registrarPago } from "@/lib/op/registrar-pago";
+import { enVerde } from "@/lib/op/aprobar";
+import { registrarEntrada } from "@/lib/entrada/procesar";
 
 export interface ResultadoOP {
   ok: boolean;
@@ -25,23 +27,6 @@ export interface ResultadoOP {
   numero?: string;
 }
 
-interface ResultadoCarga {
-  ordenes: number;
-  imputaciones: number;
-  corregidas: number;
-  duplicadas: number;
-  errores: { error: string }[];
-}
-
-class Rechazo extends Error {}
-
-/** Las OP de la app escriben en cc solo con cc.cargar_pagos; un error deshace todo. */
-async function cargarPagos(tx: Pick<typeof prisma, "$queryRaw">, carga: object): Promise<ResultadoCarga> {
-  const [{ r }] = await tx.$queryRaw<{ r: ResultadoCarga }[]>`
-    select cc.cargar_pagos(${JSON.stringify(carga)}::jsonb, 'app') as r`;
-  if (r.errores?.length) throw new Rechazo(r.errores.map((e) => mensajeBase(e.error)).join(" · "));
-  return r;
-}
 
 /**
  * Dentro de la transacción y con la OP bloqueada: la última decisión de cada renglón
@@ -459,58 +444,71 @@ export async function pagarOP(numero: string, form: FormData): Promise<Resultado
   if (subido && subido.size > MAX_COMPROBANTE) return { ok: false, mensaje: "El comprobante pesa más de 5 MB." };
   // Una compensación (NC contra facturas) no mueve plata: no hay comprobante de pago.
   if (!subido && !datos.comprobante.trim() && datos.medio !== "Compensacion") return { ok: false, mensaje: "Subí el comprobante o pegá su link." };
+  const comprobante = subido && bytes
+    ? { archivo: { nombre: subido.name, tipo: subido.type, bytes }, link: `${await baseUrl()}/op/${numero}/comprobante` }
+    : datos.comprobante.trim() ? { link: datos.comprobante.trim() } : null;
+  const r = await registrarPago(numero, datos, comprobante, u.name);
+  if (r.ok) revalidar();
+  return r;
+}
 
-  const [op] = (await listarOPsApp(["Autorizada"])).filter((o) => o.numero === numero);
-  if (!op) return { ok: false, mensaje: "La OP no está autorizada para pagar." };
-  const faltan = faltantesProveedor(op);
-  if (faltan.length) return { ok: false, mensaje: `Antes de pagar completá el alta: falta ${faltan.join(", ")}` };
-
-  const p = calcularPago(op.total_imputado, datos, hoyArgentina());
-  if (p.errores.length) return { ok: false, mensaje: p.errores.join(" · ") };
-
-  const fila: Record<string, string> = {
-    "N° OP": numero, Estado: "Pagada", "Fecha salida de caja": datos.fecha, "Medio de pago": datos.medio, "Neto a transferir": p.neto,
-    "Comprobante (link)": subido ? `${await baseUrl()}/op/${numero}/comprobante` : datos.comprobante.trim(),
-  };
-  for (const r of RETENCIONES) fila[r.campo] = p.retenciones[r.clave];
-  if (datos.referencia.trim()) fila["Referencia bancaria"] = datos.referencia.trim();
-  // Las imputaciones van de nuevo, iguales: cargar_pagos las cuenta como ya cargadas.
-  // Una factura partida en renglones por unidad es una sola imputación: se suman sus partes.
-  const porFactura = new Map<string, Decimal>();
-  for (const l of op.lineas) porFactura.set(l.numero, (porFactura.get(l.numero) ?? new Decimal(0)).plus(l.importe));
-  const imputaciones = [...porFactura].map(([factura, importe]) => ({
-    "N° OP": numero, "Comprobante (clave)": `${op.proveedor_codigo}|${factura}`, "Importe imputado": importe.toFixed(2),
-  }));
-
-  try {
-    await prisma.$transaction(async (tx) => {
-      // Si dos personas pagan la misma OP a la vez, la segunda espera acá y la encuentra Pagada.
-      await tx.$queryRaw`select numero from cc.ordenes_pago where numero = ${numero} for update`;
-      const [e] = await tx.$queryRaw<{ estado: string }[]>`select estado from app.v_op_estado where op_numero = ${numero}`;
-      if (e?.estado !== "Autorizada") throw new Rechazo(`la OP está ${e?.estado ?? "sin estado"}, no Autorizada`);
-      // Lo que pudo cambiar desde que se aprobó: factura anulada, la misma en ClickUp, imputada de más.
-      const frena = problemasOP(await facturasDeOP(tx, numero));
-      if (frena.length) throw new Rechazo(frena.join(" · "));
-      // El pago se armó con lo leído antes del bloqueo: si mientras tanto sacaron una
-      // factura, el total ya no es el mismo y el neto no cuadraría.
-      const [ahora] = await tx.$queryRaw<{ total: string }[]>`select total_imputado::text as total from cc.ordenes_pago where numero = ${numero}`;
-      if (!ahora || new Decimal(ahora.total).minus(op.total_imputado).abs().gt(0.005)) {
-        throw new Rechazo("la OP cambió mientras la pagabas (otro sacó o agregó una factura): recargá y volvé a registrar el pago");
-      }
-      if (subido && bytes) {
-        await tx.$executeRaw`
-          insert into app.comprobantes_pago (op_numero, nombre, tipo, archivo, subido_por)
-          values (${numero}, ${subido.name}, ${subido.type}, ${bytes}, ${u.name})`;
-      }
-      const r = await cargarPagos(tx, { ordenes: [fila], imputaciones });
-      if (r.ordenes !== 1) throw new Rechazo("La base no grabó el pago.");
-    });
-  } catch (e) {
-    if (e instanceof Rechazo) return { ok: false, mensaje: `La base lo rechazó: ${e.message}` };
-    throw e;
+/**
+ * Pagar con los comprobantes (fase 3, más simple que ClickUp): se suben uno o varios y cada uno
+ * va al buzón, se lee y busca su OP autorizada; si coincide exacto (monto y cuenta), el pago se
+ * registra solo. Si no, queda sugerido para registrarlo a mano.
+ */
+export async function pagarConComprobantes(form: FormData): Promise<{ ok: boolean; mensaje: string; resultados: { archivo: string; mensaje: string; pagada: boolean }[] }> {
+  const u = await usuario();
+  if (!u || u.role === "consulta") return { ok: false, mensaje: "No tenés permiso para registrar pagos.", resultados: [] };
+  const archivos = form.getAll("archivos").filter((f): f is File => f instanceof File && f.size > 0).slice(0, 20);
+  if (!archivos.length) return { ok: false, mensaje: "Elegí los comprobantes.", resultados: [] };
+  const resultados: { archivo: string; mensaje: string; pagada: boolean }[] = [];
+  for (const f of archivos) {
+    const reg = await registrarEntrada({ canal: "app", nombre: f.name, tipo: f.type, bytes: Buffer.from(await f.arrayBuffer()), remitente: u.name, remitenteNombre: u.name });
+    if (!reg.ok) { resultados.push({ archivo: f.name, mensaje: reg.mensaje, pagada: false }); continue; }
+    if (!reg.nuevo) { resultados.push({ archivo: f.name, mensaje: "ese comprobante ya se había subido", pagada: false }); continue; }
+    const r = await pagoDesdeEntrada(reg.id, u.name);
+    resultados.push({ archivo: f.name, mensaje: r.mensaje, pagada: r.tipo === "pagada" });
   }
   revalidar();
-  return { ok: true, mensaje: `${numero} pagada` };
+  revalidatePath("/entrada");
+  const n = resultados.filter((r) => r.pagada).length;
+  return { ok: n > 0, mensaje: `${n} de ${resultados.length} pago${resultados.length > 1 ? "s" : ""} registrado${n === 1 ? "" : "s"} solo${n === 1 ? "" : "s"}`, resultados };
+}
+
+/**
+ * Aprobar todo lo que está en verde (fase 3): los renglones de quien entra, sin decidir, en OP a
+ * aprobar sin frenos, que cruzan compra, remito y factura, con PDF y sin suba de precio. Cada OP
+ * con su bloqueo y mirando de nuevo que nadie haya decidido mientras tanto.
+ */
+export async function aprobarEnVerde(): Promise<ResultadoOP> {
+  const u = await usuario();
+  if (!u || u.role === "consulta") return { ok: false, mensaje: "No tenés permiso para aprobar." };
+  const ops = await listarOPsApp(SE_DECIDE);
+  const frenos = Object.fromEntries(await Promise.all(ops.map(async (o) => [o.numero, problemasOP(await facturasDeOP(prisma, o.numero))] as const)));
+  const verdes = enVerde(ops, u, frenos);
+  if (!verdes.length) return { ok: false, mensaje: "No tenés nada en verde para aprobar." };
+  let n = 0;
+  const fallas: string[] = [];
+  for (const { op, lineas } of verdes) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        await bloquearOP(tx, op.numero, ["A aprobar"]);
+        await mismasDecisiones(tx, op.numero, lineas);
+        for (const l of lineas) {
+          await tx.$executeRaw`
+            insert into app.aprobaciones_op (op_numero, comprobante_id, unidad_codigo, decision, motivo, usuario_id, usuario)
+            values (${op.numero}, ${BigInt(l.id)}, ${l.unidad}, 'Aprobada', 'En verde: cruzan compra, remito y factura', ${u.id}, ${u.name})`;
+        }
+      });
+      n += lineas.length;
+    } catch (e) {
+      if (!(e instanceof Rechazo)) throw e;
+      fallas.push(`${op.numero}: ${e.message}`);
+    }
+  }
+  revalidar();
+  return { ok: n > 0, mensaje: `${n} renglón${n === 1 ? "" : "es"} aprobado${n === 1 ? "" : "s"}${fallas.length ? `; no se pudo: ${fallas.join(" · ")}` : ""}` };
 }
 
 /**

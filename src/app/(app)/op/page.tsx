@@ -10,6 +10,8 @@ import { Copiar } from "@/components/shared/Copiar";
 import { FichaCard, FichaLabel } from "@/components/properties/FichaCard";
 import { TarjetaOP } from "@/components/op/TarjetaOP";
 import { PagarOP } from "@/components/op/PagarOP";
+import { AprobarEnVerde, PagarConComprobantes } from "@/components/op/AccionesRapidas";
+import { enVerde } from "@/lib/op/aprobar";
 import { PasosOP, type Paso, type PasoInfo } from "@/components/op/flujo/PasosOP";
 import { Seccion, TablaCerradas, TablaEnArmado, Vacio } from "@/components/op/flujo/TablaOP";
 import { formatDate } from "@/lib/utils";
@@ -114,6 +116,7 @@ export default async function OPPage({ searchParams }: { searchParams: Promise<{
           total={suma(autorizadas.map((o) => o.total_imputado))}>
           {autorizadas.length === 0 ? <Vacio>No hay OP autorizadas para pagar.</Vacio> : (
             <div className="space-y-4">
+              {edita && <PagarConComprobantes />}
               {autorizadas.map((o) => <TarjetaPago key={o.numero} o={o} hoy={hoy} paga={edita} problemas={frenos[o.numero] ?? []} />)}
             </div>
           )}
@@ -238,8 +241,11 @@ async function PasoAprobar({ ops, usuario, hoy, frenos }: {
   ));
 
   if (ops.length === 0) return <Vacio>No hay OP esperando aprobación.</Vacio>;
+  const verdes = usuario.role === "consulta" ? [] : enVerde(ops, usuario, frenos);
+  const totalVerde = verdes.flatMap((v) => v.lineas).reduce((t, l) => t.plus(l.importe), new Decimal(0)).toFixed(2);
   return (
     <div className="space-y-6">
+      <AprobarEnVerde renglones={verdes.reduce((n, v) => n + v.lineas.length, 0)} ops={verdes.length} total={totalVerde} />
       <p className="text-sm text-muted-foreground">
         Cada factura la aprueba quien aprueba su unidad. Podés aprobar u observar una sola; una observada frena toda la OP.
       </p>
